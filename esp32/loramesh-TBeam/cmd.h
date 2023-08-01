@@ -3,6 +3,40 @@
 // tinySSB for ESP32
 // Aug 2022 <christian.tschudin@unibas.ch>
 
+// --------------------------------------------------------------------------
+
+void listDir(fs::FS &fs, const char *dirname, uint8_t levels)
+{
+  Serial.printf("Listing directory: %s\r\n", dirname);
+
+  File root = fs.open(dirname);
+  if (!root) {
+    Serial.println("- failed to open directory");
+    return;
+  }
+  if (!root.isDirectory()) {
+    Serial.println(" - not a directory");
+    return;
+  }
+
+  File file = root.openNextFile();
+  int  cnt = 0;
+  while (file) {
+    cnt++;
+    if (file.isDirectory()) {
+      Serial.printf("  DIR : %s\r\n", file.name());
+      if (levels)
+        listDir(fs, file.path(), levels -1);
+    } else
+      Serial.printf("  FILE: %s\tSIZE: %d\r\n", file.name(), file.size());
+    file = root.openNextFile();
+  }
+  if (cnt == 0)
+    Serial.printf("  EMPTY\r\n");
+}
+
+// --------------------------------------------------------------------------
+
 void cmd_rx(String cmd) {
   cmd.toLowerCase();
   cmd.trim();
@@ -17,6 +51,7 @@ void cmd_rx(String cmd) {
       Serial.println("  d        dump DMXT and CHKT");
       Serial.println("  f        list file system");
       Serial.println("  g        dump GOset");
+      Serial.println("  i        pretty print the confIg values");
       Serial.println("  k+<key>  add new key (globally)");
       Serial.println("  k-<key>  remove key (globally)");
 #if defined(LORA_LOG)
@@ -100,7 +135,7 @@ void cmd_rx(String cmd) {
     case 'f': // Directory dump
       Serial.printf("File system: %d total bytes, %d used\r\n",
                     MyFS.totalBytes(), MyFS.usedBytes());
-      listDir(MyFS, FEED_DIR, 2);
+      listDir(MyFS, "/", 2); // FEED_DIR, 2);
       break;
     case 'g': // GOset dump
       Serial.printf("GOset: %d entries\r\n", theGOset->goset_len);
@@ -108,6 +143,12 @@ void cmd_rx(String cmd) {
         Serial.printf("%2d %s\r\n", i,
                       to_hex(theGOset->get_key(i), GOSET_KEY_LEN, 0));
       break;
+    case 'i': { // config values
+      // FIXME: we should not print the mgmt signing key to the console ?
+      String s = bipf2String(the_config, "\r\n", 0);
+      Serial.printf("Configuration values:\r\n%s\r\n", s.c_str());
+      break;
+    }
     case 'k': { // allow/deny key
       if (cmd.length() != 2 * GOSET_KEY_LEN + 2) { Serial.printf("invalid key length\r\n"); break; }
       if (!(cmd[1] == '+' or cmd[1] == '-')) { Serial.printf("invalid command: %s\r\n", cmd[1]); break; }
@@ -121,16 +162,16 @@ void cmd_rx(String cmd) {
 #if defined(LORA_LOG)
   case 'l': // list Log file
       lora_log.close();
-      lora_log = MyFS.open("/lora_log.txt", FILE_READ);
+      lora_log = MyFS.open(LORA_LOG_FILENAME, FILE_READ);
       while (lora_log.available()) {
         Serial.write(lora_log.read());
       }
       lora_log.close();
-      lora_log = MyFS.open("/lora_log.txt", FILE_APPEND);
+      lora_log = MyFS.open(LORA_LOG_FILENAME, FILE_APPEND);
       break;
   case 'm': // empty Log file
       lora_log.close();
-      lora_log = MyFS.open("/lora_log.txt", FILE_WRITE);
+      lora_log = MyFS.open(LORA_LOG_FILENAME, FILE_WRITE);
       break;
 #endif
     case 'r': // reset
@@ -174,6 +215,8 @@ void cmd_rx(String cmd) {
         Serial.printf("sending reboot request to %s\r\n", to_hex(id, MGMT_ID_LEN, 0));
         mgmt_send_request('x', id);
       } else {
+        lora_log.printf(">> reboot cmd\n");
+        lora_log.close();
         Serial.println("rebooting ...\n");
         esp_restart();
       }

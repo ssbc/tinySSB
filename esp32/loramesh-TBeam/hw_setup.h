@@ -34,7 +34,6 @@ TinyGPSPlus gps;
 HardwareSerial GPS(1);
 #endif
 
-Button2 userButton;
 unsigned char my_mac[6];
 
 // -------------------------------------------------------------------
@@ -49,26 +48,20 @@ unsigned char my_mac[6];
 
 // -------------------------------------------------------------------
 
-static unsigned char OLED_state = HIGH;
-
-void OLED_toggle() {
-  OLED_state = OLED_state ? LOW : HIGH;
-#if !defined(NO_OLED)
-  if (OLED_state == LOW) theDisplay.displayOff();
-  else                   theDisplay.displayOn();
-#endif
-}
-
-void pressed(Button2& btn) {
-  // Serial.println("pressed");
-  OLED_toggle();
-}
-
-// -------------------------------------------------------------------
-
 
 void hw_setup() // T-BEAM or Heltec LoRa32v2
 {
+  // Serial.begin(BAUD_RATE);
+
+  Serial.println("\n** Starting Scuttlebutt vPub (LoRa, WiFi, BLE) with GOset **\n");
+
+  // -------------------------------------------------------------------
+  if (!MyFS.begin(true)) { // FORMAT_SPIFFS_IF_FAILED)){
+    Serial.println("LittleFS Mount Failed, partition was reformatted");
+    // return;
+  }
+  // MyFS.format(); // uncomment and run once after a change in partition size
+
   the_config = config_load();
   the_lora_config = lora_configs;
   struct bipf_s k = { BIPF_STRING, 9, {.str = "lora_plan"} };
@@ -81,8 +74,6 @@ void hw_setup() // T-BEAM or Heltec LoRa32v2
       }
   }
   
-  // Serial.begin(BAUD_RATE);
-
 #if defined(WIFI_LoRa_32_V2) || defined(WIFI_LORA_32_V2)
   Heltec.begin(true /*DisplayEnable Enable*/,
                true /*Heltec.Heltec.Heltec.LoRa Disable*/,
@@ -158,23 +149,10 @@ void hw_setup() // T-BEAM or Heltec LoRa32v2
   LoRa.receive();
 #endif
 
-  // pinMode(BUTTON_PIN, INPUT);
-  userButton.begin(BUTTON_PIN);
-  userButton.setPressedHandler(pressed);
-
-  Serial.println("\n** Starting Scuttlebutt vPub (LoRa, WiFi, BLE) with GOset **\n");
 #if !defined(NO_OLED)
-  theDisplay.clear();
+  theDisplay.clear();  // erase silly screen msg from inside the library ...
   theDisplay.display();
 #endif
-
-
-  // -------------------------------------------------------------------
-  if (!MyFS.begin(true)) { // FORMAT_SPIFFS_IF_FAILED)){
-    Serial.println("LittleFS Mount Failed, partition was reformatted");
-    // return;
-  }
-  // MyFS.format(); // uncomment and run once after a change in partition size
 
   // -------------------------------------------------------------------
 
@@ -213,34 +191,6 @@ void hw_setup() // T-BEAM or Heltec LoRa32v2
 #endif
 
   Serial.println();
-}
-
-// --------------------------------------------------------------------------
-
-void listDir(fs::FS &fs, const char *dirname, uint8_t levels)
-{
-  Serial.printf("Listing directory: %s\r\n", dirname);
-
-  File root = fs.open(dirname);
-  if (!root) {
-    Serial.println("- failed to open directory");
-    return;
-  }
-  if (!root.isDirectory()) {
-    Serial.println(" - not a directory");
-    return;
-  }
-
-  File file = root.openNextFile();
-  while (file) {
-    if (file.isDirectory()) {
-      Serial.printf("  DIR : %s\r\n", file.name());
-      if (levels)
-        listDir(fs, file.path(), levels -1);
-    } else
-      Serial.printf("  FILE: %s\tSIZE: %d\r\n", file.name(), file.size());
-    file = root.openNextFile();
-  }
 }
 
 // eof

@@ -59,7 +59,7 @@ unsigned char* bipf_dumps(struct bipf_s *bptr, int *len);
 struct bipf_s* bipf_loads(unsigned char *buf, int len);
 
 struct bipf_s* str2bipf(char *s); // return static bipf_s for s
-struct String bipf2String(struct bipf_s *bptr);
+struct String bipf2String(struct bipf_s *bptr, char *nl=NULL, int lev=0);
 
 #endif // _INCLUDE_BIPF_H
 

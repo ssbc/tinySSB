@@ -495,16 +495,29 @@ struct bipf_s* str2bipf(char *s) // returns addr of a static (!) BIPF obj
   return &e;
 }
 
-String bipf2String(struct bipf_s *bptr)
+String bipf2String(struct bipf_s *bptr, char *nl, int lev)
 {
-  String v;
+  String v, indent, r = nl;
   struct bipf_s **pp;
+
+  indent = "";
+  if (nl)
+    for (int i = 0; i < lev; i++)
+      indent += "  ";
+  else
+    r = "";
 
   switch (bptr->typ) {
     case BIPF_BYTES:
-      return "0x...";
-    case BIPF_STRING:
-      return "\"" + String(bptr->u.str) + "\"";
+      return "#" + String(to_hex(bptr->u.buf, bptr->cnt));
+    case BIPF_STRING: {
+      char *c_str = (char*) malloc(bptr->cnt+1);
+      memcpy(c_str, bptr->u.str, bptr->cnt);
+      c_str[bptr->cnt] = '\0';
+      String s(c_str);
+      free(c_str);
+      return "\"" + s + "\"";
+    }
     case BIPF_BOOLNONE:
       if  (bptr->u.i < 0)
         return "none";
@@ -516,24 +529,28 @@ String bipf2String(struct bipf_s *bptr)
     case BIPF_INT:
       return String(bptr->u.i);
     case BIPF_LIST:
-      v = "[";
+      if (bptr->cnt == 0)
+        return "[]";
+      v = "[" + r;
       pp = bptr->u.list;
       for (int i = 0; i < bptr->cnt; i++) {
-        if (v.length() != 1)
-          v += ",";
-        v += bipf2String(*pp++);
+        if (i > 0)
+          v += "," + r;
+        v += indent + bipf2String(*pp++, nl, lev+1);
       }
-      return v + "]";
+      return v + r + indent + "]";
     case BIPF_DICT:
-      v = "{";
+      if (bptr->cnt == 0)
+        return "{}";
+      v = "{" + r;
       pp = bptr->u.dict;
       for (int i = 0; i < bptr->cnt; i++) {
-        if (v.length() != 1)
-          v += ",";
-        v += bipf2String(*pp++) + ":";
-        v += bipf2String(*pp++);
+        if (i > 0)
+          v += "," + r;
+        v += indent + bipf2String(*pp++, nl, lev+1) + (nl ? ": " : ":");
+        v += bipf2String(*pp++, nl, lev+1);
       }
-      return v + "}";
+      return v + r + indent + "}";
     default:
       // Serial.println("can't render typ=" + String(bptr->typ));
       break;
