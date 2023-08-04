@@ -116,7 +116,7 @@ extern short lora_configs_size;
 //   "lora_plan": "US915", // i.e., the lora config is specified by plan name
 // }
 
-#define CONFIG_FILENAME "config.bipf"
+#define CONFIG_FILENAME "/config.bipf"
 
 struct bipf_s* config_load(); // returns a BIPF dict with the persisted config dict
 void           config_save(struct bipf_s *dict); // persist the BIPF dict
