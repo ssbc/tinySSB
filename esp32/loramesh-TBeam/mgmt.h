@@ -158,7 +158,7 @@ unsigned char* _mkStatus()
   status.state.beacon = mgmt_beacon;
   status.state.voltage = 0;
 #if defined(AXP_DEBUG)
-  status.state.voltage = axp.getBattVoltage()/1000;
+  status.state.voltage = getBattVoltage();
 #endif
   status.state.feeds = repo->rplca_cnt;
   status.state.entries = repo->entry_cnt;
@@ -190,6 +190,14 @@ unsigned char* _mkStatus()
   }
 
   return (unsigned char*) &status;
+}
+
+float getBattVoltage() {
+#ifdef TBEAM_07
+  return analogRead(35) * 0.85 * (2.0 / 1024.0); // 0.85 is voltage divider ratio measured
+#else
+  return axp.getBattVoltage()/1000;
+#endif
 }
 
 // fill buffer with key packet
