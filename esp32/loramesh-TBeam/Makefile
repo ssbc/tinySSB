@@ -17,7 +17,7 @@ ESPTOOL=/Users/tschudin/Library/Arduino15/packages/esp32/tools/esptool_py/4.5.1/
 BOOTAPP0PATH=/Users/tschudin/Library/Arduino15/packages/esp32/hardware/esp32/2.0.9/tools/partitions/boot_app0.bin
 
 # name of the ino file:
-MAIN=loramesh-TBEAM.ino
+MAIN=loramesh-TBeam.ino
 
 ifeq ($(BOARD),heltec)
   FQBN=esp32:esp32:heltec_wifi_lora_32_V2
@@ -34,8 +34,13 @@ ifndef SERIAL
   ifeq ($(BOARD),heltec) # heltec LORA32
     SERIAL = $(shell ls /dev/tty.usbserial-*)
   else # T-Beam
-    SERIAL = $(shell ls /dev/tty.wchusbserial*)
+    #SERIAL = $(shell ls /dev/tty.wchusbserial*)	
+    SERIAL= (shell ls -1t /dev/tty*|head -n1)
   endif
+endif
+
+ifdef FLAGS                         #use for sending an extra #def flag, such as TBEAM_07
+  EXTRA_FLAGS=,compiler.cpp.extra_flag=-D$(FLAGS)
 endif
 
 # ----------------------------------------------------------------------
@@ -49,7 +54,7 @@ compile:
 	rm -f partitions.csv
 	ln -s $(PARTITIONS_CSV) partitions.csv
 	$(BINDIR)/arduino-cli compile -v --fqbn $(FQBN) $(MAIN) \
-		--build-properties build.partitions=partitions.csv,upload.maximum_size=1572864
+		--build-properties build.partitions=partitions.csv,upload.maximum_size=1572864$(EXTRA_FLAGS)
 
 upload:
 	$(foreach var,$(SERIAL), $(BINDIR)/arduino-cli upload -v --fqbn $(FQBN) -p $(var) .;)

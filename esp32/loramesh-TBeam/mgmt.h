@@ -133,6 +133,13 @@ void mgmt_send_status();
 void mgmt_send_beacon();
 
 
+float getBattVoltage() {
+#ifdef TBEAM_07
+  return analogRead(35) * 0.85 * (2.0 / 1024.0); // 0.85 is voltage divider ratio measured
+#else
+  return axp.getBattVoltage()/1000;
+#endif
+}
 
 //------------------------------------------------------------------------------
 // CREATE PAYLOADS
@@ -192,13 +199,6 @@ unsigned char* _mkStatus()
   return (unsigned char*) &status;
 }
 
-float getBattVoltage() {
-#ifdef TBEAM_07
-  return analogRead(35) * 0.85 * (2.0 / 1024.0); // 0.85 is voltage divider ratio measured
-#else
-  return axp.getBattVoltage()/1000;
-#endif
-}
 
 // fill buffer with key packet
 unsigned char* _mkKey(bool op, unsigned char* key)
