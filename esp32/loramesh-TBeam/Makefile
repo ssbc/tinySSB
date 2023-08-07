@@ -33,14 +33,13 @@ endif
 ifndef SERIAL
   ifeq ($(BOARD),heltec) # heltec LORA32
     SERIAL = $(shell ls /dev/tty.usbserial-*)
-  else # T-Beam
-    #SERIAL = $(shell ls /dev/tty.wchusbserial*)	
-    SERIAL= (shell ls -1t /dev/tty*|head -n1)
+  else # T-Beam	
+    SERIAL= $(shell ls /dev/tty* | grep 'ACM\|USB\|wchusb')
   endif
 endif
 
-ifdef FLAGS                         #use for sending an extra #def flag, such as TBEAM_07
-  EXTRA_FLAGS=,compiler.cpp.extra_flag=-D$(FLAGS)
+ifdef FLAG                 #use for sending an extra #def flag to be appended to files, such as FLAG=TBEAM_07
+  EXTRA_FLAG=,compiler.cpp.extra_flag=-D$(FLAG)
 endif
 
 # ----------------------------------------------------------------------
@@ -54,7 +53,7 @@ compile:
 	rm -f partitions.csv
 	ln -s $(PARTITIONS_CSV) partitions.csv
 	$(BINDIR)/arduino-cli compile -v --fqbn $(FQBN) $(MAIN) \
-		--build-properties build.partitions=partitions.csv,upload.maximum_size=1572864$(EXTRA_FLAGS)
+		--build-properties build.partitions=partitions.csv,upload.maximum_size=1572864$(EXTRA_FLAG)
 
 upload:
 	$(foreach var,$(SERIAL), $(BINDIR)/arduino-cli upload -v --fqbn $(FQBN) -p $(var) .;)
