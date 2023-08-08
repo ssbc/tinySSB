@@ -212,7 +212,7 @@ void setup()
 #if defined(AXP_DEBUG)
   unsigned long int m = millis();
   lora_log.printf("t=%d.%03d battery=%.04gV\n", m/1000, m%1000,
-                                                axp.getBattVoltage()/1000);
+                                                getBattVoltage());
   next_log_battery = m + LOG_BATTERY_INTERVAL;
 #endif
   lora_log.printf("millis,batt,utc,mac,lat,lon,ele,plen,prssi,psnr,pfe,rssi\n");
@@ -431,7 +431,7 @@ void do_io()
     unsigned long int now = millis();
     lora_log.printf("t=%d.%03d ", now/1000, now%1000);
 # if defined(AXP_DEBUG)
-    lora_log.printf("battery=%.04gV ", axp.getBattVoltage()/1000);
+    lora_log.printf("battery=%.04gV ", getBattVoltage());
 # endif
     lora_log.printf("|dmxt|=%d |blbt|=%d |feeds|=%d |entries|=%d |chunks|=%d |freeHeap|=%dXX\r\n",
                 dmx->dmxt_cnt, dmx->blbt_cnt, repo->rplca_cnt, repo->entry_cnt, repo->chunk_cnt, ESP.getFreeHeap());
@@ -498,7 +498,7 @@ void do_io()
     sprintf(stat_line + strlen(stat_line)-1, "%d", lora_cnt);
 #else
     sprintf(stat_line + strlen(stat_line)-1, "%d, batt:%.04g",
-            lora_cnt, axp.getBattVoltage()/1000);
+            lora_cnt, getBattVoltage());
 #endif
     ble_send_stats((unsigned char*) stat_line, strlen(stat_line));
 #endif

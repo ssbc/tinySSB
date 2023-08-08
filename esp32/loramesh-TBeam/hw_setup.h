@@ -10,6 +10,11 @@
 
 #include "config.h"
 
+#ifdef TBEAM_07
+  #define GPS_TX 12
+  #define GPS_RX 15
+#endif
+
 #if !defined(NO_WIFI)
   WiFiUDP udp;
 #endif
@@ -138,6 +143,10 @@ void hw_setup() // T-BEAM or Heltec LoRa32v2
     Serial.println("AXP192 Begin FAIL");
   }
 #endif // T-Beam
+
+#if defined(TBEAM_07)
+  GPS.begin(9600, SERIAL_8N1, GPS_TX, GPS_RX); 
+#endif
 
 #if defined(HAS_LORA)
   LoRa.setSignalBandwidth(the_lora_config->bw);
