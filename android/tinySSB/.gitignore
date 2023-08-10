@@ -1,0 +1,6 @@
+# AndroidStudio
+.idea
+.gradle
+
+# emacs backup files
+*~
