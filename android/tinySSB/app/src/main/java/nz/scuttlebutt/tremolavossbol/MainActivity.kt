@@ -23,7 +23,6 @@ import com.google.zxing.integration.android.IntentIntegrator
 import nz.scuttlebutt.tremolavossbol.crypto.IdStore
 import nz.scuttlebutt.tremolavossbol.tssb.ble.BlePeers
 import nz.scuttlebutt.tremolavossbol.tssb.*
-import nz.scuttlebutt.tremolavossbol.tssb.ble.BlePeersBroadcast
 import nz.scuttlebutt.tremolavossbol.tssb.ble.BluetoothEventListener
 import nz.scuttlebutt.tremolavossbol.utils.Constants
 import tremolavossbol.R
@@ -49,7 +48,6 @@ class MainActivity : Activity() {
     @Volatile var mc_socket: MulticastSocket? = null
     var ble: BlePeers? = null
     var websocket: WebsocketIO? =null
-    //var ble: BlePeersBroadcast? = null
     val ioLock = ReentrantLock()
     var broadcastReceiver: BroadcastReceiver? = null
     var isWifiConnected = false
@@ -298,10 +296,7 @@ class MainActivity : Activity() {
             tremolaState.wai.eval("b2f_new_voice('${voice}')")
         */
         }  else if (requestCode == 555 && resultCode == RESULT_OK) { // enable fine grained location
-            ble!!.startBluetooth()
-
-
-
+            ble?.startBluetooth()
         }
 
         super.onActivityResult(requestCode, resultCode, data)
@@ -317,23 +312,21 @@ class MainActivity : Activity() {
         } catch (e: Exception) {}
         */
 
-        ble = BlePeers(this)
-        ble!!.startBluetooth()
+        try {
+            ble = BlePeers(this)
+            ble?.startBluetooth()
+        } catch (e: Exception) {
+            ble = null
+        }
 
         websocket = WebsocketIO(this, settings!!.getWebsocketUrl())
         websocket!!.start()
-        //ble = BlePeersBroadcast(this)
-        //ble!!.checkPermissions(true)
-        //ble!!.scan()
-
     }
 
     override fun onPause() {
         Log.d("onPause", "")
         super.onPause()
-        if (ble != null) {
-            ble!!.stopBluetooth()
-        }
+        ble?.stopBluetooth()
 
         if (websocket != null)
             websocket!!.stop()
@@ -362,9 +355,7 @@ class MainActivity : Activity() {
         server_socket = null
         */
         super.onDestroy()
-        if (ble != null) {
-            ble!!.stopBluetooth()
-        }
+        ble?.stopBluetooth()
 
         if (websocket != null) {
             websocket!!.stop()
