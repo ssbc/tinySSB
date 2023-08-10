@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_name">tinySSB</string>
+    <string-array name="c2modes">
+        <item>3200 (large)</item>
+        <item>2400</item>
+        <item>1600</item>
+        <item>1400</item>
+        <item>1300</item>
+        <item>1200</item>
+        <item>700C</item>
+        <item>450 (compact)</item>
+    </string-array>
+</resources>

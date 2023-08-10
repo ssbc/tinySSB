@@ -1,0 +1,11 @@
+For this Android app "Codec2Recorder", the following directories have
+been removed from the included Codec2 1.0.3 source tree due to their
+size (16M), and not being necessary to build the libcodec2 library:
+
+  octave
+  raw
+  stm32
+  wav
+
+Please see the GitHub repo https://github.com/drowe67/codec2
+for the full Codec2 distribution.
