@@ -26,9 +26,11 @@ Android smartphones). If on Windows you may have to change the file
 ```.exe``` suffix to a file name, see
 ```tinySSB/app/src/main/codec2/src/CMakeLists-for-windows.txt```.
 
-The target Android SDK is set to 30, which is currently the minimum value
-for getting the app into the Google Play app store.
-
+The compilation is currently configured to generate an APK that
+runs on devices in the range of Android 8/Oreo to Android 12 (SDK 26 to 31).
+If an APK should be compiled that can be published via Google Play,
+the minSdkVersion will have to be changed to 30 (instead of 26),
+cutting off at the same time owners of phones with Android 10 or below.
 
 ## Note Regarding Security
 
