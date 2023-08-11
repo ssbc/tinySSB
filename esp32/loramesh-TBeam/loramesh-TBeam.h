@@ -23,6 +23,7 @@ GOsetClass *theGOset = new GOsetClass();
 #include "node.h"
 #include "ed25519.h"
 #include "mgmt.h"
+#include "heatmap.h"
 #include "config.h"
 
 struct bipf_s *the_config;
@@ -56,6 +57,7 @@ int lora_bad_crc = 0;
 File lora_log;
 unsigned long int next_log_flush;
 
+File hm_log;
 
 #include "cmd.h"
 
@@ -197,6 +199,7 @@ void setup()
   Serial.printf("   DMX for GOST is %s\r\n", to_hex(dmx->goset_dmx, 7, 0));
 
   mgmt_setup();
+  hm_init();
 
   // cmd_rx("r");
   repo->load();
@@ -326,9 +329,11 @@ void do_io()
 
   userButton.loop();
   io_dequeue();
-  theGOset->tick();
-  node_tick();
+  
+  // theGOset->tick();
+  // node_tick();
   // mgmt_tick();
+  hm_tick();
 
   if (Serial.available())
     cmd_rx(Serial.readString());

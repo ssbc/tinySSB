@@ -50,6 +50,7 @@ void cmd_rx(String cmd) {
       Serial.println("  c        remove log files for fcnt & fcnt-table (local dev only!)");
       Serial.println("  d        dump DMXT and CHKT");
       Serial.println("  f        list file system");
+      Serial.println("  h        list heatmap file");
       Serial.println("  g        dump GOset");
       Serial.println("  i        pretty print the confIg values");
       Serial.println("  k+<key>  add new key (globally)");
@@ -160,6 +161,15 @@ void cmd_rx(String cmd) {
       break;
     }
 #if defined(LORA_LOG)
+  case 'h': // list heatmap file
+      hm_log.close();
+      hm_log = MyFS.open(HEATMAP_FILENAME, FILE_READ);
+      while (hm_log.available()) {
+        Serial.write(hm_log.read());
+      }
+      hm_log.close();
+      hm_log = MyFS.open(HEATMAP_FILENAME, FILE_APPEND);
+      break;
   case 'l': // list Log file
       lora_log.close();
       lora_log = MyFS.open(LORA_LOG_FILENAME, FILE_READ);

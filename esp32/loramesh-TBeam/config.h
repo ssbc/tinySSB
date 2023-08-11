@@ -24,6 +24,8 @@
 #define LOG_FLUSH_INTERVAL         10000 // millis
 #define LOG_BATTERY_INTERVAL  15*60*1000 // millis (15 minutes)
 
+#define HEATMAP_FILENAME "/heatmap-gps.log"
+
 // ----------------------------------------------------------------------
 
 #define BAUD_RATE    115200 // or 38400 or 460800
@@ -72,6 +74,9 @@ extern void incoming_want_request(unsigned char* buf, int len, unsigned char* au
 extern void incoming_chnk_request(unsigned char* buf, int len, unsigned char* aux, struct face_s *);
 extern void ble_init();
 
+extern void hm_init();
+extern void hm_tick();
+
 extern struct bipf_s *the_config;
 extern struct lora_config_s *the_lora_config;
 
@@ -90,7 +95,6 @@ extern DmxClass   *dmx;
 #include "replica.h"
 #include "repo.h"
 extern Repo2Class *repo;
-
 
 // ---------------------------------------------------------------------------
 
