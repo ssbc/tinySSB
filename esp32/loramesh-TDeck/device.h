@@ -1,0 +1,81 @@
+// device.h
+
+// tinySSB for ESP32, Lilygo T-Deck version
+// (c) 2023 <christian.tschudin@unibas.ch>
+
+// collect all external libraries here
+
+#include <SPI.h>
+#include <TFT_eSPI.h>
+#include <lvgl.h>
+#include <SD.h>
+#include <driver/i2s.h>
+
+#define TOUCH_MODULES_GT911
+#include "TouchLib.h"
+#include "AceButton.h"
+
+#if defined(HAS_LORA)
+# include <LoRa.h>
+#endif
+// #include <RadioLib.h>
+
+// ---------------------------------------------------------------------------
+
+/**
+ * @file      utilities.h
+ * @author    Lewis He (lewishe@outlook.com)
+ * @license   MIT
+ * @copyright Copyright (c) 2023  Shenzhen Xin Yuan Electronic Technology Co., Ltd
+ * @date      2023-04-11
+ *
+ */
+#pragma once
+
+
+
+//! The board peripheral power control pin needs to be set to HIGH when using the peripheral
+#define BOARD_POWERON       10
+
+#define BOARD_I2S_WS        5
+#define BOARD_I2S_BCK       7
+#define BOARD_I2S_DOUT      6
+
+#define BOARD_I2C_SDA       18
+#define BOARD_I2C_SCL       8
+
+#define BOARD_BAT_ADC       4
+
+#define BOARD_TOUCH_INT     16
+#define BOARD_KEYBOARD_INT  46
+
+#define BOARD_SDCARD_CS     39
+#define BOARD_TFT_CS        12
+#define RADIO_CS_PIN        9
+
+#define BOARD_TFT_DC        11
+#define BOARD_TFT_BACKLIGHT 42
+
+#define BOARD_SPI_MOSI      41
+#define BOARD_SPI_MISO      38
+#define BOARD_SPI_SCK       40
+
+#define BOARD_TBOX_G02      2
+#define BOARD_TBOX_G01      3
+#define BOARD_TBOX_G04      1
+#define BOARD_TBOX_G03      15
+
+#define BOARD_ES7210_MCLK   48
+#define BOARD_ES7210_LRCK   21
+#define BOARD_ES7210_SCK    47
+#define BOARD_ES7210_DIN    14
+
+#define RADIO_BUSY_PIN      13
+#define RADIO_RST_PIN       17
+#define RADIO_DIO1_PIN      45
+
+#define BOARD_BOOT_PIN      0
+
+#define BOARD_BL_PIN        42
+
+// eof
