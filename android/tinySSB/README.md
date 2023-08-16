@@ -17,8 +17,22 @@ content of the tinySSB app using BLE. This requires that Bluetooth is
 enabled as well as localization (in order to access BLE), and that the
 app is active (no background syncing).
 
+## Notes Regarding Compilation
 
-## A Note on Security
+Compiling the ```tinySSB``` app is challenging because of the included
+Codec2 library which must be cross-compiled to native code (for
+Android smartphones). If on Windows you may have to change the file
+```tinySSB/app/src/main/codec2/src/CMakeLists.txt``` and add a
+```.exe``` suffix to a file name, see
+```tinySSB/app/src/main/codec2/src/CMakeLists-for-windows.txt```.
+
+The compilation is currently configured to generate an APK that
+runs on devices in the range of Android 8/Oreo to Android 12 (SDK 26 to 31).
+If an APK should be compiled that can be published via Google Play,
+the minSdkVersion will have to be changed to 30 (instead of 26),
+cutting off at the same time owners of phones with Android 10 or below.
+
+## Note Regarding Security
 
 This is a preliminary version of the app, built mostly for demo
 purposes. As such it lacks some desirable security properties and
