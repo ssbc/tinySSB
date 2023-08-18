@@ -34,8 +34,8 @@ else ifeq ($(BOARD),TDeck)
   PARTITIONS_CSV=partitions-tdeck.csv
   MAX_UPLOAD=2097152 # 2MB
   FLASH_SIZE=16MB
-  FLASH_OFFS=0x10000
-  FLASH_BIN=$(MAIN).bin
+  # FLASH_OFFS=0x10000
+  # FLASH_BIN=$(MAIN).bin
 else    # default is T-Beam
   CHIP=esp32
   BOARD=TBeam
