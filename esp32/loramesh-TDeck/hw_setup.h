@@ -8,46 +8,70 @@ bool        clicked = false;
 TouchLib *touch = NULL;
 uint8_t   touchAddress = GT911_SLAVE_ADDRESS2;
 
-TFT_eSPI        tft;
+#if defined(HAS_LORA) && USE_RADIO_LIB
+SX1262 radio = new Module(RADIO_CS_PIN, RADIO_DIO1_PIN,
+                          RADIO_RST_PIN, RADIO_BUSY_PIN);
+#endif
+
+TFT_eSPI    tft;
 
 lv_indev_t  *touch_indev = NULL;
 lv_indev_t  *kb_indev = NULL;
 
 SemaphoreHandle_t xSemaphore = NULL;
 
+unsigned char my_mac[6];
+
+#if defined(HAS_UDP) || defined(HAS_BT) || defined(HAS_BLE)
+char ssid[sizeof(tSSB_WIFI_SSID) + 6];
+#endif
+
+#if defined(HAS_BT)
+BluetoothSerial BT;
+#endif
+
 // ---------------------------------------------------------------------------
+
+void tft_onOff(int val)
+{
+  digitalWrite(BOARD_BL_PIN, val ? 1 : 0);
+}
 
 static void scanDevices(TwoWire *w)
 {
     uint8_t err, addr;
     int nDevices = 0;
-    uint32_t start = 0;
+    // uint32_t start = 0;
     for (addr = 1; addr < 127; addr++) {
-        start = millis();
-        w->beginTransmission(addr); delay(2);
+        // start = millis();
+        w->beginTransmission(addr);
+        delay(2);
         err = w->endTransmission();
         if (err == 0) {
             nDevices++;
+            /*
             Serial.print("I2C device found at address 0x");
             if (addr < 16) {
                 Serial.print("0");
             }
             Serial.print(addr, HEX);
             Serial.println(" !");
-
+            */
             if (addr == GT911_SLAVE_ADDRESS2) {
                 touchAddress = GT911_SLAVE_ADDRESS2;
-                Serial.println("Find GT911 Drv Slave address: 0x14");
+                Serial.println("Touchpad - found GT911 Drv Slave address: 0x14");
             } else if (addr == GT911_SLAVE_ADDRESS1) {
                 touchAddress = GT911_SLAVE_ADDRESS1;
-                Serial.println("Find GT911 Drv Slave address: 0x5D");
+                Serial.println("Touchpad - found GT911 Drv Slave address: 0x5D");
             }
         } else if (err == 4) {
+          /*
             Serial.print("Unknow error at address 0x");
             if (addr < 16) {
                 Serial.print("0");
             }
             Serial.println(addr, HEX);
+          */
         }
     }
     if (nDevices == 0)
@@ -96,9 +120,6 @@ void initBoard()
 {
     bool ret = 0;
 
-    Serial.begin(115200);
-    Serial.println("T-DECK factory");
-
     //! The board peripheral power control pin needs to be set to HIGH when using the peripheral
     pinMode(BOARD_POWERON, OUTPUT);
     digitalWrite(BOARD_POWERON, HIGH);
@@ -137,17 +158,10 @@ void initBoard()
     xSemaphoreGive( xSemaphore );
 
     tft.begin();
-    tft.setRotation( 1 );
+    tft.setRotation(1);
     tft.fillScreen(TFT_BLACK);
-    /*
-    tft.writecommand(0xBC);
-    tft.writedata(0x40);     //contrast value
-    tft.writedata(0x20);     //brightness value
-    tft.writedata(0x40);     //saturation value
-    tft.writedata(0x01);     //Post Processor Enable
-    */
-    Wire.begin(BOARD_I2C_SDA, BOARD_I2C_SCL);
 
+    Wire.begin(BOARD_I2C_SDA, BOARD_I2C_SCL);
 
     // Set touch int input
     pinMode(BOARD_TOUCH_INT, INPUT); delay(20);
@@ -158,12 +172,11 @@ void initBoard()
 
     touch = new TouchLib(Wire, BOARD_I2C_SDA, BOARD_I2C_SCL, touchAddress);
     touch->init();
+    Wire.beginTransmission(touchAddress);
+    Wire.endTransmission(); // return code confirms touch
 
-    pinMode(BOARD_BOOT_PIN, INPUT);
-
-    while (!digitalRead(BOARD_BOOT_PIN)) {
-        Serial.println("BOOT HAS PRESSED!!!"); delay(500);
-    }
+    Wire.requestFrom(0x55, 1);
+    Wire.read(); // != -1;  return code confirms keyboard
 
     /*
     if ( xSemaphoreTake( xSemaphore, portMAX_DELAY ) == pdTRUE ) {
@@ -185,6 +198,7 @@ void initBoard()
         xSemaphoreGive( xSemaphore );
     }
     */
+
 }
 
 
@@ -227,14 +241,14 @@ static void disp_flush( lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *
 {
     uint32_t w = ( area->x2 - area->x1 + 1 );
     uint32_t h = ( area->y2 - area->y1 + 1 );
-    // if ( xSemaphoreTake( xSemaphore, portMAX_DELAY ) == pdTRUE ) {
+    if ( xSemaphoreTake( xSemaphore, portMAX_DELAY ) == pdTRUE ) {
         tft.startWrite();
         tft.setAddrWindow( area->x1, area->y1, w, h );
         tft.pushColors( ( uint16_t * )&color_p->full, w * h, false );
         tft.endWrite();
         lv_disp_flush_ready( disp );
-    //    xSemaphoreGive( xSemaphore );
-    // }
+        xSemaphoreGive( xSemaphore );
+    }
 }
 
 
@@ -263,11 +277,11 @@ static bool getTouch(int16_t &x, int16_t &y)
         x = t.x;
         y = t.y;
     }
-    Serial.printf("R:%d X:%d Y:%d\n", rotation, x, y);
+    // Serial.printf("R:%d X:%d Y:%d\r\n", rotation, x, y);
     return true;
 }
 
-/*Read the touchpad*/
+// Read the touchpad
 static void touchpad_read( lv_indev_drv_t *indev_driver, lv_indev_data_t *data )
 {
     data->state = getTouch(data->point.x, data->point.y) ? LV_INDEV_STATE_PR : LV_INDEV_STATE_REL;
@@ -285,7 +299,7 @@ static uint32_t keypad_get_key(void)
 }
 
 
-/*Will be called by the library to read the mouse*/
+// Will be called by the library to read the mouse
 static void keypad_read(lv_indev_drv_t *indev_drv, lv_indev_data_t *data)
 {
     static uint32_t last_key = 0;
@@ -320,21 +334,19 @@ void setupLvgl()
 #endif
     memset(buf, 0, LVGL_BUFFER_SIZE);
 
-    String LVGL_Arduino = "Hello Arduino! ";
-    LVGL_Arduino += String('V') + lv_version_major() + "." + lv_version_minor() + "." + lv_version_patch();
-
+    String LVGL_Arduino = String("LVLG Arduino V") + lv_version_major() +
+                          "." + lv_version_minor() + "." + lv_version_patch();
     Serial.println( LVGL_Arduino );
-    Serial.println( "I am LVGL_Arduino" );
 
     lv_init();
     lv_group_set_default(lv_group_create());
     lv_disp_draw_buf_init( &draw_buf, buf, NULL, LVGL_BUFFER_SIZE );
 
-    /*Initialize the display*/
+    // Initialize the display
     static lv_disp_drv_t disp_drv;
     lv_disp_drv_init( &disp_drv );
 
-    /*Change the following line to your display resolution*/
+    // Change the following line to your display resolution
     disp_drv.hor_res = TFT_HEIGHT;
     disp_drv.ver_res = TFT_WIDTH;
     disp_drv.flush_cb = disp_flush;
@@ -372,11 +384,178 @@ void setupLvgl()
 
 // ---------------------------------------------------------------------------
 
+int incoming(struct face_s *f, unsigned char *pkt, int len, int has_crc)
+{
+  if (len <= (DMX_LEN + sizeof(uint32_t)) || (has_crc && crc_check(pkt, len) != 0)) {
+    Serial.println(String("Bad CRC for face ") + f->name + String(" pkt=") + to_hex(pkt, len, 0));
+    // lora_bad_crc++;
+    return -1;
+  }
+  if (has_crc) {
+    // Serial.println("CRC OK");
+    len -= sizeof(uint32_t);
+  }
+  // Serial.printf("<  incoming packet, %d bytes\r\n", len);
+
+  if (!theDmx->on_rx(pkt, len, f))
+    return 0;
+  Serial.println(String("   unknown DMX ") + to_hex(pkt, DMX_LEN, 0));
+  return -1;
+}
+
+// ---------------------------------------------------------------------------
+
+void setupBT()
+{
+#if defined(HAS_BT)
+  BT.begin(ssid);
+  BT.setPin("0000");
+  BT.write(KISS_FEND);
+#endif // HAS_BT
+}
+
+void loopBLE()
+{
+#if defined(MAIN_BLEDevice_H_) && !defined(NO_BLE)
+  unsigned char *cp = ble_fetch_received();
+  if (cp != NULL)
+    incoming(&ble_face, cp+1, *cp, 0);
+#endif
+}
+
+// ---------------------------------------------------------------------------
+
+int lora_ok;
+
+void setupLoRa()
+{
+#if defined(HAS_LORA)
+
+#if USE_RADIO_LIB
+
+  /*
+  digitalWrite(BOARD_SDCARD_CS, HIGH);
+  digitalWrite(RADIO_CS_PIN, HIGH);
+  digitalWrite(BOARD_TFT_CS, HIGH);
+  */
+  SPI.end();
+  SPI.begin(BOARD_SPI_SCK, BOARD_SPI_MISO, BOARD_SPI_MOSI); //SD
+
+  lora_ok = radio.begin(the_lora_config->fr / 1000000.0) == RADIOLIB_ERR_NONE;
+  if (!lora_ok)
+    Serial.println("RadioLib LoRa init failed");
+  else {
+    // radio.setFrequency(the_lora_config->fr/1000000.0);
+    radio.setBandwidth((double)(the_lora_config->bw));
+    radio.setSpreadingFactor(the_lora_config->sf);
+    radio.setCodingRate(the_lora_config->cr);
+    radio.setSyncWord(the_lora_config->sw);
+    radio.setOutputPower(the_lora_config->tx);
+    radio.setCurrentLimit(140); // (accepted range is 45 - 140 mA), 0=disable
+    radio.setPreambleLength(8); // (accepted range is 0 - 65535)
+    radio.setCRC(false);
+
+    // set the function that will be called
+    // when new packet is received
+    // radio.setDio1Action(setFlag);
+
+    Serial.printf("LoRa configured for fr=%d, bw=%d, sf=%d\r\n",
+                the_lora_config->fr, the_lora_config->bw, the_lora_config->sf);
+  }
+  
+# else
+
+  /*
+  digitalWrite(BOARD_SDCARD_CS, HIGH);
+  digitalWrite(RADIO_CS_PIN, HIGH);
+  digitalWrite(BOARD_TFT_CS, HIGH);
+  */
+  SPI.end();
+  SPI.begin(BOARD_SPI_SCK, BOARD_SPI_MISO, BOARD_SPI_MOSI, RADIO_CS_PIN);
+
+  LoRa.setPins(RADIO_CS_PIN, RADIO_RST_PIN, RADIO_DIO1_PIN);  
+  if (!LoRa.begin(the_lora_config->fr)) {
+    lora_ok = -1;
+    Serial.println("LoRa init failed");
+    // while (1);
+  } else {
+      LoRa.setSignalBandwidth(the_lora_config->bw);
+      LoRa.setSpreadingFactor(the_lora_config->sf);
+      LoRa.setCodingRate4(the_lora_config->cr);
+      LoRa.setPreambleLength(8);
+      LoRa.setSyncWord(the_lora_config->sw);
+      LoRa.setTxPower(the_lora_config->tx);
+      // LoRa.onReceive(newLoRaPkt);
+      LoRa.receive();
+      Serial.printf("LoRa configured for fr=%d, bw=%d, sf=%d\r\n",
+               the_lora_config->fr, the_lora_config->bw, the_lora_config->sf);
+      Serial.flush();
+  }
+
+#endif
+
+#endif // HAS_LORA
+}
+
+// ---------------------------------------------------------------------------
+
 void hw_setup()
 {
+  esp_efuse_mac_get_default(my_mac);
+
+#if !defined(HAS_UDP)  // in case of no Wifi: display BT mac addr, instead
+  my_mac[5] += 2;
+  // https://docs.espressif.com/projects/esp-idf/en/release-v3.0/api-reference/system/base_mac_address.html
+#endif
+#if defined(HAS_UDP) || defined(HAS_BT) || defined(HAS_BLE)
+  sprintf(ssid, "%s-%s", tSSB_WIFI_SSID, to_hex(my_mac+4, 2));
+#endif
+
   initBoard();
+
+  if (!MyFS.begin(true)) {
+    Serial.println("LittleFS Mount Failed, partition was reformatted");
+    // return;
+  }
+  // MyFS.format(); // uncomment and run once after a change in partition size
+  MyFS.mkdir(FEED_DIR);
+  Serial.printf("LittleFS: %d total bytes, %d used\r\n",
+                MyFS.totalBytes(), MyFS.usedBytes());
+
+  the_config = config_load();
+  struct bipf_s k = { BIPF_STRING, 9, {.str = "lora_plan"} };
+  struct bipf_s *v = bipf_dict_getref(the_config, &k);
+  /*
+  if (v != NULL && v->typ == BIPF_STRING &&
+                                    strncmp("US902.5", v->u.str, v->cnt)) {
+    bipf_dict_set(the_config, bipf_mkString("lora_plan"),
+                  bipf_mkString("US902.5"));
+    config_save(the_config);
+  }
+  */
+
+  // FIXME: we should not print the mgmt signing key to the console ?
+  Serial.printf("tinySSB config is %s\r\n", bipf2String(the_config,"\r\n").c_str());
+  
+  the_lora_config = lora_configs;
+  // struct bipf_s k = { BIPF_STRING, 9, {.str = "lora_plan"} };
+  struct bipf_s *lora_ref = bipf_dict_getref(the_config, &k);
+  if (lora_ref != NULL && lora_ref->typ == BIPF_STRING) {
+    for (int i = 0; i < lora_configs_size; i++)
+      if (!strncmp(lora_configs[i].plan, lora_ref->u.str, lora_ref->cnt)) {
+        the_lora_config = lora_configs + i;
+        break;
+      }
+  }
+
   setupSD();
   setupLvgl();
+
+  setupBT();
+  setupLoRa();
+  io_init();
+
+  Serial.println("-- hw_setup done");
 }
 
 // eof

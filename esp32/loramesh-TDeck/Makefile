@@ -30,16 +30,16 @@ ifeq ($(BOARD),heltec)
   FLASH_SIZE=8MB
 else ifeq ($(BOARD),TDeck)
   CHIP=esp32s3
-  FQBN=esp32:esp32:esp32s3
+  FQBN=esp32:esp32:esp32s3:PSRAM=opi,FlashSize=16M,CDCOnBoot=cdc
   PARTITIONS_CSV=partitions-tdeck.csv
   MAX_UPLOAD=2097152 # 2MB
   FLASH_SIZE=16MB
   FLASH_OFFS=0x10000
   FLASH_BIN=$(MAIN).bin
-else
+else    # default is T-Beam
   CHIP=esp32
   BOARD=TBeam
-  FQBN=esp32:esp32:t-beam   # default is T-Beam
+  FQBN=esp32:esp32:t-beam
   PARTITIONS_CSV=partitions-2.5M.csv
   MAX_UPLOAD=1572864 # 1.5MB
   FLASH_SIZE=4MB
@@ -50,14 +50,19 @@ ifndef SERIAL
     SERIAL = $(shell ls /dev/tty.usbserial-*)
   else ifeq ($(BOARD),TDeck)
     SERIAL = $(shell ls /dev/tty.usbmodem*)
+    # $(foreach var,$(SERIAL), fuser -f $(var);)
   else # T-Beam
     SERIAL = $(shell ls /dev/tty.wchusbserial*)
   endif
 endif
 
-ifdef FLAG                 #use for sending an extra #def flag to be appended to files, such as FLAG=TBEAM_07
-  EXTRA_FLAG=--build-property compiler.cpp.extra_flag=-D$(FLAG)
+ifdef FLAG                 #use for sending an extra #def flag to be appended to files, such as FLAG=-DTBEAM_07
+  EXTRA_CPP_FLAGS=--build-property compiler.cpp.extra_flags=$(FLAG)
+else
+  EXTRA_CPP_FLAGS=--build-property compiler.cpp.extra_flags="-DESP32 -DBOARD_HAS_PSRAM -DARDUINO_USB_MODE=1 -DARDUINO_USB_CDC_ON_BOOT=1 -DARDUINO_USB_MSC_ON_BOOT=0 -DARDUINO_USB_DFU_ON_BOOT=0"
 endif
+
+EXTRA_BUILD_FLAGS=--build-property build.extra_flags="-DUTC_OFFSET=\"$(shell date +%z)\""
 
 # ----------------------------------------------------------------------
 
@@ -71,7 +76,7 @@ compile:
 	ln -s $(PARTITIONS_CSV) partitions.csv
 	$(BINDIR)/arduino-cli compile -v --fqbn $(FQBN) $(MAIN) \
 		--build-properties build.partitions=partitions.csv,upload.maximum_size=1572864 \
-		$(EXTRA_FLAG)
+		$(EXTRA_CPP_FLAG)
 
 upload:
 	$(foreach var,$(SERIAL), $(BINDIR)/arduino-cli upload -v --fqbn $(FQBN) -p $(var) .;)
@@ -87,11 +92,13 @@ firmware:
 	rm -f partitions.csv
 	ln -s $(PARTITIONS_CSV) partitions.csv
 	$(BINDIR)/arduino-cli compile -v \
+		--build-path ./build \
 		--fqbn $(FQBN) $(MAIN) \
 		--build-property build.partitions=$(PARTITIONS_CSV) \
 		--build-property upload.maximum_size=$(MAX_UPLOAD) \
-		$(EXTRA_FLAG) \
-		--build-path ./build   && \
+		$(EXTRA_BUILD_FLAGS) \
+		$(EXTRA_CPP_FLAGS) \
+		&& \
 	$(ESPTOOL) \
 		--chip $(CHIP) merge_bin --flash_mode dio --flash_freq 80m \
 		--flash_size $(FLASH_SIZE) \
