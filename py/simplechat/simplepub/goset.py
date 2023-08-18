@@ -2,6 +2,8 @@
 
 # simplepub/goset.py
 
+# (c) Jun 2023 <christian.tschudin@unibas.ch>
+
 
 import hashlib
 from collections import deque
@@ -45,12 +47,11 @@ ZAP_ROUND_LEN   =   4500
 
 class GOset():
 
-    def __init__(self, node, keys=[], verbose=False, log=None) -> None:
+    def __init__(self, node, keys=[], verbose=False, log_fct=None) -> None:
         def glob(x): pass
         self.node = node
         self.keys = sorted(keys)
-        self.verbose = verbose
-        self.log = log if log != None else glob
+        self.log_fct = log_fct if log_fct != None and verbose else glob
         self.state = bytes(FID_LEN) if self.keys == [] else \
                      self._xor(0, len(self.keys)-1)
         # self.node.set_want_dmx(self.state)
@@ -72,18 +73,15 @@ class GOset():
         if len(pkt) <= DMX_LEN:
             return []
         buf = pkt[DMX_LEN:]
-        # print("   =G len:", len(buf), chr(buf[0]))
 
         if len(buf) == NOVELTY_LEN and buf[0] == ord('n'):
             key = buf[1:NOVELTY_LEN]
-            if self.verbose:
-                self.log(f"   =G novelty = {key.hex()}")
+            self.log_fct(f"   =G novelty = {key.hex()}")
             self._add_key(key)
             return []
         
         if len(buf) != CLAIM_LEN or buf[0] != ord('c'):
-            if self.verbose:
-                self.log(f"   =G unknown msg {buf[:1]}")
+            self.log_fct(f"   =G unknown msg {buf[:1]}")
             return []
         
         cl = self.mkClaim_from_bytes(buf)
@@ -92,8 +90,7 @@ class GOset():
             syn = "/synced"
         else:
             syn = "/not in sync"
-        if self.verbose:
-            self.log(f"   =G claim span={cl.sz} lo={i1}:{cl.lo[:10].hex()}.. hi={i2}:{cl.hi[:10].hex()}...  {syn}")
+        self.log_fct(f"   =G claim span={cl.sz} lo={i1}:{cl.lo[:10].hex()}.. hi={i2}:{cl.hi[:10].hex()}...  {syn}")
 
         if cl.sz > self.largest_claim_span:
             self.largest_claim_span = cl.sz
@@ -102,27 +99,26 @@ class GOset():
             for i in range(len(xor)):
                 xor[i] ^= cl.lo[i]
                 xor[i] ^= cl.hi[i]
-            if self.verbose:
-                self.log(f"   computed the missing middle key {xor.hex()}")
+            self.log_fct(f"   computed the missing middle key {xor.hex()}")
             self._add_key(bytes(xor))
             # FIXME: should we update the state, or do it at ADV time?
         else:
             self._add_key(cl.lo)
             self._add_key(cl.hi)
             self._add_pending_claim(cl)
-            # print("   add pending claim")
+            # self.log_fct(f"   add pending claim, now {len(self.pending_claims)}")
             # FIXME: should we update the state, or do it at ADV time?
         return []
 
 
-    def get_adv(self) -> (list, int):
+    def get_adv(self) -> (list, int): # called to find out if we have something to send
+        # self.log_fct(f"   goset.get_adv, {len(self.pending_claims)} pending claims")
         lst = []
         if len(self.keys) == 0:
             return lst, 15
         cl = self.mkClaim(0, len(self.keys) - 1)
         if cl.xo != self.state:
-            if self.verbose:
-                self.log(f"   Gadv - new GOset state {cl.xo.hex()} |keys|={len(self.keys)}")
+            self.log_fct(f"   Gadv - new GOset state {cl.xo.hex()} |keys|={len(self.keys)}")
             self.state = cl.xo
             self.node.set_want_dmx(self.state)
         # if len(self.pending_claims) == 0:
@@ -147,36 +143,39 @@ class GOset():
             if partial.sz <= c.sz:
                 if max_ask > 0:
                     max_ask -= 1
-                    if self.verbose:
-                        self.log(f"   Gadv need {lo}..{hi} @{len(self.keys)}")
+                    self.log_fct(f"   Gadv need {lo}..{hi} @{len(self.keys)}")
                     lst.append(self.goset_dmx + partial.wire)
                 if partial.sz < c.sz:
                     retain.append(c)
                     continue
 
+            # self.log_fct(f"   Gadv loop 2")
             if max_help > 0:
                 max_help -= 1
                 hi -= 1
                 lo += 1
                 if hi <= lo:
+                    # self.log_fct(f"   Gadv loop 2a")
                     lst.append(self.goset_dmx + self.mkNovelty_from_key(self.keys[lo]).wire)
                 elif hi - lo <= 2: # span of 2 or 3
-                    if self.verbose:
-                        self.log(f"   Gadv have {lo}..{hi} @{len(self.keys)}")
+                    self.log_fct(f"   Gadv have {lo}..{hi} @{len(self.keys)}")
                     lst.append(self.goset_dmx + self.mkClaim(lo,hi).wire)
                 else: # split span in two intervals
                     sz = (hi + 1 -lo) // 2
-                    if self.verbose:
-                        self.log(f"   Gadv have {lo}..{lo+sz-1} @{len(self.keys)}")
-                        self.log(f"   Gadv have {lo+sz}..{hi} @{len(self.keys)}")
+                    self.log_fct(f"   Gadv have {lo}..{lo+sz-1} @{len(self.keys)}")
+                    self.log_fct(f"   Gadv have {lo+sz}..{hi} @{len(self.keys)}")
                     lst.append(self.goset_dmx + self.mkClaim(lo,lo+sz-1).wire)
                     lst.append(self.goset_dmx + self.mkClaim(lo+sz, hi).wire)
+                # self.log_fct(f"   Gadv loop 2b")
                 continue
+            # self.log_fct(f"   Gadv loop 3")
             retain.append(c)
         
         while len(retain) >= MAX_PENDING - 5:
+            # self.log_fct(f"   Gadv removeLast")
             retain.removeLast()
         self.pending_claims = retain
+        # self.log_fct(f"Gadv ends, {len(lst)} in lst")
         return lst, 15
 
 
@@ -184,12 +183,12 @@ class GOset():
         if key == bytes(GOSET_KEY_LEN):
             return False
         if key in self.keys:
-            # print("GOset _include_key(): key already exists")
+            # self.log_fct("GOset _include_key(): key already exists")
             return False
         if len(self.keys) >= GOSET_MAX_KEYS:
-            # print("GOset _include_key(): too many keys")
+            # self.log_fct("GOset _include_key(): too many keys")
             return False
-        # print("GOset _include_key", key[:8])
+        # self.log_fct("GOset _include_key", key[:8])
         self.keys.append(key)
         return True
             
@@ -198,9 +197,9 @@ class GOset():
         if key == bytes(GOSET_KEY_LEN) or key in self.keys:
             return
         if len(self.keys) >= GOSET_MAX_KEYS:
-            self.log("   too many keys")
+            self.log_fct("   too many keys")
             return
-        # print(f"   new key {key.hex()}")
+        # self.log_fct(f"   new key {key.hex()}")
         self.keys.append(key)
         self.keys.sort()
         self.node.activate_feed(key)
@@ -213,7 +212,7 @@ class GOset():
             elif len(self.pending_novelty) < MAX_PENDING:
                 self.pending_novelty.append(n)
         '''
-        self.log(f"   added key {key.hex()}")
+        self.log_fct(f"   added key {key.hex()}")
 
 
     def _add_pending_claim(self, cl: Claim) -> None:
@@ -222,14 +221,11 @@ class GOset():
                 return
         self.pending_claims.append(cl)
     
-    '''
     def mkNovelty_from_key(self, key: bytes) -> Novelty:
         n = Novelty()
         n.wire = b'n' + key
         n.key = key
         return n
-    '''
-    
 
     def mkClaim_from_bytes(self, pkt: bytes) -> Claim:
         cl = Claim()

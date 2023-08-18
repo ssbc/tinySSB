@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 
-# new_server.py
+# spub.py
 # tinySSB simplepub websocket server
+
+# (c) Jun 2023 <christian.tschudin@unibas.ch>
+
 
 import asyncio
 import hashlib
@@ -38,6 +41,7 @@ async def launch_adv(sock, get_adv_fct, args):
     global o_pkt_cnt
     while True:
         pkts, tout = get_adv_fct()
+        # args.log(f"// launch adv loop, {len(pkts)} packets, tout={tout}")
         for p in pkts:
             o_pkt_cnt += 1
             if args.v:
@@ -74,6 +78,7 @@ async def onConnect(sock, node, args):
                 simplepub.ble.ConnectionGone):
             break
         except Exception as e:
+            args.log(e)
             traceback.print_exc()
             break
     for t in tasks:
@@ -103,7 +108,7 @@ async def main(args, full_cb=None):
             if args.ble:
                 if simplepub.ble.is_installed:
                     asyncio.create_task(
-                        simplepub.ble.serve(lambda s: onConnect(s, the_node, args)))
+                        simplepub.ble.serve(lambda s: onConnect(s, the_node, args), args))
                 else:
                     args.log(f"BLE interface not supported")
             args.log(f"Starting websocket responder on port {args.uri_or_port}")

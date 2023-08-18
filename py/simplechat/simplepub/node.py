@@ -2,6 +2,9 @@
 
 # simplepub/node.py
 
+# (c) Jun 2023 <christian.tschudin@unibas.ch>
+
+
 import copy
 import hashlib
 import os
@@ -18,13 +21,12 @@ DMX_PFX = b'tinyssb-v0'
 
 class PubNode:
 
-    def __init__(self, datapath, role='in', verbose=False, log=None, full_cb=None):
+    def __init__(self, datapath, role='in', verbose=False, log_fct=None, full_cb=None):
         def glob(x): pass
         self.start_time = time.time()
         self.datapath = datapath
         self.role = role
-        self.verbose = verbose
-        self.log = log if log != None else glob
+        self.log_fct = log_fct if log_fct != None and verbose else glob
         self.full_cb = full_cb # called once we have the log entry _and_ its full sidechain
 
         self.vf = lambda pk,sig,msg: pure25519.open(sig+msg,pk)
@@ -39,7 +41,7 @@ class PubNode:
         self.in_chk = lambda dmx, buf: self.incoming_chnk_msg(dmx, buf)
         self.want_dmx = None
         self.chnk_dmx = None
-        self.goset = goset.GOset(self, self.reps.keys(), verbose)
+        self.goset = goset.GOset(self, self.reps.keys(), verbose, log_fct)
         self.arm_dmx(self.goset.goset_dmx,
                      lambda dmx, buf: self.goset.incoming_goset_msg(dmx, buf),
                      None, 'GOset')
@@ -48,10 +50,9 @@ class PubNode:
             self.log_offs = 0 # rotate the start ndx of the vector clock
         else:
             self.log_offs = os.urandom(1)[0] % len(self.reps)
-        if self.verbose:
-            self.log(f"gset dmx {self.goset.goset_dmx.hex()}")
-            self.log(f"want dmx {'-' if self.want_dmx == None else self.want_dmx.hex()}")
-            self.log(f"chnk dmx {'-' if self.chnk_dmx == None else self.chnk_dmx.hex()}")
+        self.log_fct(f"gset dmx {self.goset.goset_dmx.hex()}")
+        self.log_fct(f"want dmx {'-' if self.want_dmx == None else self.want_dmx.hex()}")
+        self.log_fct(f"chnk dmx {'-' if self.chnk_dmx == None else self.chnk_dmx.hex()}")
         if role != 'out': # 'in' or 'inout': listen to req
             for ndx in range(len(self.goset.keys)):
                 fid = self.goset.keys[ndx]
@@ -80,8 +81,7 @@ class PubNode:
         else:
             self.last_e_adv = time.time()
             self.incoming_cnt = 0
-        if self.verbose:
-            self.log(f"   RTT {self.rtt} @{time.time() - self.start_time}")
+        self.log_fct(f"   RTT {self.rtt} @{time.time() - self.start_time}")
         lst = [self.log_offs]
         enc_len = 0
         for i in range(len(self.goset.keys)):
@@ -96,8 +96,7 @@ class PubNode:
             self.log_offs = (self.log_offs + 1) % len(self.goset.keys)
         s = [(lst[0] + x)%len(self.goset.keys) for x in range(len(lst)-1)]
         s = ' '.join([ f"{s[i]}.{lst[1+i]}" for i in range(len(s))])
-        if self.verbose:
-            self.log(f"   new w=[ {s} ]")
+        self.log_fct(f"   new w=[ {s} ]")
         if lst != []:
             lst = [self.want_dmx + bipf.dumps(lst)]
         return lst, self.rtt
@@ -119,8 +118,7 @@ class PubNode:
                     break
             if enc_len > 100:
                 break
-        if self.verbose:
-            self.log(f"   new c=[ {' '.join(['.'.join([str(y) for y in x]) for x in lst])} ]")
+        self.log_fct(f"   new c=[ {' '.join(['.'.join([str(y) for y in x]) for x in lst])} ]")
         if lst != []:
             lst = [self.chnk_dmx + bipf.dumps(lst)]
         return lst, self.rtt
@@ -129,15 +127,15 @@ class PubNode:
         return self.goset.get_adv()
 
     def rx(self, pkt):
-        # print(f"<< incoming {pkt[:20].hex()}.. ({len(pkt)}B)")
+        self.log_fct(f"<< incoming {pkt[:20].hex()}.. ({len(pkt)}B)")
         lst = []
         dmx = pkt[:7] # DMX_LEN = 7
         if dmx in self.dmxt:
-            # if not dmx in [self.want_dmx,self.chnk_dmx,self.goset.goset_dmx]:
-            #     print("  ", dmx.hex(), self.dmxt[dmx])
+            if not dmx in [self.want_dmx,self.chnk_dmx,self.goset.goset_dmx]:
+                self.log_fct(f"   {dmx.hex(), self.dmxt[dmx]}")
             lst += self.dmxt[dmx][0](dmx, pkt)
-        # else:
-        #     print("not in dmxt", [x.hex() for x in self.dmxt.keys()])
+        else:
+            self.log_fct(f"   not in dmxt {[x.hex() for x in self.dmxt.keys()]}")
         hptr = hashlib.sha256(pkt).digest()[:20] # HASH_LEN = 20
         if hptr in self.chkt:
             plst = [x for x in self.chkt[hptr].items()]
@@ -222,8 +220,7 @@ class PubNode:
         #     print("   - dmxt", d.hex(), c)
         rc = self.reps[fid].ingest_entry_pkt(buf, seq)
         if rc: # success
-            if self.verbose:
-                self.log(f"   ingested new entry dmx={dmx.hex()} {ndx}.{seq}{c}")
+            self.log_fct(f"   ingested new entry dmx={dmx.hex()} {ndx}.{seq}{c}")
             self.arm_dmx(dmx)
             seq += 1
             nam = fid + seq.to_bytes(4, 'big') + self.reps[fid].state['prev']
@@ -241,8 +238,7 @@ class PubNode:
                 if self.full_cb:
                     self.full_cb(fid, self.reps[fid].read(seq))
         else:
-            if self.verbose:
-                self.log(f"   failed to ingest new entry dmx={dmx.hex()} {ndx}.{seq}{c}")
+            self.log_fct(f"   failed to ingest new entry dmx={dmx.hex()} {ndx}.{seq}{c}")
         # for dmx in self.dmxt:
         #     print(f"   dmxt {dmx.hex()} {self.dmxt[dmx][2]}")
         return []
@@ -263,21 +259,18 @@ class PubNode:
             c = ""
         rc = self.reps[fid].ingest_chunk_pkt(buf, seq)
         if rc: # success
-            if self.verbose:
-                self.log(f"   ingested new chunk hptr={hptr.hex()} {ndx}.{seq}.{cnr}{c}")
+            self.log_fct(f"   ingested new chunk hptr={hptr.hex()} {ndx}.{seq}.{cnr}{c}")
             self.arm_chk(hptr, None, aux)
             if seq in self.reps[fid].state['pend_sc']:
                 hptr = self.reps[fid].state['pend_sc'][seq][2]
                 cnr += 1
                 self.arm_chk(hptr, self.in_chunk, (fid,seq,cnr), f"{ndx}.{seq}.{cnr}")
             else:
-                if self.verbose:
-                    self.log(f"   chain {ndx}.{seq} closed")
+                self.log_fct(f"   chain {ndx}.{seq} closed")
                 if self.full_cb:
                     self.full_cb(fid, self.reps[fid].read(seq))
         else:
-            if self.verbose:
-                self.log(f"   failed to ingest new chunk hptr={hptr.hex()} {ndx}.{seq}.{cnr}{c}")
+            self.log_fct(f"   failed to ingest new chunk hptr={hptr.hex()} {ndx}.{seq}.{cnr}{c}")
         # cnt = 0
         # for hptr in self.chkt:
         #     cnt += len(self.chkt[hptr])
@@ -295,10 +288,10 @@ class PubNode:
         # print("   incoming WANT")
         want = bipf.loads(buf[DMX_LEN:])
         if not want or type(want) is not list:
-            self.log("   error decoding WANT")
+            self.log_fct("   error decoding WANT")
             return []
         if len(want) < 1 or type(want[0]) is not int:
-            self.log("   error decoding WANT with offset")
+            self.log_fct("   error decoding WANT with offset")
             return []
         lst = []
         cnt = (len(want)-1) * [0]
@@ -323,7 +316,7 @@ class PubNode:
                             break
                         found_something = True
                 except Exception as e:
-                    self.log("   error incoming WANT")
+                    self.log_fct("   error incoming WANT")
                     traceback.print_exc()
 
         v = "   =W ["
@@ -332,14 +325,13 @@ class PubNode:
             seq = want[i+1]
             v += f' {ndx}.{seq}' + cnt[i] * '*'
         v += " ]"
-        if self.verbose:
-            self.log(f"{v} {[x[:10].hex()+'..' for x in lst]}")
+        self.log_fct(f"{v} {[x[:10].hex()+'..' for x in lst]}")
         return lst
 
     def incoming_chnk_msg(self, dmx, buf) -> list:
         vect = bipf.loads(buf[DMX_LEN:])
         if vect == None or type(vect) != list:
-            self.log("   error decoding CHNK")
+            self.log_fct("   error decoding CHNK")
             return []
         lst = []
         cnt = len(vect) * [0]
@@ -353,8 +345,8 @@ class PubNode:
                     fid = self.goset.keys[fNDX]
                     chunk = self.reps[fid].get_chunk_pkt(seq, cnr + cnt[i])
                 except Exception as e:
-                    self.log("   incoming CHNK error")
-                    self.log(f"{vect[i]}")
+                    self.log_fct("   incoming CHNK error")
+                    self.log_fct(f"{vect[i]}")
                     continue
                 if chunk == None:
                     continue
@@ -371,8 +363,7 @@ class PubNode:
             fid = self.goset.keys[fNDX]
             v += f" {fNDX}.{seq}.{cnr}" + cnt[i] * "*"
         v += " ]"
-        if self.verbose:
-            self.log(f"{v} {[x[:10].hex()+'..' for x in lst]}")
+        self.log_fct(f"{v} {[x[:10].hex()+'..' for x in lst]}")
         return lst
     
     
