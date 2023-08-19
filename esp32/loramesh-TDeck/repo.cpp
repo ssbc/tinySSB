@@ -63,6 +63,7 @@ void Repo2Class::load()
       add_replica(fid);
     f.close();
     f = fdir.openNextFile(FILE_READ);
+    lv_task_handler();
   }
   fdir.close();
 

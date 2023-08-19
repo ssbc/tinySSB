@@ -22,7 +22,8 @@ static int post_cmp(const void *aa, const void *bb)
 
 void App_TVA_Class::restream()
 {
-  Serial.println("\r\nRe-streaming all log entries:");
+  Serial.println("\r\n-- re-streaming all log entries");
+
   for (int i = 0; i < theGOset->goset_len; i++) {
     unsigned char *fid = theGOset->get_key(i);
     ReplicaClass *r = theRepo->fid2replica(fid);
@@ -32,6 +33,8 @@ void App_TVA_Class::restream()
 
     int cnt = r->get_next_seq();
     for (int j = 1; j < cnt; j++) {
+      lv_task_handler();
+
       int max_sz;
       int sz = r->get_content_len(j, &max_sz);
       if (sz < 0)
@@ -52,21 +55,25 @@ void App_TVA_Class::restream()
     }
   }
 
-  if (post_cnt == 0)
-    return;
-  qsort(post_vect, post_cnt, sizeof(struct post_s), post_cmp);
-  struct post_s *p = post_vect;
-  for (int i = 0; i < post_cnt; i++, p++) {
-    _add_to_flex(p->txt);
-    free(p->txt);
-    p->txt = NULL;
+  if (post_cnt > 0) {
+    qsort(post_vect, post_cnt, sizeof(struct post_s), post_cmp);
+    struct post_s *p = post_vect;
+    lv_obj_t *o;
+    for (int i = 0; i < post_cnt; i++, p++) {
+      o = _add_to_flex(p->txt);
+      free(p->txt);
+      p->txt = NULL;
+    }
+    lv_obj_scroll_to_view(o, LV_ANIM_ON);
+
+    uint32_t run = millis() + 50;
+    while (millis() < run) {
+      lv_task_handler();
+      delay(5);
+    }
   }
 
-  uint32_t run = millis() + 50;
-  while (millis() < run) {
-    lv_task_handler();
-    delay(5);
-  }
+  Serial.println();
 }
 
 
@@ -115,9 +122,9 @@ lv_obj_t* App_TVA_Class::_add_to_flex(char *txt)
 
   lv_obj_t *lbl = lv_label_create(tmp);
   lv_obj_set_style_text_color(lbl, lv_color_hex(0), LV_PART_MAIN);
+  lv_obj_set_style_text_font(lbl, &lv_font_montserrat_12, 0);
   lv_label_set_long_mode(lbl, LV_LABEL_LONG_WRAP);
   lv_label_set_text(lbl, txt);
-  lv_obj_scroll_to_view(tmp, LV_ANIM_ON);
 
   return tmp;
 }
@@ -130,6 +137,7 @@ void App_TVA_Class::new_post(unsigned char *fid, struct bipf_s *tav)
     return;
   
   lv_obj_t *e = _add_to_flex(p->txt);
+  lv_obj_scroll_to_view(e, LV_ANIM_ON);
 
   // FIXME: bubble the entry to the right position, look at when values
 

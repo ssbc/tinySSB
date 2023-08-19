@@ -93,22 +93,17 @@ void four_button_cb(lv_event_t *e)
   lv_task_handler();
 }
 
+lv_style_t bg_style;
 
 void ui_setup()
 {
-    lv_obj_t *scr = lv_scr_act();
-    lv_obj_t *tmp;
-
-    static lv_style_t bg_style;
     lv_style_init(&bg_style);
     lv_style_set_bg_color(&bg_style, lv_color_white());
     lv_style_set_text_color(&bg_style, lv_color_hex(0xff4040));
 
-    static lv_style_t ta_bg_style;
-    lv_style_init(&ta_bg_style);
-    lv_style_set_bg_color(&ta_bg_style, lv_color_white());
-    lv_style_set_text_color(&ta_bg_style, lv_color_hex(0x8080ff));
-
+    lv_obj_t *scr = lv_scr_act();
+    lv_obj_t *tmp;
+    
     // splash
 
     lv_obj_t *img = lv_img_create(scr); // background
@@ -149,34 +144,9 @@ void ui_setup()
     lv_obj_set_style_bg_color(tmp, lv_color_hex(0xc0c0c0), LV_PART_MAIN);
     log_lbl = lv_label_create(tmp);
     lv_obj_set_style_text_color(log_lbl, lv_color_hex(0), LV_PART_MAIN);
+    lv_obj_set_style_text_font(log_lbl, &lv_font_montserrat_12, 0);
     lv_label_set_long_mode(log_lbl, LV_LABEL_LONG_WRAP);
     lv_label_set_text(log_lbl, "-- top of posts --");
-
-    /*
-    tmp = lv_obj_create(posts);
-    lv_obj_set_size(tmp, 314, 70);
-    lv_obj_set_style_border_width(tmp, 0, LV_PART_MAIN);
-    lv_obj_set_style_bg_color(tmp, lv_color_hex(0xc0c0c0), LV_PART_MAIN);
-    lv_obj_t *lbl = lv_label_create(tmp);
-    lv_obj_set_style_text_color(lbl, lv_color_hex(0), LV_PART_MAIN);
-    lv_label_set_text(lbl, "e1");
-
-    tmp = lv_obj_create(posts);
-    lv_obj_set_size(tmp, 314, 110);
-    lv_obj_set_style_border_width(tmp, 0, LV_PART_MAIN);
-    lv_obj_set_style_bg_color(tmp, lv_color_hex(0xc0c0c0), LV_PART_MAIN);
-    lbl = lv_label_create(tmp);
-    lv_obj_set_style_text_color(lbl, lv_color_hex(0), LV_PART_MAIN);
-    lv_label_set_text(lbl, "e2");
-
-    tmp = lv_obj_create(posts);
-    lv_obj_set_size(tmp, 314, 50);
-    lv_obj_set_style_border_width(tmp, 0, LV_PART_MAIN);
-    lv_obj_set_style_bg_color(tmp, lv_color_hex(0xc0c0c0), LV_PART_MAIN);
-    lbl = lv_label_create(tmp);
-    lv_obj_set_style_text_color(lbl, lv_color_hex(0), LV_PART_MAIN);
-    lv_label_set_text(lbl, "e3 - extended");
-    */
 
     // top row (left and right button, middle title)
 

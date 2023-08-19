@@ -28,9 +28,9 @@ struct lora_config_s *the_lora_config;
 #include "hw_setup.h"
 #include "ui_setup.h"
 
-DmxClass   *theDmx   = new DmxClass();
-Repo2Class *theRepo  = new Repo2Class();
-GOsetClass *theGOset = new GOsetClass();
+DmxClass   *theDmx;
+Repo2Class *theRepo;
+GOsetClass *theGOset;
 
 App_TVA_Class *the_TVA_app;
 
@@ -89,18 +89,28 @@ void setup()
   hw_setup();
   ui_setup();
 
-  unsigned char h[32];
-  crypto_hash_sha256(h, (unsigned char*) GOSET_DMX_STR, strlen(GOSET_DMX_STR));
-  memcpy(theDmx->goset_dmx, h, DMX_LEN);
-  theDmx->arm_dmx(theDmx->goset_dmx, theGOset_rx, NULL);
-  Serial.printf("   DMX for GOST is %s\r\n", to_hex(theDmx->goset_dmx, 7, 0));
+  lv_obj_t *spinner = lv_spinner_create(lv_scr_act(), 1500, 60);
+  lv_obj_add_style(spinner, &bg_style, LV_PART_ITEMS); // FIXME: no effect ...
+  lv_obj_set_size(spinner, 60, 60);
+  lv_obj_center(spinner);
+  lv_task_handler();
+  {
+    theDmx   = new DmxClass();
+    theRepo  = new Repo2Class();
+    theGOset = new GOsetClass();
+  
+    unsigned char h[32];
+    crypto_hash_sha256(h, (unsigned char*) GOSET_DMX_STR, strlen(GOSET_DMX_STR));
+    memcpy(theDmx->goset_dmx, h, DMX_LEN);
+    theDmx->arm_dmx(theDmx->goset_dmx, theGOset_rx, NULL);
+    Serial.printf("   DMX for GOST is %s\r\n", to_hex(theDmx->goset_dmx, 7, 0));
 
-  theRepo->load();
-
-  // listDir(MyFS, "/", 2); // FEED_DIR, 2);
-
-  the_TVA_app = new App_TVA_Class(posts);
-  the_TVA_app->restream();
+    theRepo->load();
+    // listDir(MyFS, "/", 2); // FEED_DIR, 2);
+    the_TVA_app = new App_TVA_Class(posts);
+    the_TVA_app->restream();
+  }
+  lv_obj_del(spinner);  
 }
 
 void loop()
