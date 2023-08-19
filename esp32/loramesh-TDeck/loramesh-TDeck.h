@@ -32,7 +32,7 @@ DmxClass   *theDmx   = new DmxClass();
 Repo2Class *theRepo  = new Repo2Class();
 GOsetClass *theGOset = new GOsetClass();
 
-App_TVA_Class *thePosts;
+App_TVA_Class *the_TVA_app;
 
 extern int lora_send_ok;
 
@@ -99,8 +99,8 @@ void setup()
 
   // listDir(MyFS, "/", 2); // FEED_DIR, 2);
 
-  thePosts = new App_TVA_Class(posts);
-  thePosts->restream();
+  the_TVA_app = new App_TVA_Class(posts);
+  the_TVA_app->restream();
 }
 
 void loop()

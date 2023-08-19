@@ -32,7 +32,7 @@ lv_obj_t *hz[3];
 
 // ---------------------------------------------------------------------------
 
-void prep2log(char *txt)
+void prep2log(char *txt) // useful for showing internal log messages on the GUI
 {
   char *olds = lv_label_get_text(log_lbl);
   char *news = (char*) malloc(strlen(olds) + strlen(txt) + 8);
@@ -47,7 +47,6 @@ void prep2log(char *txt)
   lv_obj_invalidate(log_lbl);
 }
 
-// extern lv_imgbtn_state_t get_state(const lv_obj_t * imgbtn);
 
 void brightness_cb(lv_event_t *e)
 {
@@ -100,27 +99,6 @@ void ui_setup()
     lv_obj_t *scr = lv_scr_act();
     lv_obj_t *tmp;
 
-    /*
-    static lv_style_t zeropad_style;
-    lv_style_set_pad_all(&zeropad_style, 0);
-    lv_obj_remove_style_all(scr);
-    lv_obj_add_style(scr, &zeropad_style, LV_PART_MAIN);
-    
-    static lv_style_t lable_style;
-    lv_style_init(&lable_style);
-    lv_style_set_bg_color(&lable_style, lv_color_white());
-    lv_style_set_text_color(&lable_style, lv_color_black());
-
-    static lv_style_t bg_style;
-    lv_style_init(&bg_style);
-    lv_style_set_bg_color(&bg_style, lv_color_white());
-    lv_style_set_text_color(&bg_style, lv_color_hex(0x8080ff));
-
-    static lv_style_t btn_bg_style;
-    lv_style_init(&btn_bg_style);
-    lv_style_set_bg_color(&btn_bg_style, lv_color_hex(0xc0c0ff));
-    */
-
     static lv_style_t bg_style;
     lv_style_init(&bg_style);
     lv_style_set_bg_color(&bg_style, lv_color_white());
@@ -130,7 +108,6 @@ void ui_setup()
     lv_style_init(&ta_bg_style);
     lv_style_set_bg_color(&ta_bg_style, lv_color_white());
     lv_style_set_text_color(&ta_bg_style, lv_color_hex(0x8080ff));
-    // lv_style_set_bg_opa(&ta_bg_style, LV_OPA_100);
 
     // splash
 
@@ -157,7 +134,6 @@ void ui_setup()
 
     // posts (and scroll)
 
-    // lv_obj_t *scroll = lv_obj_create(img);
     posts = lv_obj_create(img);
     lv_obj_set_size(posts, 314, 160);
     lv_obj_set_pos(posts, 3, 36);
@@ -166,48 +142,21 @@ void ui_setup()
     lv_obj_set_style_border_width(posts, 0, LV_PART_MAIN);
     lv_obj_set_scrollbar_mode(posts, LV_SCROLLBAR_MODE_OFF);
     lv_obj_set_flex_flow(posts, LV_FLEX_FLOW_COLUMN);
-    /*
-    static lv_coord_t column_dsc[] = {314, LV_GRID_TEMPLATE_LAST};     // 1 column
-    static lv_coord_t row_dsc[] = {LV_GRID_CONTENT, LV_GRID_CONTENT, LV_GRID_CONTENT, LV_GRID_CONTENT, LV_GRID_TEMPLATE_LAST}; // 4 rows
-    lv_obj_set_grid_dsc_array(posts, column_dsc, row_dsc);
-    */
-    // text area
-
-    /*
-    tSSB_ta = lv_textarea_create(posts);
-    lv_obj_set_size(tSSB_ta, 314, 70);
-    lv_obj_set_style_border_width(tmp, 0, LV_PART_MAIN);
-    lv_obj_set_scrollbar_mode(tSSB_ta, LV_SCROLLBAR_MODE_OFF);
-    lv_obj_add_style(tSSB_ta, &ta_bg_style, LV_PART_MAIN);
-    lv_obj_set_grid_cell(tmp, LV_GRID_ALIGN_START, 0, 1,
-                         LV_GRID_ALIGN_START, 0, 1);
-    lv_textarea_set_cursor_click_pos(tSSB_ta, true);
-    // lv_textarea_set_cursor_hidden(tSSB_ta, false);
-    lv_textarea_set_text_selection(tSSB_ta, false);
-    lv_textarea_set_text(tSSB_ta, "");
-    lv_textarea_set_max_length(tSSB_ta, 1024);
-
-    lv_textarea_add_text(tSSB_ta, "\n>> tinySSB on T-Deck:\n\n     soon on this screen!\n");
-    lv_textarea_set_cursor_pos(tSSB_ta, LV_TEXTAREA_CURSOR_LAST);
-    */
 
     tmp = lv_obj_create(posts);
     lv_obj_set_size(tmp, 314, LV_SIZE_CONTENT);
     lv_obj_set_style_border_width(tmp, 0, LV_PART_MAIN);
     lv_obj_set_style_bg_color(tmp, lv_color_hex(0xc0c0c0), LV_PART_MAIN);
-    // lv_obj_set_grid_cell(tmp, LV_GRID_ALIGN_START, 0, 1,
-    //                      LV_GRID_ALIGN_START, 0, 1);
     log_lbl = lv_label_create(tmp);
     lv_obj_set_style_text_color(log_lbl, lv_color_hex(0), LV_PART_MAIN);
     lv_label_set_long_mode(log_lbl, LV_LABEL_LONG_WRAP);
-    lv_label_set_text(log_lbl, "log");
-    
+    lv_label_set_text(log_lbl, "-- top of posts --");
+
+    /*
     tmp = lv_obj_create(posts);
     lv_obj_set_size(tmp, 314, 70);
     lv_obj_set_style_border_width(tmp, 0, LV_PART_MAIN);
     lv_obj_set_style_bg_color(tmp, lv_color_hex(0xc0c0c0), LV_PART_MAIN);
-    // lv_obj_set_grid_cell(tmp, LV_GRID_ALIGN_START, 0, 1,
-    //                      LV_GRID_ALIGN_START, 1, 1);
     lv_obj_t *lbl = lv_label_create(tmp);
     lv_obj_set_style_text_color(lbl, lv_color_hex(0), LV_PART_MAIN);
     lv_label_set_text(lbl, "e1");
@@ -216,8 +165,6 @@ void ui_setup()
     lv_obj_set_size(tmp, 314, 110);
     lv_obj_set_style_border_width(tmp, 0, LV_PART_MAIN);
     lv_obj_set_style_bg_color(tmp, lv_color_hex(0xc0c0c0), LV_PART_MAIN);
-    // lv_obj_set_grid_cell(tmp, LV_GRID_ALIGN_START, 0, 1,
-    //                      LV_GRID_ALIGN_START, 2, 1);
     lbl = lv_label_create(tmp);
     lv_obj_set_style_text_color(lbl, lv_color_hex(0), LV_PART_MAIN);
     lv_label_set_text(lbl, "e2");
@@ -226,11 +173,10 @@ void ui_setup()
     lv_obj_set_size(tmp, 314, 50);
     lv_obj_set_style_border_width(tmp, 0, LV_PART_MAIN);
     lv_obj_set_style_bg_color(tmp, lv_color_hex(0xc0c0c0), LV_PART_MAIN);
-    // lv_obj_set_grid_cell(tmp, LV_GRID_ALIGN_START, 0, 1,
-    //                     LV_GRID_ALIGN_START, 3, 1);
     lbl = lv_label_create(tmp);
     lv_obj_set_style_text_color(lbl, lv_color_hex(0), LV_PART_MAIN);
     lv_label_set_text(lbl, "e3 - extended");
+    */
 
     // top row (left and right button, middle title)
 
@@ -294,38 +240,29 @@ void ui_setup()
     lv_obj_add_event_cb(ib, four_button_cb, LV_EVENT_CLICKED, NULL);
     lv_obj_add_state(ib, LV_STATE_CHECKED);
 
-    hz[0] = lv_img_create(scr); // haze
+    // "haze" (poor man's way of dimming the screen)
+ 
+    hz[0] = lv_img_create(scr);
     lv_img_set_src(hz[0], &haze0);
     lv_obj_set_size(hz[0], 320, 240);
     lv_obj_set_pos(hz[0], 0, 0);
     lv_obj_add_flag(hz[0], LV_OBJ_FLAG_HIDDEN);
-// lv_canvas_fill_bg(hz[0], lv_color_hex(0), 32);
 
-    hz[1] = lv_img_create(scr); // haze
+    hz[1] = lv_img_create(scr);
     lv_img_set_src(hz[1], &haze1);
     lv_obj_set_size(hz[1], 320, 240);
     lv_obj_set_pos(hz[1], 0, 0);
     lv_obj_add_flag(hz[1], LV_OBJ_FLAG_HIDDEN);
-    // lv_canvas_fill_bg(hz[1], lv_color_hex(0), 32);
 
-    hz[2] = lv_img_create(scr); // haze
+    hz[2] = lv_img_create(scr);
     lv_img_set_src(hz[2], &haze2);
     lv_obj_set_size(hz[2], 320, 240);
     lv_obj_set_pos(hz[2], 0, 0);
     lv_obj_add_flag(hz[2], LV_OBJ_FLAG_HIDDEN);
-    
-    /*
-    hz = lv_canvas_create(scr);
-    lv_obj_set_size(hz, 320, 240);
-    lv_obj_set_pos(hz, 0, 0);
-    void *buf = lv_mem_alloc(lv_img_cf_get_px_size(LV_IMG_CF_INDEXED_4BIT * 320) / 8 * 240);
-    lv_canvas_set_buffer(haze, buf, 320, 240, LV_IMG_CF_INDEXED_4BIT);
-    for (int i = 0; i < 16; i++)
-      lv_canvas_set_palette(haze, i, lv_color_hex(i * 0x111111));
-    // lv_canvas_fill_bg(haze, lv_color_hex(0xc), 128);
-    */
-    
-    lv_obj_invalidate(scr); // background
+
+    // final refresh
+
+    lv_obj_invalidate(scr);
     lv_task_handler();
 }
 
