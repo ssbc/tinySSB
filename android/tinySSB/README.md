@@ -21,10 +21,7 @@ app is active (no background syncing).
 
 Compiling the ```tinySSB``` app is challenging because of the included
 Codec2 library which must be cross-compiled to native code (for
-Android smartphones). If on Windows you may have to change the file
-```tinySSB/app/src/main/codec2/src/CMakeLists.txt``` and add a
-```.exe``` suffix to a file name, see
-```tinySSB/app/src/main/codec2/src/CMakeLists-for-windows.txt```.
+Android smartphones).
 
 The compilation is currently configured to generate an APK that
 runs on devices in the range of Android 8/Oreo to Android 12 (SDK 26 to 31).
