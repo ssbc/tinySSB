@@ -6,7 +6,6 @@
 // #include <lwip/def.h> // htonl()
 
 
-#define NODE_ROUND_LEN   7000  // millis, take turns between log entries and chunks
 unsigned int node_next_vector; // time when one of the two next vectors should be sent
 
 long packet_proc_time;
@@ -243,7 +242,7 @@ void node_tick()
     return;
   node_next_vector = now + NODE_ROUND_LEN + esp_random() % 500;
 
-  lora_pps = 0.75 * lora_pps + 0.25 * 1000.0 * lora_pkt_cnt / NODE_ROUND_LEN;
+  lora_pps = 0.75 * lora_pps + 0.25 * 1000.0 * lora_pkt_cnt / NODE_ROUND_LEN / 2;
   // lora_pps = 1000.0 * lora_pkt_cnt / NODE_ROUND_LEN;
   lora_pkt_cnt = 0;
  
@@ -280,6 +279,44 @@ void node_tick()
 
   fishForNewLoRaPkt();
   io_dequeue();
+}
+
+
+void probe_for_want_vect(unsigned char **pkt,
+                         unsigned short *len,
+                         unsigned short *reprobe_in_millis)
+{
+  *reprobe_in_millis = millis() + NODE_ROUND_LEN/2 + esp_random() % 500;
+
+  *pkt = NULL;
+  if (theGOset->goset_len == 0)
+    return;
+  theRepo->mk_want_vect();
+  if (theRepo->want_len <= 0)
+    return;
+  *len = 7 + theRepo->want_len;
+  *pkt = (unsigned char*) malloc(*len);
+  memcpy(*pkt, theDmx->want_dmx, 7);
+  memcpy(*pkt + 7, theRepo->want_vect, theRepo->want_len);
+}
+
+
+void probe_for_chnk_vect(unsigned char **pkt,
+                         unsigned short *len,
+                         unsigned short *reprobe_in_millis)
+{
+  *reprobe_in_millis = millis() + NODE_ROUND_LEN/2 + esp_random() % 500;
+
+  *pkt = NULL;
+  if (theGOset->goset_len == 0)
+    return;
+  theRepo->mk_chnk_vect();
+  if (theRepo->chnk_len <= 0)
+    return;
+  *len = 7 + theRepo->chnk_len;
+  *pkt = (unsigned char*) malloc(*len);
+  memcpy(*pkt, theDmx->chnk_dmx, 7);
+  memcpy(*pkt + 7, theRepo->chnk_vect, theRepo->chnk_len);
 }
 
 // eof

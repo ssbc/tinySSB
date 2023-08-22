@@ -53,7 +53,12 @@ class GOsetClass {
   int _key_index(unsigned char *key);
   unsigned char *get_key(int ndx);
 
+  void probe_for_goset_vect(unsigned char **pkt,
+                            unsigned short *len,
+                            unsigned short *reprobe_in_millis);
+  
  private:
+  unsigned long last_round;
   unsigned char goset_keys[GOSET_KEY_LEN * GOSET_MAX_KEYS];
   int largest_claim_span;
   struct claim_s pending_claims[MAX_PENDING];
@@ -72,9 +77,6 @@ class GOsetClass {
   void _add_pending(unsigned char *claim);
 };
 
-extern int _cmp_key32(const void *a, const void *b);
-
-
 /* packet format:
 
   n 32B 32B? 32B?  // 33 bytes, in the future up to two additional keys
@@ -84,7 +86,7 @@ extern int _cmp_key32(const void *a, const void *b);
 */
 
 // forward declaration
-void set_want_dmx();
+extern void set_want_dmx();
 
 // -------------------------------------------------------------------------
 

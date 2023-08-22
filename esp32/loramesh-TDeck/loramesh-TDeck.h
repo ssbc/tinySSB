@@ -31,6 +31,7 @@ struct lora_config_s *the_lora_config;
 DmxClass   *theDmx;
 Repo2Class *theRepo;
 GOsetClass *theGOset;
+SchedClass *theSched;
 
 App_TVA_Class *the_TVA_app;
 
@@ -76,6 +77,14 @@ void listDir(fs::FS &fs, const char *dirname, uint8_t levels)
 
 // --------------------------------------------------------------------------
 
+void probe_for_goset_vect(unsigned char **pkt,
+                          unsigned short *len,
+                          unsigned short *reprobe_in_millis)
+{
+  theGOset->probe_for_goset_vect(pkt, len, reprobe_in_millis);
+}
+
+
 void setup()
 {
   char msg[100];
@@ -98,7 +107,11 @@ void setup()
     theDmx   = new DmxClass();
     theRepo  = new Repo2Class();
     theGOset = new GOsetClass();
-  
+    theSched = new SchedClass(probe_for_goset_vect,
+                              NULL,
+                              probe_for_want_vect,
+                              probe_for_chnk_vect);
+
     unsigned char h[32];
     crypto_hash_sha256(h, (unsigned char*) GOSET_DMX_STR, strlen(GOSET_DMX_STR));
     memcpy(theDmx->goset_dmx, h, DMX_LEN);
@@ -118,9 +131,10 @@ void loop()
   delay(5);
 
   button.check();
-  
-  theGOset->tick();
-  node_tick();
+
+  theSched->tick();
+  // theGOset->tick();
+  // node_tick();
 
   // loopRadio();
   loopBLE();

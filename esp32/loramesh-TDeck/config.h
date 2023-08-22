@@ -54,6 +54,8 @@
 
 #define BLE_RING_BUF_SIZE 3
 
+#define NODE_ROUND_LEN   14000  // millis, for GOset, 1/2 is basis for WANT/CHNK
+
 // ---------------------------------------------------------------------------
 
 #include <Arduino.h>
@@ -76,6 +78,8 @@ extern DmxClass   *theDmx;
 #include "repo.h"
 extern Repo2Class *theRepo;
 #include "app_tva.h"
+#include "sched.h"
+extern SchedClass *theSched;
 
 extern void tft_onOff(int val); // 0=off
 
