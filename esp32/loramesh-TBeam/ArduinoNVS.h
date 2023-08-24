@@ -66,10 +66,10 @@ public:
   bool    setInt(String key, uint32_t value, bool forceCommit = true);
   bool    setInt(String key, int64_t value, bool forceCommit = true);
   bool    setInt(String key, uint64_t value, bool forceCommit = true);
-  bool    setFloat(String key, float value, bool forceCommit = true);
+  bool    setFloat(char *key, float value, bool forceCommit = true);
   bool    setString(String key, String value, bool forceCommit = true);
-  bool    setBlob(String key, uint8_t* blob, size_t length, bool forceCommit = true);
-  bool    setBlob(String key, std::vector<uint8_t>& blob, bool forceCommit = true);
+  bool    setBlob(char *key, uint8_t* blob, size_t length, bool forceCommit = true);
+  bool    setBlob(char *key, std::vector<uint8_t>& blob, bool forceCommit = true);
 
   int64_t getInt(String key, int64_t default_value = 0);  // In case of error, default_value will be returned
   float   getFloat(String key, float default_value = 0);

@@ -204,12 +204,12 @@ bool ArduinoNvs::setString(String key, String value, bool forceCommit)
   return forceCommit ? commit() : true;
 }
 
-bool ArduinoNvs::setBlob(String key, uint8_t *blob, size_t length, bool forceCommit)
+bool ArduinoNvs::setBlob(char *key, uint8_t *blob, size_t length, bool forceCommit)
 {
   // DEBUG_PRINTF("ArduinoNvs::setObjct(): set obj addr = [0x%X], length = [%d]\r\n", (int32_t)blob, length);
   if (length == 0) 
     return false;
-  esp_err_t err = nvs_set_blob(_nvs_handle, (char *)key.c_str(), blob, length);
+  esp_err_t err = nvs_set_blob(_nvs_handle, key, blob, length);
   if (err)
   {
     DEBUG_PRINTF("ArduinoNvs::setObjct(): err = [0x%X]\r\n", err);
@@ -218,7 +218,7 @@ bool ArduinoNvs::setBlob(String key, uint8_t *blob, size_t length, bool forceCom
   return forceCommit ? commit() : true;
 }
 
-bool ArduinoNvs::setBlob(String key, std::vector<uint8_t> &blob, bool forceCommit)
+bool ArduinoNvs::setBlob(char *key, std::vector<uint8_t> &blob, bool forceCommit)
 {
   return setBlob(key, &blob[0], blob.size(), forceCommit);
 }
@@ -349,7 +349,7 @@ std::vector<uint8_t> ArduinoNvs::getBlob(String key)
   return res;
 }
 
-bool ArduinoNvs::setFloat(String key, float value, bool forceCommit)
+bool ArduinoNvs::setFloat(char *key, float value, bool forceCommit)
 {
   return setBlob(key, (uint8_t *)&value, sizeof(float), forceCommit);
 }

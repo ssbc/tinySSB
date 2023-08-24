@@ -140,7 +140,7 @@ void setup(void) {
       fid_cnt = MAX_FID;
       esp_fill_random(fid_table, fid_cnt * 32);
       NVS.setBlob(NAME_FEEDS, fid_table, fid_cnt * 32);
-      Serial.printf("created the FID table with %d feed IDs", fid_cnt);
+      Serial.printf("created the FID table with %d feed IDs\r\n", fid_cnt);
     } else {
       int sz = NVS.getBlobSize(NAME_FEEDS);
       if (sz != MAX_FID * 32)
