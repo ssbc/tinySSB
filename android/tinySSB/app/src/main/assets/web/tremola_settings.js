@@ -93,6 +93,7 @@ function btn_setWebsocketUrl() {
 }
 
 function enter_setWebsocketUrl(ev) {
+    console.log(ev.target)
     if (ev.key == "Enter") {
         btn_setWebsocketUrl()
     }
