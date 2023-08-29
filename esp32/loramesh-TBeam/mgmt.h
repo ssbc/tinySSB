@@ -134,10 +134,14 @@ void mgmt_send_beacon();
 
 
 float getBattVoltage() {
+#if defined(ARDUINO_TBEAM_USE_RADIO_SX1262)
 #ifdef TBEAM_07
   return analogRead(35) * 0.85 * (2.0 / 1024.0); // 0.85 is voltage divider ratio measured
 #else
   return axp.getBattVoltage()/1000;
+#endif
+#else
+  return 0;
 #endif
 }
 

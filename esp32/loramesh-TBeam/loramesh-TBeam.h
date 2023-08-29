@@ -31,7 +31,7 @@ struct lora_config_s *the_lora_config;
 
 int ble_clients = 0;
 
-#if !defined(NO_OLED) && !defined(WIFI_LoRa_32_V2) && !defined(WIFI_LORA_32_V2)
+#if !defined(NO_OLED) && defined(ARDUINO_TBEAM_USE_RADIO_SX1262) // !defined(WIFI_LoRa_32_V2) && !defined(WIFI_LORA_32_V2)
   SSD1306 theDisplay(0x3c, 21, 22); // lilygo t-beam
 #endif
 
@@ -330,8 +330,8 @@ void do_io()
   userButton.loop();
   io_dequeue();
   
-  // theGOset->tick();
-  // node_tick();
+  theGOset->tick();
+  node_tick();
   // mgmt_tick();
   hm_tick();
 
@@ -364,7 +364,7 @@ void do_io()
       long pfe = 0;
       int rssi = 0;
 
-#if defined(WIFI_LoRa_32_V2) || defined(WIFI_LORA_32_V2)
+#if defined(ARDUINO_heltec_wifi_lora_32_V2) // defined(WIFI_LoRa_32_V2) || defined(WIFI_LORA_32_V2)
       lora_log.printf("%d.%03d,0000-00-00T00:00:00Z,%s,0,0,0",
                       m/1000, m%1000,
                       to_hex(my_mac,6,1));
@@ -499,7 +499,7 @@ void do_io()
     theDisplay.drawString(0, 30, stat_line);
 
 #if defined(MAIN_BLEDevice_H_)
-#if defined(WIFI_LoRa_32_V2) || defined(WIFI_LORA_32_V2)
+#if defined(ARDUINO_heltec_wifi_lora_32_V2) // defined(WIFI_LoRa_32_V2) || defined(WIFI_LORA_32_V2)
     sprintf(stat_line + strlen(stat_line)-1, "%d", lora_cnt);
 #else
     sprintf(stat_line + strlen(stat_line)-1, "%d, batt:%.04g",

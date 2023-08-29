@@ -16,10 +16,12 @@ extern File hm_log;
 
 void hm_save2log(char *s)
 {
+#if defined(ARDUINO_TBEAM_USE_RADIO_SX1262)
   hm_log.printf("%04d-%02d-%02dT%02d:%02d:%02dZ: \"%s\"\r\n",
                 gps.date.year(), gps.date.month(), gps.date.day(),
                 gps.time.hour(), gps.time.minute(), gps.time.second(), s);
   hm_log.flush();
+#endif
 }
 
 void hm_incoming_rep(unsigned char *pkt, int len, unsigned char *aux,
@@ -48,9 +50,11 @@ void hm_incoming_req(unsigned char *pkt, int len, unsigned char *aux,
   memcpy(buf, hm_dmx_rep, 7);
   sprintf(buf+7, "R %02x%02x [%s]", my_mac[4], my_mac[5], str);
 
+#if defined(ARDUINO_TBEAM_USE_RADIO_SX1262)
   if (gps.location.isValid())
     sprintf(buf+7+strlen(buf+7), " gps=%.8g,%.8g,%g", gps.location.lat(),
             gps.location.lng(), gps.altitude.meters());
+#endif
 
   io_enqueue((unsigned char*) buf, 7 + strlen(buf+7), NULL, &lora_face);
 }
@@ -89,9 +93,11 @@ void hm_tick()
     memcpy((unsigned char*)buf, hm_dmx_req, 7);
     sprintf(buf+7, "Q %02x%02x %d", my_mac[4], my_mac[5], hm_clock++);
 
+#if defined(ARDUINO_TBEAM_USE_RADIO_SX1262)
     if (gps.location.isValid())
       sprintf(buf+7+strlen(buf+7), " gps=%.8g,%.8g,%g", gps.location.lat(),
               gps.location.lng(), gps.altitude.meters());
+#endif
     
     io_enqueue((unsigned char*) buf, 7 + strlen(buf+7), NULL, &lora_face);
 

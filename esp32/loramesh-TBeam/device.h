@@ -6,7 +6,7 @@
 // collect all external libraries here
 
 // ----------------------------------------------------------------------
-#if defined(WIFI_LoRa_32_V2) || defined(WIFI_LORA_32_V2)
+#if defined(ARDUINO_heltec_wifi_lora_32_V2) // defined(WIFI_LoRa_32_V2) || defined(WIFI_LORA_32_V2)
 
 # include <heltec.h>
 
@@ -17,7 +17,7 @@
 #define BUTTON_PIN KEY_BUILTIN  // for heltec?
 
 // ----------------------------------------------------------------------
-#else // ARDUINO_TBeam
+#elif defined(ARDUINO_TBEAM_USE_RADIO_SX1262) // ARDUINO_TBeam
 
 # include <axp20x.h>
 # include <Wire.h>
