@@ -37,7 +37,8 @@ BOOTAPP0PATH=$(ARDUINO_ESP_DIR)/hardware/esp32/2.0.11/tools/partitions/boot_app0
 
 ifdef BOARD
 else
-  BOARD=TBeam
+  $(info ">> please specify a BOARD")
+  stop
 endif
 
 # name of the ino file:
@@ -61,13 +62,16 @@ else ifeq ($(BOARD),TDeck)
   MAX_UPLOAD=2097152 # 2MB
   FLASH_SIZE=16MB
   FLAGS_BOARD=-DESP32 -DCORE_DEBUG_LEVEL=0 -DARDUINO_RUNNING_CORE=1 -DARDUINO_EVENT_RUNNING_CORE=1 -DBOARD_HAS_PSRAM -DARDUINO_USB_MODE=1 -DARDUINO_USB_CDC_ON_BOOT=1 -DARDUINO_USB_MSC_ON_BOOT=0 -DARDUINO_USB_DFU_ON_BOOT=0
-else # default is T-Beam
+else ifeq ($(BOARD),TBeam)
   CHIP=esp32
   BOARD=TBeam
   FQBN=esp32:esp32:t-beam
   PARTITIONS_CSV=partitions-tbeam.csv
   MAX_UPLOAD=1572864 # 1.5MB
   FLASH_SIZE=4MB
+else
+  $(info ">> unknown board $(BOARD)")
+  stop
 endif
 
 ifndef SERIAL

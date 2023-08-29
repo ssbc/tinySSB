@@ -8,15 +8,18 @@
 #if !defined(_INCLUDE_CONFIG_H)
 #define _INCLUDE_CONFIG_H
 
-
 #define HAS_OLED
 #define HAS_BLE   // enable Bluetooth Low Energy
 #define HAS_LORA  // enable LoRa
+#if defined(ARDUINO_TBEAM_USE_RADIO_SX1262)
+#  define HAS_GPS   // enable GPS
+#endif
 
 // FIXME: change the following to positive statements, as above
 #define NO_BT    // disable Bluetooth
-// #define NO_GPS   // disable GPS
 #define NO_WIFI  // disable WiFi
+
+// ---------------------------------------------------------------------------
 
 #define SLOW_CPU
 #define SLOW_CPU_MHZ 80  // 40MHz is too low for handling the BLE protocol
@@ -86,6 +89,11 @@ extern struct lora_config_s *the_lora_config;
 #define MyFS LittleFS
 
 #include "device.h"
+
+#if defined(HAS_GPS)
+  extern TinyGPSPlus gps;
+#endif
+
 #include "status.h"
 #include "util.h"
 #include "io.h"

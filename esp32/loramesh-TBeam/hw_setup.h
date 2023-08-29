@@ -18,7 +18,7 @@
 #if !defined(NO_WIFI)
   WiFiUDP udp;
 #endif
-char ssid[sizeof(tSSB_WIFI_SSID) + 6];
+char my_ssid[sizeof(tSSB_WIFI_SSID) + 6];
 int wifi_clients = 0;
 
 IPAddress broadcastIP;
@@ -34,7 +34,7 @@ AXP20X_Class axp;
 unsigned long int next_log_battery;
 #endif
 
-#if !defined(NO_GPS)
+#if defined(HAS_GPS)
 TinyGPSPlus gps;
 HardwareSerial GPS(1);
 #endif
@@ -162,16 +162,17 @@ void hw_setup() // T-BEAM or Heltec LoRa32v2
   my_mac[5] += 2;
   // https://docs.espressif.com/projects/esp-idf/en/release-v3.0/api-reference/system/base_mac_address.html
 #endif
-  Serial.println(String("mac   ") + to_hex(my_mac, 6, 1));
-  sprintf(ssid, "%s-%s", tSSB_WIFI_SSID, to_hex(my_mac+4, 2, 0));
+  Serial.printf("mac   %s\r\n", to_hex(my_mac, 6, 1));
+  sprintf(my_ssid, "%s-%s", tSSB_WIFI_SSID, to_hex(my_mac+4, 2));
+  Serial.printf("this is node %s\r\n", my_ssid);
 
 #if !defined(NO_WIFI)
   WiFi.disconnect(true);
   delay(500);
   WiFi.mode(WIFI_AP);
-  Serial.println(String("wifi  ") + ssid + " / " + tSSB_WIFI_PW);
+  Serial.println(String("wifi  ") + my_ssid + " / " + tSSB_WIFI_PW);
 
-  WiFi.softAP(ssid, tSSB_WIFI_PW, 7, 0, 4); // limit to four clients
+  WiFi.softAP(my_ssid, tSSB_WIFI_PW, 7, 0, 4); // limit to four clients
   broadcastIP.fromString(tSSB_UDP_ADDR);
   if (!udp.beginMulticast(broadcastIP, tSSB_UDP_PORT)) {
     Serial.println("could not create multicast socket");
@@ -185,7 +186,7 @@ void hw_setup() // T-BEAM or Heltec LoRa32v2
 #endif
 
 #if !defined(NO_BT)
-  BT.begin(ssid);
+  BT.begin(my_ssid);
   BT.setPin("0000");
   BT.write(KISS_FEND);
 #endif

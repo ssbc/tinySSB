@@ -45,7 +45,6 @@ FtpServer ftpSrv;
 */
 
 // char lora_line[80];
-char time_line[80];
 char loc_line[80];
 char goset_line[80];
 char refresh = 1;
@@ -171,7 +170,7 @@ void setup()
   repo->load();
 
   // strcpy(lora_line, "?");
-  strcpy(time_line, "?");
+  theStatus->set_time("--no time signal--");
   strcpy(loc_line, "?");
   strcpy(goset_line, "?");
 
@@ -188,7 +187,7 @@ void setup()
   next_log_flush = millis() + LOG_FLUSH_INTERVAL;
   Serial.printf("\r\nlength of %s: %d bytes\r\n", LORA_LOG_FILENAME, lora_log.size());
 #endif // LORA_LOG
-  Serial.printf("\r\nlength of %s: %d bytes\r\n", PEERS_FILENAME, peer_log.size());
+  Serial.printf("length of %s: %d bytes\r\n", PEERS_FILENAME, peer_log.size());
 
   
 
@@ -234,6 +233,7 @@ int incoming(struct face_s *f, unsigned char *pkt, int len, int has_crc)
   return -1;
 }
 
+/*
 void right_aligned(int cnt, char c, int y)
 {
 #if defined(HAS_OLED)
@@ -246,6 +246,7 @@ void right_aligned(int cnt, char c, int y)
 
 const char *wheel[] = {"\\", "|", "/", "-"};
 int spin;
+*/
 
 // ----------------------------------------------------------------------
 
@@ -284,14 +285,14 @@ void do_io()
 
 #if !defined(NO_WIFI)
   if (WiFi.softAPgetStationNum() != wifi_clients) {
-    wifi_clients = WiFi.softAPgetStationNum();
+    theStatus->set_wifi_peers(WiFi.softAPgetStationNum());
     refresh = 1;
   }
 #endif
   
 #if defined(MAIN_BLEDevice_H_)
   if (bleDeviceConnected != ble_clients) {
-    ble_clients = bleDeviceConnected;
+    theStatus->set_ble_peers(bleDeviceConnected);
     refresh = 1;
   }
 #endif
@@ -312,6 +313,7 @@ void do_io()
   pkt_len = lora_get_pkt(pkt_buf);
   if (pkt_len > 0) {
     lora_cnt++;
+    theStatus->advance_lora_wheel();
     // Serial.printf("Rcv LoRa %dB\r\n", pkt_len);
     incoming(&lora_face, pkt_buf, pkt_len, 1);
     // sprintf(lora_line, "LoRa %d/%d: %dB, rssi=%d", lora_cnt, lora_bad_crc, pkt_len, LoRa.packetRssi());
@@ -338,7 +340,7 @@ void do_io()
                       m/1000, m%1000,
                       to_hex(my_mac,6,1));
 #else
-# if !defined(NO_GPS)
+# if defined(HAS_GPS)
       lora_log.printf("%d.%03d,%04d-%02d-%02dT%02d:%02d:%02dZ,%s",
                       m/1000, m%1000,
                       gps.date.year(), gps.date.month(), gps.date.day(),
@@ -364,6 +366,7 @@ void do_io()
     }
 #endif
     lora_cnt++;
+    theStatus->advance_lora_wheel();
     Serial.printf("<< rcv LoRa %dB\r\n", pkt_len);
     incoming(&lora_face, pkt_buf, pkt_len, 1);
     // sprintf(lora_line, "LoRa %d/%d: %dB, rssi=%d", lora_cnt, lora_bad_crc, pkt_len, LoRa.packetRssi());
@@ -410,13 +413,15 @@ void do_io()
     next_log_battery = millis() + LOG_BATTERY_INTERVAL;
   }
 
-# if !defined(NO_GPS)
+# if defined(HAS_GPS)
   while (GPS.available())
     gps.encode(GPS.read());
   if (gps.time.second() != old_gps_sec) {
+    char time_line[80];
     old_gps_sec = gps.time.second();
     sprintf(time_line, "%02d:%02d:%02d utc", gps.time.hour(), gps.time.minute(),
                                       old_gps_sec);
+    theStatus->set_time(time_line);
     /*
     if (gps.location.isValid())
       sprintf(loc_line, "%.8g@%.8g@%g/%d", gps.location.lat(), gps.location.lng(),
@@ -446,24 +451,10 @@ void do_io()
 
 #if defined(HAS_OLED)
   if (refresh) {
-    theDisplay.clear();
-
-    theDisplay.setFont(ArialMT_Plain_10);
-    theDisplay.drawString(0, 3, tSSB_WIFI_SSID "-");
-    theDisplay.setFont(ArialMT_Plain_16);
-    theDisplay.drawString(42, 0, ssid+8);
-    theDisplay.setFont(ArialMT_Plain_10);
-    
-    theDisplay.drawString(0, 18, time_line);
-    // theDisplay.drawString(0, 24, goset_line);
-    char stat_line[30];
-    char gps_synced = 0;
-# if !defined(NO_GPS)
-    gps_synced = gps.location.isValid() ? 1 : 0;
-#endif
-    sprintf(stat_line, "W:%d E:%d G:%d L:%s",
-            wifi_clients, ble_clients, gps_synced, wheel[lora_cnt % 4]);
-    theDisplay.drawString(0, 30, stat_line);
+    refresh = 0;
+    theStatus->refresh_screen(SCREEN_REPO);
+/*
+  send new BLE status ... stat_line see status.cpp
 
 #if defined(MAIN_BLEDevice_H_)
 #if defined(ARDUINO_heltec_wifi_lora_32_V2)
@@ -474,21 +465,7 @@ void do_io()
 #endif
     ble_send_stats((unsigned char*) stat_line, strlen(stat_line));
 #endif
-
-    theDisplay.setFont(ArialMT_Plain_16);
-    right_aligned(repo->rplca_cnt, 'F', 0); 
-    right_aligned(repo->entry_cnt, 'E', 22); 
-    right_aligned(repo->chunk_cnt, 'C', 44); 
-
-    int total = MyFS.totalBytes();
-    int avail = total - MyFS.usedBytes();
-    char buf[10];
-    sprintf(buf, "%2d%% free", avail / (total/100));
-    theDisplay.drawString(0, 44, buf);
-
-    // theDisplay.drawString(0, 12, wheel[spin++ % 4]);     // lora_line
-    theDisplay.display();
-    refresh = 0;
+*/
   }
 #endif // HAS_OLED
 }
