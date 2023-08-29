@@ -1,26 +1,47 @@
 # Makefile
 
-# usage:
-#   make compile [SERIAL=/dev/tty...] [BOARD=heltec]    default is for T-Beam
-#   make upload  [SERIAL=/dev/tty...]
-#   make monitor [SERIAL=/dev/tty...]
+# ** usage:
 
-# or this usage, which leaves the firmware in the build directory:
-#   make firmware [BOARD=heltec]   --> build/firmware-TBeam.bin
-#   make flash    [BOARD=heltec]
+# make [BOARD=..] [SERIAL=/dev/tty..] {firmware} {flush}
+
+#    known boards are: TBeam, TDeck, heltec
+#    serial device: we have some heuristics for setting it automatically
 
 
-# place where the arduino-cli executable etc sit:
+# ** examples:
+
+# make BOARD=heltec firmware     --> creates 'build/firmware-heltec.bin'
+# make BOARD=heltec flash
+
+#    these two phases can be combined:
+
+# make BOARD=heltec firmware flash
+
+
+# ** special flag for old TBeam:
+
+#   make BOARD=TBeam FLAG=TBEAM_07 firmware flash
+
+
+# ---------------------------------------------------------------------------
+
+# adjust the following: places where the arduino-cli executable etc sit
 
 BINDIR=/opt/homebrew/bin
 ESPTOOL=/Users/tschudin/Library/Arduino15/packages/esp32/tools/esptool_py/4.5.1/esptool
 BOOTAPP0PATH=/Users/tschudin/Library/Arduino15/packages/esp32/hardware/esp32/2.0.11/tools/partitions/boot_app0.bin
 
+ifndef BOARD
+  BOARD=TBeam
+endif
+
 # name of the ino file:
-MAIN=loramesh-TDeck.ino
+MAIN=$(shell ls *.ino)
 
 FLASH_OFFS=0x0
 FLASH_BIN=firmware-$(BOARD).bin
+
+FLAGS_ALL=-DUTC_OFFSET=\"$(shell date +%z)\"
 
 ifeq ($(BOARD),heltec)
   CHIP=esp32
@@ -34,9 +55,8 @@ else ifeq ($(BOARD),TDeck)
   PARTITIONS_CSV=partitions-tdeck.csv
   MAX_UPLOAD=2097152 # 2MB
   FLASH_SIZE=16MB
-  # FLASH_OFFS=0x10000
-  # FLASH_BIN=$(MAIN).bin
-else    # default is T-Beam
+  FLAGS_BOARD=-DESP32 -DCORE_DEBUG_LEVEL=0 -DARDUINO_RUNNING_CORE=1 -DARDUINO_EVENT_RUNNING_CORE=1 -DBOARD_HAS_PSRAM -DARDUINO_USB_MODE=1 -DARDUINO_USB_CDC_ON_BOOT=1 -DARDUINO_USB_MSC_ON_BOOT=0 -DARDUINO_USB_DFU_ON_BOOT=0
+else # default is T-Beam
   CHIP=esp32
   BOARD=TBeam
   FQBN=esp32:esp32:t-beam
@@ -46,37 +66,26 @@ else    # default is T-Beam
 endif
 
 ifndef SERIAL
-  ifeq ($(BOARD),heltec) # heltec LORA32
-    SERIAL = $(shell ls /dev/tty.usbserial-*)
-  else ifeq ($(BOARD),TDeck)
-    SERIAL = $(shell ls /dev/tty.usbmodem*)
-    # $(foreach var,$(SERIAL), fuser -f $(var);)
-  else # T-Beam
-    SERIAL = $(shell ls /dev/tty.wchusbserial*)
-  endif
+  SERIAL= $(shell ls /dev/tty* | grep 'ACM\|USB\|wchusb\|usbserial\|usbmodem')
+  # kill any screen/miniterm program currently having the serial port open?
+  # $(foreach var,$(SERIAL), fuser -f $(var);) ...
 endif
 
-ifdef FLAG                 #use for sending an extra #def flag to be appended to files, such as FLAG=-DTBEAM_07
-  EXTRA_CPP_FLAGS=--build-property compiler.cpp.extra_flags=$(FLAG)
-else
-  EXTRA_CPP_FLAGS=--build-property compiler.cpp.extra_flags="-DESP32 -DBOARD_HAS_PSRAM -DARDUINO_USB_MODE=1 -DARDUINO_USB_CDC_ON_BOOT=1 -DARDUINO_USB_MSC_ON_BOOT=0 -DARDUINO_USB_DFU_ON_BOOT=0"
-endif
-
-EXTRA_BUILD_FLAGS=--build-property build.extra_flags="-DUTC_OFFSET=\"$(shell date +%z)\""
+EXTRA_CPP_FLAGS=--build-property compiler.cpp.extra_flags="$(FLAGS_ALL) $(FLAGS_BOARD) $(FLAG)"
 
 # ----------------------------------------------------------------------
 
 all:
-	$(info Either use "make compile && make upload" or "make firmware && make flash")
-	$(info ...option: "BOARD=heltec", default is T-Beam)
-
+	$(info )
+	$(info "usage:  make [BOARD=TBeam|TDeck|heltec] firmware flash")
+	$(info )
 
 compile:
 	rm -f partitions.csv
 	ln -s $(PARTITIONS_CSV) partitions.csv
 	$(BINDIR)/arduino-cli compile -v --fqbn $(FQBN) $(MAIN) \
 		--build-properties build.partitions=partitions.csv,upload.maximum_size=1572864 \
-		$(EXTRA_CPP_FLAG)
+		$(EXTRA_CPP_FLAGS)
 
 upload:
 	$(foreach var,$(SERIAL), $(BINDIR)/arduino-cli upload -v --fqbn $(FQBN) -p $(var) .;)
@@ -96,7 +105,6 @@ firmware:
 		--fqbn $(FQBN) $(MAIN) \
 		--build-property build.partitions=$(PARTITIONS_CSV) \
 		--build-property upload.maximum_size=$(MAX_UPLOAD) \
-		$(EXTRA_BUILD_FLAGS) \
 		$(EXTRA_CPP_FLAGS) \
 		&& \
 	$(ESPTOOL) \
@@ -116,7 +124,13 @@ flash:
 		--before default_reset --after hard_reset \
 		write_flash -z --flash_mode dio --flash_freq 80m \
 		--flash_size $(FLASH_SIZE) \
-		 $(FLASH_OFFS) ./build/$(FLASH_BIN);)
+		$(FLASH_OFFS) ./build/$(FLASH_BIN);)
+
+#		0x0     ./build/$(MAIN).bootloader.bin \
+#		0x8000  ./build/$(MAIN).partitions.bin \
+#		0xe000  $(BOOTAPP0PATH) \
+#		0x10000 ./build/$(MAIN).bin;)
+
 
 
 clean:
