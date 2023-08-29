@@ -66,7 +66,14 @@ else # default is T-Beam
 endif
 
 ifndef SERIAL
-  SERIAL= $(shell ls /dev/tty* | grep 'ACM\|USB\|wchusb\|usbserial\|usbmodem')
+  ifeq ($(BOARD),heltec) # heltec LORA32
+    SERIAL = $(shell ls /dev/tty.usbserial-*)
+  else ifeq ($(BOARD),TDeck)
+    SERIAL = $(shell ls /dev/tty.usbmodem*)
+  else # T-Beam
+    SERIAL= $(shell ls /dev/tty* | grep 'ACM\|USB\|wchusb')
+  endif
+
   # kill any screen/miniterm program currently having the serial port open?
   # $(foreach var,$(SERIAL), fuser -f $(var);) ...
 endif
