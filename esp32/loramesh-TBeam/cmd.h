@@ -50,15 +50,15 @@ void cmd_rx(String cmd) {
       Serial.println("  c        remove log files for fcnt & fcnt-table (local dev only!)");
       Serial.println("  d        dump DMXT and CHKT");
       Serial.println("  f        list file system");
-      Serial.println("  h        list heatmap file");
       Serial.println("  g        dump GOset");
       Serial.println("  i        pretty print the confIg values");
       Serial.println("  k+<key>  add new key (globally)");
       Serial.println("  k-<key>  remove key (globally)");
 #if defined(LORA_LOG)
       Serial.println("  l        list log file");
-      Serial.println("  m        empty log file");
+      Serial.println("  m        empty log and peer files");
 #endif
+      Serial.println("  p        list file with peer data");
       Serial.println("  r[id|*]  reset this repo to blank / request reset from id/all");
       Serial.println("  s[id|*]  status / request status from id/all");
       Serial.println("  x[id|*]  reboot / request reboot from id/all");
@@ -161,15 +161,6 @@ void cmd_rx(String cmd) {
       break;
     }
 #if defined(LORA_LOG)
-  case 'h': // list heatmap file
-      hm_log.close();
-      hm_log = MyFS.open(HEATMAP_FILENAME, FILE_READ);
-      while (hm_log.available()) {
-        Serial.write(hm_log.read());
-      }
-      hm_log.close();
-      hm_log = MyFS.open(HEATMAP_FILENAME, FILE_APPEND);
-      break;
   case 'l': // list Log file
       lora_log.close();
       lora_log = MyFS.open(LORA_LOG_FILENAME, FILE_READ);
@@ -179,11 +170,22 @@ void cmd_rx(String cmd) {
       lora_log.close();
       lora_log = MyFS.open(LORA_LOG_FILENAME, FILE_APPEND);
       break;
-  case 'm': // empty Log file
+  case 'm': // empty Log files
       lora_log.close();
       lora_log = MyFS.open(LORA_LOG_FILENAME, FILE_WRITE);
+      peer_log.close();
+      peer_log = MyFS.open(PEERS_FILENAME, FILE_WRITE);
       break;
 #endif
+  case 'p': // dump file with peer info
+      peer_log.close();
+      peer_log = MyFS.open(PEERS_FILENAME, FILE_READ);
+      while (peer_log.available()) {
+        Serial.write(peer_log.read());
+      }
+      peer_log.close();
+      peer_log = MyFS.open(PEERS_FILENAME, FILE_APPEND);
+      break;
     case 'r': // reset
       if (cmd[1] == '*') {
         Serial.printf("sending reset request to all nodes\r\n");

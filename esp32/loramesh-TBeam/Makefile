@@ -72,7 +72,7 @@ endif
 
 ifndef SERIAL
   ifeq ($(BOARD),heltec) # heltec LORA32
-    SERIAL = $(shell ls /dev/tty.usbserial-*)
+    SERIAL = $(shell ls /dev/tty.usbserial-????)
   else ifeq ($(BOARD),TDeck)
     SERIAL = $(shell ls /dev/tty.usbmodem*)
   else # T-Beam

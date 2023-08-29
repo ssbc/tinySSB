@@ -33,7 +33,11 @@ struct face_s *faces[] = {
 #endif
 };
 
+int lora_prssi;
+float lora_psnr;
+
 int lora_pkt_cnt; // for counting in/outcoming packets, per NODE round
+
 float lora_pps;   // packet-per-seconds, gliding average
 
 int lora_sent_pkts = 0; // absolute counter
@@ -319,7 +323,7 @@ void io_enqueue(unsigned char *pkt, int len, unsigned char *dmx, struct face_s *
         if (!memcmp(faces[i]->queue[(faces[i]->offs + k)%IO_MAX_QUEUE_LEN], buf, 1+sz))
           break;
       if (k == faces[i]->queue_len) {
-        Serial.printf("   enqueue %dB %s.. on face %s\r\n", *buf, to_hex(buf+1,7), faces[i]->name);
+        // Serial.printf("   enqueue %dB %s.. on face %s\r\n", *buf, to_hex(buf+1,7), faces[i]->name);
         faces[i]->queue[(faces[i]->offs + faces[i]->queue_len) % IO_MAX_QUEUE_LEN] = buf;
         faces[i]->queue_len++;
       } else
@@ -395,6 +399,8 @@ int fishForNewLoRaPkt()
     int sz = LoRa.parsePacket();
     if (sz <= 0)
       return lora_buf.cnt;
+    lora_prssi = LoRa.packetRssi();
+    lora_psnr = LoRa.packetSnr();
     lora_pkt_cnt++;
     lora_rcvd_pkts++;
     if (lora_buf.cnt >= LORA_BUF_CNT) {
@@ -413,7 +419,7 @@ int fishForNewLoRaPkt()
       *ptr++ = LoRa.read();
     lora_buf.offs = (lora_buf.offs + 1) % LORA_BUF_CNT;
     lora_buf.cnt++;
-    Serial.printf("   rcvd %dB on lora, %s.., now %d pkts in buf\r\n", *pkt, to_hex(pkt+1, 7), lora_buf.cnt);
+    // Serial.printf("   rcvd %dB on lora, %s.., now %d pkts in buf\r\n", *pkt, to_hex(pkt+1, 7), lora_buf.cnt);
   }
 }
 

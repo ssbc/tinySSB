@@ -56,10 +56,6 @@ unsigned char my_mac[6];
 
 void hw_setup() // T-BEAM or Heltec LoRa32v2
 {
-  // Serial.begin(BAUD_RATE);
-
-  Serial.println("\n** Starting Scuttlebutt vPub (LoRa, WiFi, BLE) with GOset **\n");
-
   // -------------------------------------------------------------------
   if (!MyFS.begin(true)) { // FORMAT_SPIFFS_IF_FAILED)){
     Serial.println("LittleFS Mount Failed, partition was reformatted");
@@ -90,13 +86,6 @@ void hw_setup() // T-BEAM or Heltec LoRa32v2
 #else // T-Beam
   while (!Serial);
   delay(100);
-
-#if !defined(NO_OLED)
-  theDisplay.init();
-  theDisplay.flipScreenVertically();
-  theDisplay.setFont(ArialMT_Plain_10);
-  theDisplay.setTextAlignment(TEXT_ALIGN_LEFT);
-#endif
 
   /*
   pinMode(16,OUTPUT);
@@ -131,10 +120,10 @@ void hw_setup() // T-BEAM or Heltec LoRa32v2
 #endif
     axp.setPowerOutPut(AXP192_DCDC2, AXP202_ON);
     axp.setPowerOutPut(AXP192_EXTEN, AXP202_ON);
-#if defined(NO_OLED)
-    axp.setPowerOutPut(AXP192_DCDC1, AXP202_OFF); // OLED
-#else
+#if defined(HAS_OLED)
     axp.setPowerOutPut(AXP192_DCDC1, AXP202_ON); // OLED
+#else
+    axp.setPowerOutPut(AXP192_DCDC1, AXP202_OFF); // no OLED
 #endif
 #if !defined(NO_GPS)
     GPS.begin(9600, SERIAL_8N1, 34, 12);   //17-TX 18-RX
@@ -143,6 +132,11 @@ void hw_setup() // T-BEAM or Heltec LoRa32v2
     Serial.println("AXP192 Begin FAIL");
   }
 #endif // T-Beam
+
+  theStatus->init();
+
+  Serial.printf("\r\nWelcome to the tinySSB vPub (LoRa, WiFi, BLE)\r\n");
+  Serial.printf("compiled %s %s%s\r\n\r\n", __DATE__ , __TIME__, UTC_OFFSET);
 
 #if defined(TBEAM_07)
   GPS.begin(9600, SERIAL_8N1, GPS_TX, GPS_RX); 
@@ -155,12 +149,9 @@ void hw_setup() // T-BEAM or Heltec LoRa32v2
   LoRa.setPreambleLength(8);
   LoRa.setSyncWord(the_lora_config->sw);
   // LoRa.onReceive(newLoRaPkt);
+  Serial.printf("LoRa configured for fr=%d, bw=%d, sf=%d\r\n",
+                the_lora_config->fr, the_lora_config->bw, the_lora_config->sf);
   LoRa.receive();
-#endif
-
-#if !defined(NO_OLED)
-  theDisplay.clear();  // erase silly screen msg from inside the library ...
-  theDisplay.display();
 #endif
 
   // -------------------------------------------------------------------

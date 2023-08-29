@@ -9,13 +9,13 @@
 #define _INCLUDE_CONFIG_H
 
 
+#define HAS_OLED
 #define HAS_BLE   // enable Bluetooth Low Energy
 #define HAS_LORA  // enable LoRa
 
 // FIXME: change the following to positive statements, as above
 #define NO_BT    // disable Bluetooth
 // #define NO_GPS   // disable GPS
-// #define NO_OLED  // disable OLED
 #define NO_WIFI  // disable WiFi
 
 #define SLOW_CPU
@@ -24,7 +24,8 @@
 #define LOG_FLUSH_INTERVAL         10000 // millis
 #define LOG_BATTERY_INTERVAL  15*60*1000 // millis (15 minutes)
 
-#define HEATMAP_FILENAME "/heatmap-gps.log"
+#define PEERS_FILENAME "/peers-gps.log"
+#define PEERS_INTERVAL 20000 // how often to sent pings, in msec
 
 // ----------------------------------------------------------------------
 
@@ -85,6 +86,7 @@ extern struct lora_config_s *the_lora_config;
 #define MyFS LittleFS
 
 #include "device.h"
+#include "status.h"
 #include "util.h"
 #include "io.h"
 #include "bipf.h"
@@ -95,6 +97,8 @@ extern DmxClass   *dmx;
 #include "replica.h"
 #include "repo.h"
 extern Repo2Class *repo;
+#include "status.h"
+extern StatusClass *theStatus;
 
 // ---------------------------------------------------------------------------
 
@@ -110,6 +114,9 @@ struct lora_config_s {
 
 extern struct lora_config_s lora_configs[];
 extern short lora_configs_size;
+
+extern int lora_prssi;
+extern float lora_psnr;
 
 // ---------------------------------------------------------------------------
 

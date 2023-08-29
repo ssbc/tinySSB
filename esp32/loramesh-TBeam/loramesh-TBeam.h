@@ -13,9 +13,10 @@ class Dummy { public: Dummy(); };
 Dummy::Dummy() { Serial.begin(BAUD_RATE); }
 Dummy *d = new Dummy();
 
-DmxClass   *dmx      = new DmxClass();
-Repo2Class *repo     = new Repo2Class();
-GOsetClass *theGOset = new GOsetClass();
+DmxClass    *dmx       = new DmxClass();
+Repo2Class  *repo      = new Repo2Class();
+GOsetClass  *theGOset  = new GOsetClass();
+StatusClass *theStatus = new StatusClass();
 
 // our own local code:
 #include "bipf.h"
@@ -23,7 +24,7 @@ GOsetClass *theGOset = new GOsetClass();
 #include "node.h"
 #include "ed25519.h"
 #include "mgmt.h"
-#include "heatmap.h"
+#include "peers.h"
 #include "config.h"
 
 struct bipf_s *the_config;
@@ -31,7 +32,7 @@ struct lora_config_s *the_lora_config;
 
 int ble_clients = 0;
 
-#if !defined(NO_OLED) && defined(ARDUINO_TBEAM_USE_RADIO_SX1262) // !defined(WIFI_LoRa_32_V2) && !defined(WIFI_LORA_32_V2)
+#if defined(HAS_OLED) && defined(ARDUINO_TBEAM_USE_RADIO_SX1262)
   SSD1306 theDisplay(0x3c, 21, 22); // lilygo t-beam
 #endif
 
@@ -57,7 +58,7 @@ int lora_bad_crc = 0;
 File lora_log;
 unsigned long int next_log_flush;
 
-File hm_log;
+File peer_log;
 
 #include "cmd.h"
 
@@ -69,33 +70,9 @@ void theGOset_rx(unsigned char *pkt, int len, unsigned char *aux,
 
 // ----------------------------------------------------------------------------
 
-void draw_init_screen()
-{
-#if !defined(NO_OLED)
-  theDisplay.clear();
-
-  theDisplay.setFont(ArialMT_Plain_16);
-  theDisplay.drawString(0 , 0, "SSB.virt.lora.pub");
-  theDisplay.setFont(ArialMT_Plain_10);
-  theDisplay.drawString(0 , 17, __DATE__ " " __TIME__);
-
-  int f = the_lora_config->fr / 10000;
-  char fr[30];
-  sprintf(fr, "%d.%02d MHz", f/100, f%100);
-  theDisplay.setFont(ArialMT_Plain_24);
-  theDisplay.drawString(0, 30, fr);
-  sprintf(fr, "%s    SF%d BW%d", the_lora_config->plan,
-    the_lora_config->sf, (int)(the_lora_config->bw/1000));
-  theDisplay.setFont(ArialMT_Plain_10);
-  theDisplay.drawString(0, 54, fr);
-
-  theDisplay.display();
-#endif
-}
-
 void draw_lora_plan()
 {
-#if !defined(NO_OLED)
+#if defined(HAS_OLED)
   theDisplay.clear();
 
   theDisplay.clear();
@@ -118,17 +95,8 @@ void draw_lora_plan()
 // ----------------------------------------------------------------------------
 
 Button2 userButton;
-static unsigned char OLED_state = HIGH;
 char lora_selection; // true if lora plan selection ongoing, else do_io
 long selection_timeout;
-
-void OLED_toggle() {
-  OLED_state = OLED_state ? LOW : HIGH;
-#if !defined(NO_OLED)
-  if (OLED_state == LOW) theDisplay.displayOff();
-  else                   theDisplay.displayOn();
-#endif
-}
 
 void clicked(Button2& btn) {
   // Serial.println("click");
@@ -139,7 +107,7 @@ void clicked(Button2& btn) {
     i = (i+1) % lora_configs_size;
     the_lora_config = lora_configs + i;
   } else
-    OLED_toggle();
+    theStatus->to_next_screen();
 }
 
 void long_clicked(Button2& btn) {
@@ -180,8 +148,6 @@ void setup()
   userButton.setClickHandler(clicked);
   userButton.setLongClickDetectedHandler(long_clicked);
 
-  draw_init_screen();
-
   io_init();
 
   Serial.printf("File system: %d total bytes, %d used\r\n",
@@ -199,7 +165,7 @@ void setup()
   Serial.printf("   DMX for GOST is %s\r\n", to_hex(dmx->goset_dmx, 7, 0));
 
   mgmt_setup();
-  hm_init();
+  peer_init();
 
   // cmd_rx("r");
   repo->load();
@@ -222,6 +188,9 @@ void setup()
   next_log_flush = millis() + LOG_FLUSH_INTERVAL;
   Serial.printf("\r\nlength of %s: %d bytes\r\n", LORA_LOG_FILENAME, lora_log.size());
 #endif // LORA_LOG
+  Serial.printf("\r\nlength of %s: %d bytes\r\n", PEERS_FILENAME, peer_log.size());
+
+  
 
   Serial.printf("\r\nHeap: %d total, %d free, %d min, %d maxAlloc\r\n",
                  ESP.getHeapSize(), ESP.getFreeHeap(),
@@ -230,7 +199,7 @@ void setup()
   Serial.println("\r\ninit done, starting loop now. Type '?' for list of commands\r\n");
 
   delay(1500); // keep the screen for some time so the display headline can be read ..
-  // OLED_toggle(); // default is OLED off, use button to switch on
+  theStatus->to_next_screen();
 
   // cpu_set_slow();
 
@@ -267,7 +236,7 @@ int incoming(struct face_s *f, unsigned char *pkt, int len, int has_crc)
 
 void right_aligned(int cnt, char c, int y)
 {
-#if !defined(NO_OLED)
+#if defined(HAS_OLED)
   char buf[20];
   sprintf(buf, "%d %c", cnt, c);
   int w = theDisplay.getStringWidth(buf);
@@ -296,7 +265,7 @@ void do_selection()
     return;
   }
 
-#if !defined(NO_OLED)
+#if defined(HAS_OLED)
   if (blink) {
     theDisplay.clear();
     theDisplay.display();
@@ -333,7 +302,7 @@ void do_io()
   theGOset->tick();
   node_tick();
   // mgmt_tick();
-  hm_tick();
+  peer_tick();
 
   if (Serial.available())
     cmd_rx(Serial.readString());
@@ -386,10 +355,8 @@ void do_io()
       rssi   = LoRa.rssi();
 #endif
 
-      int prssi  = LoRa.packetRssi();
-      float psnr = LoRa.packetSnr();
-
-      lora_log.printf(",%d,%d,%g,%ld,%d\n", pkt_len, prssi, psnr, pfe, rssi);
+      lora_log.printf(",%d,%d,%g,%ld,%d\n", pkt_len, lora_prssi, lora_psnr,
+                      pfe, rssi);
       if (millis() > next_log_flush) {
         lora_log.flush();
         next_log_flush = millis() + LOG_FLUSH_INTERVAL;
@@ -477,7 +444,7 @@ void do_io()
     refresh = 1;
   }
 
-#if !defined(NO_OLED)
+#if defined(HAS_OLED)
   if (refresh) {
     theDisplay.clear();
 
@@ -523,7 +490,7 @@ void do_io()
     theDisplay.display();
     refresh = 0;
   }
-#endif // NO_OLED
+#endif // HAS_OLED
 }
 
 // ----------------------------------------------------------------------

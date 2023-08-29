@@ -26,7 +26,7 @@
 # include <LoRa.h>
 #endif
 
-#if !defined(NO_OLED)
+#if defined(HAS_OLED)
 # include <SSD1306.h> // display
   extern SSD1306 theDisplay; // lilygo t-beam
 #endif
