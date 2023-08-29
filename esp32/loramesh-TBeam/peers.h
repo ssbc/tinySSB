@@ -13,6 +13,7 @@ unsigned char peer_dmx_req[7];
 unsigned char peer_dmx_rep[7];
 
 unsigned long peer_next;
+unsigned long peer_refresh;
 
 extern File peer_log;
 
@@ -42,6 +43,9 @@ void peer_incoming_rep(unsigned char *pkt, int len, unsigned char *aux,
 
   sprintf(str+strlen(str), " / rssi=%d snr=%g", lora_prssi, lora_psnr);
   peer_save2log(str);
+
+  str[6] = '\0';
+  theStatus->heard_peer(str+2, lora_prssi, lora_psnr);
 }
 
 void peer_incoming_req(unsigned char *pkt, int len, unsigned char *aux,
@@ -73,6 +77,9 @@ void peer_incoming_req(unsigned char *pkt, int len, unsigned char *aux,
 
   sprintf(str+strlen(str), " / rssi=%d snr=%g", lora_prssi, lora_psnr);
   peer_save2log(str);
+
+  str[6] = '\0';
+  theStatus->heard_peer(str+2, lora_prssi, lora_psnr);
 }
 
 void peer_init()
@@ -105,6 +112,11 @@ void peer_init()
 void peer_tick()
 {
   long now = millis();
+
+  if (now > peer_refresh) {
+    theStatus->refresh_screen(SCREEN_PEERS);
+    peer_refresh = millis() + 1000;
+  }
 
   if (now > peer_next) {
     // send a request (ping)
