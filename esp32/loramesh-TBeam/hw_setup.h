@@ -18,7 +18,7 @@
 #if !defined(NO_WIFI)
   WiFiUDP udp;
 #endif
-char ssid[sizeof(tSSB_WIFI_SSID) + 6];
+char my_ssid[sizeof(tSSB_WIFI_SSID) + 6];
 int wifi_clients = 0;
 
 IPAddress broadcastIP;
@@ -34,7 +34,7 @@ AXP20X_Class axp;
 unsigned long int next_log_battery;
 #endif
 
-#if !defined(NO_GPS)
+#if defined(HAS_GPS)
 TinyGPSPlus gps;
 HardwareSerial GPS(1);
 #endif
@@ -56,10 +56,6 @@ unsigned char my_mac[6];
 
 void hw_setup() // T-BEAM or Heltec LoRa32v2
 {
-  // Serial.begin(BAUD_RATE);
-
-  Serial.println("\n** Starting Scuttlebutt vPub (LoRa, WiFi, BLE) with GOset **\n");
-
   // -------------------------------------------------------------------
   if (!MyFS.begin(true)) { // FORMAT_SPIFFS_IF_FAILED)){
     Serial.println("LittleFS Mount Failed, partition was reformatted");
@@ -79,7 +75,7 @@ void hw_setup() // T-BEAM or Heltec LoRa32v2
       }
   }
   
-#if defined(WIFI_LoRa_32_V2) || defined(WIFI_LORA_32_V2)
+#if defined(ARDUINO_heltec_wifi_lora_32_V2)
   Heltec.begin(true /*DisplayEnable Enable*/,
                true /*Heltec.Heltec.Heltec.LoRa Disable*/,
                true /*Serial Enable*/,
@@ -90,13 +86,6 @@ void hw_setup() // T-BEAM or Heltec LoRa32v2
 #else // T-Beam
   while (!Serial);
   delay(100);
-
-#if !defined(NO_OLED)
-  theDisplay.init();
-  theDisplay.flipScreenVertically();
-  theDisplay.setFont(ArialMT_Plain_10);
-  theDisplay.setTextAlignment(TEXT_ALIGN_LEFT);
-#endif
 
   /*
   pinMode(16,OUTPUT);
@@ -131,10 +120,10 @@ void hw_setup() // T-BEAM or Heltec LoRa32v2
 #endif
     axp.setPowerOutPut(AXP192_DCDC2, AXP202_ON);
     axp.setPowerOutPut(AXP192_EXTEN, AXP202_ON);
-#if defined(NO_OLED)
-    axp.setPowerOutPut(AXP192_DCDC1, AXP202_OFF); // OLED
-#else
+#if defined(HAS_OLED)
     axp.setPowerOutPut(AXP192_DCDC1, AXP202_ON); // OLED
+#else
+    axp.setPowerOutPut(AXP192_DCDC1, AXP202_OFF); // no OLED
 #endif
 #if !defined(NO_GPS)
     GPS.begin(9600, SERIAL_8N1, 34, 12);   //17-TX 18-RX
@@ -143,6 +132,11 @@ void hw_setup() // T-BEAM or Heltec LoRa32v2
     Serial.println("AXP192 Begin FAIL");
   }
 #endif // T-Beam
+
+  theStatus->init();
+
+  Serial.printf("\r\nWelcome to the tinySSB vPub (LoRa, WiFi, BLE)\r\n");
+  Serial.printf("compiled %s %s%s\r\n\r\n", __DATE__ , __TIME__, UTC_OFFSET);
 
 #if defined(TBEAM_07)
   GPS.begin(9600, SERIAL_8N1, GPS_TX, GPS_RX); 
@@ -155,12 +149,9 @@ void hw_setup() // T-BEAM or Heltec LoRa32v2
   LoRa.setPreambleLength(8);
   LoRa.setSyncWord(the_lora_config->sw);
   // LoRa.onReceive(newLoRaPkt);
+  Serial.printf("LoRa configured for fr=%d, bw=%d, sf=%d\r\n",
+                the_lora_config->fr, the_lora_config->bw, the_lora_config->sf);
   LoRa.receive();
-#endif
-
-#if !defined(NO_OLED)
-  theDisplay.clear();  // erase silly screen msg from inside the library ...
-  theDisplay.display();
 #endif
 
   // -------------------------------------------------------------------
@@ -171,16 +162,17 @@ void hw_setup() // T-BEAM or Heltec LoRa32v2
   my_mac[5] += 2;
   // https://docs.espressif.com/projects/esp-idf/en/release-v3.0/api-reference/system/base_mac_address.html
 #endif
-  Serial.println(String("mac   ") + to_hex(my_mac, 6, 1));
-  sprintf(ssid, "%s-%s", tSSB_WIFI_SSID, to_hex(my_mac+4, 2, 0));
+  Serial.printf("mac   %s\r\n", to_hex(my_mac, 6, 1));
+  sprintf(my_ssid, "%s-%s", tSSB_WIFI_SSID, to_hex(my_mac+4, 2));
+  Serial.printf("this is node %s\r\n", my_ssid);
 
 #if !defined(NO_WIFI)
   WiFi.disconnect(true);
   delay(500);
   WiFi.mode(WIFI_AP);
-  Serial.println(String("wifi  ") + ssid + " / " + tSSB_WIFI_PW);
+  Serial.println(String("wifi  ") + my_ssid + " / " + tSSB_WIFI_PW);
 
-  WiFi.softAP(ssid, tSSB_WIFI_PW, 7, 0, 4); // limit to four clients
+  WiFi.softAP(my_ssid, tSSB_WIFI_PW, 7, 0, 4); // limit to four clients
   broadcastIP.fromString(tSSB_UDP_ADDR);
   if (!udp.beginMulticast(broadcastIP, tSSB_UDP_PORT)) {
     Serial.println("could not create multicast socket");
@@ -194,7 +186,7 @@ void hw_setup() // T-BEAM or Heltec LoRa32v2
 #endif
 
 #if !defined(NO_BT)
-  BT.begin(ssid);
+  BT.begin(my_ssid);
   BT.setPin("0000");
   BT.write(KISS_FEND);
 #endif

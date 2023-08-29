@@ -1,96 +1,136 @@
 # Makefile
 
-# usage:
-#   make compile [SERIAL=/dev/tty...] [BOARD=heltec]    default is for T-Beam
-#   make upload  [SERIAL=/dev/tty...]
-#   make monitor [SERIAL=/dev/tty...]
+# ** usage:
 
-# or this usage, which leaves the firmware in the build directory:
-#   make firmware [BOARD=heltec]   --> build/firmware-TBeam.bin
-#   make flash    [BOARD=heltec]
+# make [BOARD=..] [SERIAL=/dev/tty..] {firmware} {flush}
+
+#    known boards are: TBeam, TDeck, heltec
+#    serial device: we have some heuristics for setting it automatically
 
 
-# place where the arduino-cli executable etc sit:
+# ** examples:
 
-BINDIR=/opt/homebrew/bin
-ESPTOOL=/Users/tschudin/Library/Arduino15/packages/esp32/tools/esptool_py/4.5.1/esptool
-BOOTAPP0PATH=/Users/tschudin/Library/Arduino15/packages/esp32/hardware/esp32/2.0.9/tools/partitions/boot_app0.bin
+# make BOARD=heltec firmware     --> creates 'build/firmware-heltec.bin'
+# make BOARD=heltec flash
+
+#    these two phases can be combined:
+
+# make BOARD=heltec firmware flash
+
+
+# ** special flag for old TBeam:
+
+#   make BOARD=TBeam FLAG=TBEAM_07 firmware flash
+
+
+# ---------------------------------------------------------------------------
+
+# adjust the following: places where the arduino-cli executable etc sit
+
+ARDUINO_CLI=/opt/homebrew/bin/arduino-cli
+ARDUINO_ESP_DIR=/Users/tschudin/Library/Arduino15/packages/esp32
+
+# ---------------------------------------------------------------------------
+
+ESPTOOL=$(ARDUINO_ESP_DIR)/tools/esptool_py/4.5.1/esptool
+BOOTAPP0PATH=$(ARDUINO_ESP_DIR)/hardware/esp32/2.0.11/tools/partitions/boot_app0.bin
+
+ifdef BOARD
+else
+  $(info ">> please specify a BOARD")
+  stop
+endif
 
 # name of the ino file:
-MAIN=loramesh-TBeam.ino
+MAIN=$(shell ls *.ino)
+
+FLASH_OFFS=0x0
+FLASH_BIN=firmware-$(BOARD).bin
+
+FLAGS_ALL=-DUTC_OFFSET=\"$(shell date +%z)\"
 
 ifeq ($(BOARD),heltec)
+  CHIP=esp32
   FQBN=esp32:esp32:heltec_wifi_lora_32_V2
-  PARTITIONS_CSV=partitions-6.5M.csv
+  PARTITIONS_CSV=partitions-heltec.csv
+  MAX_UPLOAD=1572864 # 1.5MB
   FLASH_SIZE=8MB
-else
+else ifeq ($(BOARD),TDeck)
+  CHIP=esp32s3
+  FQBN=esp32:esp32:esp32s3:PSRAM=opi,FlashSize=16M,CDCOnBoot=cdc
+  PARTITIONS_CSV=partitions-tdeck.csv
+  MAX_UPLOAD=2097152 # 2MB
+  FLASH_SIZE=16MB
+  FLAGS_BOARD=-DESP32 -DCORE_DEBUG_LEVEL=0 -DARDUINO_RUNNING_CORE=1 -DARDUINO_EVENT_RUNNING_CORE=1 -DBOARD_HAS_PSRAM -DARDUINO_USB_MODE=1 -DARDUINO_USB_CDC_ON_BOOT=1 -DARDUINO_USB_MSC_ON_BOOT=0 -DARDUINO_USB_DFU_ON_BOOT=0
+else ifeq ($(BOARD),TBeam)
+  CHIP=esp32
   BOARD=TBeam
-  FQBN=esp32:esp32:t-beam   # default is T-Beam
-  PARTITIONS_CSV=partitions-2.5M.csv
+  FQBN=esp32:esp32:t-beam
+  PARTITIONS_CSV=partitions-tbeam.csv
+  MAX_UPLOAD=1572864 # 1.5MB
   FLASH_SIZE=4MB
+else
+  $(info ">> unknown board $(BOARD)")
+  stop
 endif
 
 ifndef SERIAL
   ifeq ($(BOARD),heltec) # heltec LORA32
-    SERIAL = $(shell ls /dev/tty.usbserial-*)
-  else # T-Beam	
+    SERIAL = $(shell ls /dev/tty.usbserial-????)
+  else ifeq ($(BOARD),TDeck)
+    SERIAL = $(shell ls /dev/tty.usbmodem*)
+  else # T-Beam
     SERIAL= $(shell ls /dev/tty* | grep 'ACM\|USB\|wchusb')
   endif
+
+  # ? kill any screen/miniterm program currently having the serial port open ?
+  # $(foreach var,$(SERIAL), fuser -f $(var);) ...
 endif
 
-ifdef FLAG                 #use for sending an extra #def flag to be appended to files, such as FLAG=TBEAM_07
-  EXTRA_FLAG=,compiler.cpp.extra_flag=-D$(FLAG)
-endif
+EXTRA_CPP_FLAGS=--build-property compiler.cpp.extra_flags="$(FLAGS_ALL) $(FLAGS_BOARD) $(FLAG)"
 
 # ----------------------------------------------------------------------
 
 all:
-	$(info Either use "make compile && make upload" or "make firmware && make flash")
-	$(info ...option: "BOARD=heltec", default is T-Beam)
-
-
-compile:
-	rm -f partitions.csv
-	ln -s $(PARTITIONS_CSV) partitions.csv
-	$(BINDIR)/arduino-cli compile -v --fqbn $(FQBN) $(MAIN) \
-		--build-properties build.partitions=partitions.csv,upload.maximum_size=1572864$(EXTRA_FLAG)
-
-upload:
-	$(foreach var,$(SERIAL), $(BINDIR)/arduino-cli upload -v --fqbn $(FQBN) -p $(var) .;)
+	$(info )
+	$(info "usage:  make [BOARD=TBeam|TDeck|heltec] firmware flash")
+	$(info )
 
 monitor:
 	$(info use CTRL-A CTRL-\ to quit the screen program)
-	screen $(SERIAL) 115200
+	screen -h 1024 $(SERIAL) 115200
 
 # ---------------------------------------------------------------------------
 
 firmware:
-	mkdir -p build
 	rm -f partitions.csv
 	ln -s $(PARTITIONS_CSV) partitions.csv
-	$(BINDIR)/arduino-cli compile -v \
-		--fqbn $(FQBN) loramesh-TBeam.ino \
+	mkdir -p build
+	$(ARDUINO_CLI) compile -v \
+		--build-path ./build \
+		--fqbn $(FQBN) $(MAIN) \
 		--build-property build.partitions=$(PARTITIONS_CSV) \
-		--build-property upload.maximum_size=1572864 \
-		--build-path ./build   && \
+		--build-property upload.maximum_size=$(MAX_UPLOAD) \
+		$(EXTRA_CPP_FLAGS) \
+		&& \
 	$(ESPTOOL) \
-		--chip esp32 merge_bin --flash_mode dio --flash_freq 80m \
+		--chip $(CHIP) merge_bin --flash_mode dio --flash_freq 80m \
 		--flash_size $(FLASH_SIZE) \
-		0x1000 ./build/loramesh-TBeam.ino.bootloader.bin \
-		0x8000 ./build/loramesh-TBeam.ino.partitions.bin \
-		0xe000 $(BOOTAPP0PATH) \
-		0x10000 ./build/loramesh-TBeam.ino.bin \
-		-o ./build/firmware-$(BOARD).bin
+		0x1000  ./build/$(MAIN).bootloader.bin \
+		0x8000  ./build/$(MAIN).partitions.bin \
+		0xe000  $(BOOTAPP0PATH) \
+		0x10000 ./build/$(MAIN).bin \
+		-o ./build/$(FLASH_BIN)
 
 flash:
-	$(foreach var,$(SERIAL), \
-		/Users/tschudin/Library/Arduino15/packages/esp32/tools/esptool_py/4.5.1/esptool \
-		--chip esp32 \
+	 $(foreach var,$(SERIAL), \
+		$(ESPTOOL) \
+		--chip $(CHIP) \
 		--port $(var) --baud 921600 \
 		--before default_reset --after hard_reset \
 		write_flash -z --flash_mode dio --flash_freq 80m \
 		--flash_size $(FLASH_SIZE) \
-		0x0 ./build/firmware-$(BOARD).bin;)
+		$(FLASH_OFFS) ./build/$(FLASH_BIN);)
 
 clean:
 	rm -f *~
