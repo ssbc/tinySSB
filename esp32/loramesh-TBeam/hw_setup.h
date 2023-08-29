@@ -79,7 +79,7 @@ void hw_setup() // T-BEAM or Heltec LoRa32v2
       }
   }
   
-#if defined(ARDUINO_heltec_wifi_lora_32_V2) // defined(WIFI_LoRa_32_V2) || defined(WIFI_LORA_32_V2)
+#if defined(ARDUINO_heltec_wifi_lora_32_V2)
   Heltec.begin(true /*DisplayEnable Enable*/,
                true /*Heltec.Heltec.Heltec.LoRa Disable*/,
                true /*Serial Enable*/,

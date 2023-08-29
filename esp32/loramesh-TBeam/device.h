@@ -6,7 +6,7 @@
 // collect all external libraries here
 
 // ----------------------------------------------------------------------
-#if defined(ARDUINO_heltec_wifi_lora_32_V2) // defined(WIFI_LoRa_32_V2) || defined(WIFI_LORA_32_V2)
+#if defined(ARDUINO_heltec_wifi_lora_32_V2)
 
 # include <heltec.h>
 
