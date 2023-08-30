@@ -28,11 +28,12 @@
 # adjust if necessary (places where the arduino-cli executable etc sit)
 
 ARDUINO_CLI=$(shell which arduino-cli;)
-ARDUINO_ESP_DIR=~/Library/Arduino15/packages/esp32
+ARDUINO_DATA=$(shell arduino-cli config dump |awk '/data/ {print $$2}';)
+ARDUINO_ESP_DIR=$(ARDUINO_DATA)/packages/esp32
 
 # ---------------------------------------------------------------------------
 
-ESPTOOL=$(shell find $(ARDUINO_ESP_DIR)/tools -name "esptool";)
+ESPTOOL=$(shell find $(ARDUINO_ESP_DIR)/tools -name "esptool.py";)
 BOOTAPP0PATH=$(shell find $(ARDUINO_ESP_DIR)/hardware -name "boot_app0.bin";)
 
 $(info esptool = $(ESPTOOL))
