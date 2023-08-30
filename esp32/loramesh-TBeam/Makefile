@@ -25,15 +25,18 @@
 
 # ---------------------------------------------------------------------------
 
-# adjust the following: places where the arduino-cli executable etc sit
+# adjust if necessary (places where the arduino-cli executable etc sit)
 
-ARDUINO_CLI=/opt/homebrew/bin/arduino-cli
-ARDUINO_ESP_DIR=/Users/tschudin/Library/Arduino15/packages/esp32
+ARDUINO_CLI=$(shell which arduino-cli;)
+ARDUINO_ESP_DIR=~/Library/Arduino15/packages/esp32
 
 # ---------------------------------------------------------------------------
 
-ESPTOOL=$(ARDUINO_ESP_DIR)/tools/esptool_py/4.5.1/esptool
-BOOTAPP0PATH=$(ARDUINO_ESP_DIR)/hardware/esp32/2.0.11/tools/partitions/boot_app0.bin
+ESPTOOL=$(shell find $(ARDUINO_ESP_DIR)/tools -name "esptool";)
+BOOTAPP0PATH=$(shell find $(ARDUINO_ESP_DIR)/hardware -name "boot_app0.bin";)
+
+$(info esptool = $(ESPTOOL))
+$(info boot_app0 = $(BOOTAPP0PATH))
 
 ifdef BOARD
 else
