@@ -54,6 +54,10 @@ void Repo2Class::reset(char *path)
 void Repo2Class::load()
 {
   File fdir = MyFS.open(FEED_DIR);
+  if (!fdir) {
+    Serial.printf("can't open %s\r\n", FEED_DIR);
+    return;
+  }
   File f = fdir.openNextFile(FILE_READ);
   while (f) {
     char* fn = (char*) f.name();

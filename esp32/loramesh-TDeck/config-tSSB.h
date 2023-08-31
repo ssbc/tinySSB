@@ -16,7 +16,7 @@ struct lora_config_s {
   unsigned int   bw;   // bandwidth, in Hz
   unsigned short sf;   // spreading factor (7-12)
   unsigned short cr;   // coding rate (5-8)
-  unsigned char  sw;   // sync word
+  unsigned short sw;   // sync word
   unsigned char  tx;   // tx power
 };
 

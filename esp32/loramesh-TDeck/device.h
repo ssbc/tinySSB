@@ -6,7 +6,8 @@
 // collect all external libraries here
 
 #include <SPI.h>
-#include "TFT_eSPI.h"
+#include <TFT_eSPI.h>
+// #include "TFT_eSPI.h"
 // #include "es7210.h"
 // #include <Audio.h>
 #include <driver/i2s.h>
@@ -38,7 +39,7 @@
 #endif
 
 #if defined(HAS_LORA)
-#if USE_RADIO_LIB
+#if defined(USE_RADIO_LIB)
 #  define USING_SX1262
 #  include "RadioLib.h"
 #else
@@ -116,6 +117,7 @@
 #define BOARD_BL_PIN        42
 
 
+/*
 // ---------------------------------------------------------------------------
 // from meshtastic, Aug 14, 2023
 // https://github.com/meshtastic/firmware/blob/master/variants/t-deck/variant.h
@@ -140,6 +142,7 @@
 #define TFT_OFFSET_ROTATION 0
 #define SCREEN_ROTATE
 #define SCREEN_TRANSITION_FRAMERATE 5
+*/
 
 /*
 // LoRa

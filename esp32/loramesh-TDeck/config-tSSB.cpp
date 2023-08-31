@@ -7,13 +7,15 @@
 
 #include <sodium/crypto_auth.h>
 
-#define LORA_TX_POWER  20
-#define LORA_tSSB_SYNC 0x58    // for "SB, Scuttlebutt". see https://forum.lora-developers.semtech.com/t/sx1272-and-sx1262-lora-sync-word-compatibility/988
+#define LORA_TX_POWER  10 // 20 
+#define LORA_tSSB_SYNC 0x58  // for "SB, Scuttlebutt". see https://forum.lora-developers.semtech.com/t/sx1272-and-sx1262-lora-sync-word-compatibility/988
+// #define LORA_tSSB_SYNC 0x5484  // for "SB, Scuttlebutt". see https://forum.lora-developers.semtech.com/t/sx1272-and-sx1262-lora-sync-word-compatibility/988
 
 struct lora_config_s lora_configs[] = {
   // FIXME: these values are copying TNN values - we should step around these
   {"US902.5", 902500000, 250000, 7, 5, LORA_tSSB_SYNC, LORA_TX_POWER},
-  {"AU915.a", 917500000, 500000, 8, 5, LORA_tSSB_SYNC, LORA_TX_POWER},
+  // {"AU915.a", 917500000, 500000, 8, 5, LORA_tSSB_SYNC, LORA_TX_POWER},
+  {"AU915.a", 917500000, 125000, 8, 5, LORA_tSSB_SYNC, LORA_TX_POWER},
   {"AU915.b", 917500000, 125000, 7, 5, LORA_tSSB_SYNC, LORA_TX_POWER},
   {"EU868.a", 868300000, 250000, 7, 5, LORA_tSSB_SYNC, LORA_TX_POWER},
   {"EU868.b", 868300000, 125000, 7, 5, LORA_tSSB_SYNC, LORA_TX_POWER},

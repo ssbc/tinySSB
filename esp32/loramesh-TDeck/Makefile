@@ -27,18 +27,28 @@
 
 # adjust the following: places where the arduino-cli executable etc sit
 
-BINDIR=/opt/homebrew/bin
-ESPTOOL=/Users/tschudin/Library/Arduino15/packages/esp32/tools/esptool_py/4.5.1/esptool
-BOOTAPP0PATH=/Users/tschudin/Library/Arduino15/packages/esp32/hardware/esp32/2.0.11/tools/partitions/boot_app0.bin
+ARDUINO_CLI=$(shell which arduino-cli;)
+ARDUINO_DATA=$(shell arduino-cli config dump |awk '/data/ {print $$2}';)
+ARDUINO_ESP_DIR=$(ARDUINO_DATA)/packages/esp32
 
-ifndef BOARD
+# ---------------------------------------------------------------------------
+
+ifeq ($shell uname, Linux)
+  ESPTOOL_EXT=.py
+endif
+# FIXME: need to also adjust the file extension for Windows
+
+ESPTOOL=$(shell find $(ARDUINO_ESP_DIR)/tools -name "esptool$(ESPTOOL_EXT)";)
+BOOTAPP0PATH=$(shell find $(ARDUINO_ESP_DIR)/hardware -name "boot_app0.bin";)
+
+ifdef BOARD
+else
   BOARD=TBeam
 endif
 
 # name of the ino file:
 MAIN=$(shell ls *.ino)
 
-FLASH_OFFS=0x0
 FLASH_BIN=firmware-$(BOARD).bin
 
 FLAGS_ALL=-DUTC_OFFSET=\"$(shell date +%z)\"
@@ -46,23 +56,26 @@ FLAGS_ALL=-DUTC_OFFSET=\"$(shell date +%z)\"
 ifeq ($(BOARD),heltec)
   CHIP=esp32
   FQBN=esp32:esp32:heltec_wifi_lora_32_V2
-  PARTITIONS_CSV=partitions-6.5M.csv
+  PARTITIONS_CSV=partitions-heltec.csv
   MAX_UPLOAD=1572864 # 1.5MB
   FLASH_SIZE=8MB
+  FLASH_OFFS=0x1000
 else ifeq ($(BOARD),TDeck)
   CHIP=esp32s3
   FQBN=esp32:esp32:esp32s3:PSRAM=opi,FlashSize=16M,CDCOnBoot=cdc
   PARTITIONS_CSV=partitions-tdeck.csv
   MAX_UPLOAD=2097152 # 2MB
   FLASH_SIZE=16MB
+  FLASH_OFFS=0x0
   FLAGS_BOARD=-DESP32 -DCORE_DEBUG_LEVEL=0 -DARDUINO_RUNNING_CORE=1 -DARDUINO_EVENT_RUNNING_CORE=1 -DBOARD_HAS_PSRAM -DARDUINO_USB_MODE=1 -DARDUINO_USB_CDC_ON_BOOT=1 -DARDUINO_USB_MSC_ON_BOOT=0 -DARDUINO_USB_DFU_ON_BOOT=0
 else # default is T-Beam
   CHIP=esp32
   BOARD=TBeam
   FQBN=esp32:esp32:t-beam
-  PARTITIONS_CSV=partitions-2.5M.csv
+  PARTITIONS_CSV=partitions-tbeam.csv
   MAX_UPLOAD=1572864 # 1.5MB
   FLASH_SIZE=4MB
+  FLASH_OFFS=0x1000
 endif
 
 ifndef SERIAL
@@ -74,7 +87,7 @@ ifndef SERIAL
     SERIAL= $(shell ls /dev/tty* | grep 'ACM\|USB\|wchusb')
   endif
 
-  # kill any screen/miniterm program currently having the serial port open?
+  # ? kill any screen/miniterm program currently having the serial port open ?
   # $(foreach var,$(SERIAL), fuser -f $(var);) ...
 endif
 
@@ -87,27 +100,17 @@ all:
 	$(info "usage:  make [BOARD=TBeam|TDeck|heltec] firmware flash")
 	$(info )
 
-compile:
-	rm -f partitions.csv
-	ln -s $(PARTITIONS_CSV) partitions.csv
-	$(BINDIR)/arduino-cli compile -v --fqbn $(FQBN) $(MAIN) \
-		--build-properties build.partitions=partitions.csv,upload.maximum_size=1572864 \
-		$(EXTRA_CPP_FLAGS)
-
-upload:
-	$(foreach var,$(SERIAL), $(BINDIR)/arduino-cli upload -v --fqbn $(FQBN) -p $(var) .;)
-
 monitor:
 	$(info use CTRL-A CTRL-\ to quit the screen program)
-	screen $(SERIAL) 115200
+	screen -h 1024 $(SERIAL) 115200
 
 # ---------------------------------------------------------------------------
 
 firmware:
-	mkdir -p build
 	rm -f partitions.csv
 	ln -s $(PARTITIONS_CSV) partitions.csv
-	$(BINDIR)/arduino-cli compile -v \
+	mkdir -p build
+	$(ARDUINO_CLI) compile -v \
 		--build-path ./build \
 		--fqbn $(FQBN) $(MAIN) \
 		--build-property build.partitions=$(PARTITIONS_CSV) \
@@ -117,28 +120,21 @@ firmware:
 	$(ESPTOOL) \
 		--chip $(CHIP) merge_bin --flash_mode dio --flash_freq 80m \
 		--flash_size $(FLASH_SIZE) \
-		0x0     ./build/$(MAIN).bootloader.bin \
-		0x8000  ./build/$(MAIN).partitions.bin \
-		0xe000  $(BOOTAPP0PATH) \
-		0x10000 ./build/$(MAIN).bin \
-		-o ./build/firmware-$(BOARD).bin
+		$(FLASH_OFFS) ./build/$(MAIN).bootloader.bin \
+		0x8000        ./build/$(MAIN).partitions.bin \
+		0xe000        $(BOOTAPP0PATH) \
+		0x10000       ./build/$(MAIN).bin \
+		-o ./build/$(FLASH_BIN)
 
 flash:
 	 $(foreach var,$(SERIAL), \
-		/Users/tschudin/Library/Arduino15/packages/esp32/tools/esptool_py/4.5.1/esptool \
+		$(ESPTOOL) \
 		--chip $(CHIP) \
 		--port $(var) --baud 921600 \
 		--before default_reset --after hard_reset \
 		write_flash -z --flash_mode dio --flash_freq 80m \
 		--flash_size $(FLASH_SIZE) \
-		$(FLASH_OFFS) ./build/$(FLASH_BIN);)
-
-#		0x0     ./build/$(MAIN).bootloader.bin \
-#		0x8000  ./build/$(MAIN).partitions.bin \
-#		0xe000  $(BOOTAPP0PATH) \
-#		0x10000 ./build/$(MAIN).bin;)
-
-
+		0x0 ./build/$(FLASH_BIN);)
 
 clean:
 	rm -f *~

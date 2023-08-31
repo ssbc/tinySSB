@@ -61,7 +61,7 @@ class DmxClass {
                void (*fct)(unsigned char*, int, int, struct face_s*)=NULL,
                unsigned char *fid=NULL, int seq=-1, int bnr=-1, int last=0);
   void compute_dmx(unsigned char *dst, unsigned char *buf, int len);
-  int on_rx(unsigned char *buf, int len, struct face_s *f);
+  int on_rx(unsigned char *buf, int len, unsigned char *hash, struct face_s *f);
   void set_want_dmx();
   // void invalidate(); // clears all entries with aux!=NULL
 };

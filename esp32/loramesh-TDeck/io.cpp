@@ -30,7 +30,9 @@
 #endif
 
 struct face_s *faces[] = {
+#if defined(HAS_LORA)
   &lora_face,
+#endif
 #if defined(HAS_UDP)
   &udp_face,
 #endif
@@ -49,7 +51,42 @@ int lora_sent_pkts = 0; // absolute counter
 int lora_rcvd_pkts = 0; // absolute counter
 
 
-// --------------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+
+int incoming(struct face_s *f, unsigned char *pkt, int len, int has_crc)
+{
+  unsigned char h[crypto_hash_sha256_BYTES];
+  crypto_hash_sha256(h, pkt, len);
+  Serial.printf("<%c %dB %s..", f->name[0], len, to_hex(pkt, DMX_LEN));
+  if (has_crc)
+    Serial.printf("%s ", to_hex(pkt + len-6-sizeof(uint32_t), 6));
+  else
+    Serial.printf("%s ", to_hex(pkt + len-6, 6));
+  Serial.printf("h=%s\r\n", to_hex(h, HASH_LEN));
+  
+  if (len <= (DMX_LEN + sizeof(uint32_t))) {
+    Serial.printf("   =short packet\r\n");
+    // lora_bad_crc++;
+    return -1;
+  }
+  if (has_crc && crc_check(pkt,len)) {
+    Serial.printf("   =bad CRC\r\n");
+    // lora_bad_crc++;
+    return -1;
+  }
+  if (has_crc) {
+    // Serial.println("CRC OK");
+    len -= sizeof(uint32_t);
+  }
+  // Serial.printf("<  incoming packet, %d bytes\r\n", len);
+
+  if (!theDmx->on_rx(pkt, len, h, f))
+    return 0;
+  Serial.println(String("   unknown DMX ") + to_hex(pkt, DMX_LEN, 0));
+  return -1;
+}
+
+// ---------------------------------------------------------------------------
 
 uint32_t crc32_ieee(unsigned char *pkt, int len) { // Ethernet/ZIP polynomial
   uint32_t crc = 0xffffffffu;
@@ -61,7 +98,7 @@ uint32_t crc32_ieee(unsigned char *pkt, int len) { // Ethernet/ZIP polynomial
   return htonl(crc ^ 0xffffffffu);
 }
 
-// --------------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
 
 #if defined(MAIN_BLEDevice_H_) && defined(HAS_BLE)
 
@@ -174,20 +211,12 @@ void ble_init()
 
 // --------------------------------------------------------------------------------
 
-/*
-#define LORA_BUF_CNT 4
-#define LORA_MAX_LEN 127
-
-volatile unsigned char lora_buf[LORA_BUF_CNT * (LORA_MAX_LEN+1)];
-volatile int lora_buf_cnt, lora_buf_offs;
-*/
-
 int lora_send_ok;
 
 void lora_send(unsigned char *buf, short len)
 {
 #if defined(HAS_LORA)
-#if USE_RADIO_LIB
+#if defined(USE_RADIO_LIB)
 
   unsigned char *data = (unsigned char*) malloc(len+4);
   memcpy(data, buf, len);
@@ -195,8 +224,17 @@ void lora_send(unsigned char *buf, short len)
   memcpy(data+len, &crc, sizeof(crc));
   lora_send_ok = radio.transmit(data, len + sizeof(crc), 0) == RADIOLIB_ERR_NONE;
   free(data);
+  if (lora_send_ok) {
+    Serial.printf("l> %dB %s..",
+                  len + sizeof(crc), to_hex(buf,7,0));
+    Serial.printf("%s @%d\r\n", to_hex(buf + len - 6, 6, 0), millis());
+  } else {
+    Serial.printf("   LoRa send fail %dB %s..", len, to_hex(buf,7,0));
+    Serial.printf("%s @%d\r\n", to_hex(buf + len - 6, 6, 0), millis());
+  }
   lora_pkt_cnt++;
   lora_sent_pkts++;
+  radio.startReceive();
 
 #else
 
@@ -254,7 +292,7 @@ void ble_send(unsigned char *buf, short len)
   // no CRC added, we rely on BLE's CRC
   TXChar->setValue(buf, len);
   TXChar->notify();
-  Serial.printf("   BLE  sent %3dB %s..\r\n", len, to_hex(buf,8,0));
+  Serial.printf("b> %3dB %s..\r\n", len, to_hex(buf,8,0));
 }
 
 void ble_send_stats(unsigned char *str, short len)
@@ -314,6 +352,7 @@ void io_init()
 
 void io_send(unsigned char *buf, short len, struct face_s *f)
 {
+  // Serial.printf("io_send %d bytes\r\n", len);
   for (int i = 0; i < NR_OF_FACES; i++) {
     if (faces[i]->send == NULL)
       continue;
@@ -322,6 +361,7 @@ void io_send(unsigned char *buf, short len, struct face_s *f)
   }
 }
 
+#ifdef NOT_USED
 void io_enqueue(unsigned char *pkt, int len, unsigned char *dmx, struct face_s *f)
 {
   // Serial.printf("   enqueue %dB %s..\r\n", len, to_hex(dmx?dmx:pkt,7));
@@ -380,6 +420,7 @@ void io_dequeue() // enforces interpacket time
     f->queue_len--;
   }
 }
+#endif
 
 int crc_check(unsigned char *pkt, int len) // returns 0 if OK
 {
@@ -391,7 +432,7 @@ int crc_check(unsigned char *pkt, int len) // returns 0 if OK
 // ---------------------------------------------------------------------------
 // int lora_new_cnt = 0;
 
-/* callback, not used:
+/*
 void newLoRaPkt(int sz) {
   int packetSize = sz;
   // LoRa.parsePacket();
@@ -423,9 +464,116 @@ public:
 };
 
 RingBuffer lora_buf;
-  
+
+#if defined(HAS_LORA) && defined(USE_RADIO_LIB)
+  volatile bool lora_fetching = false;
+  volatile bool new_lora_pkt = false;
+
+  void newLoraPacket_cb(void)
+  {
+    // Serial.println("newLoraPkt");
+    if (lora_fetching)
+      return;
+    new_lora_pkt = true;
+  }
+#endif
+
+static unsigned char prev_hash[HASH_LEN];
+
+void lora_poll()
+{
+#if defined(HAS_LORA) && defined(USE_RADIO_LIB)
+  lora_fetching = true;
+  if (new_lora_pkt) {
+    // Serial.println("lora_poll: new pkt");
+    radio.standby();
+    new_lora_pkt = false;
+
+    while (-1) {
+      unsigned char buf[LORA_MAX_LEN];
+      size_t len = radio.getPacketLength();
+      if (len <= 0)
+        break;
+      // Serial.printf("lora_poll: len=%d\r\n", len);
+      lora_rcvd_pkts++;
+      lora_pkt_cnt++;
+      int rc = radio.readData(buf, len);
+      if (rc != RADIOLIB_ERR_NONE) {
+        Serial.printf("  readData1 returned %d\r\n", rc);
+        break;
+      }
+      unsigned char h[crypto_hash_sha256_BYTES];
+      crypto_hash_sha256(h, buf, len);
+      if (!memcmp(prev_hash, h, HASH_LEN)) { //dup
+        // Serial.println("   dup");
+        break;
+      }
+      memcpy(prev_hash, h, HASH_LEN);
+
+      if (lora_buf.cnt >= LORA_BUF_CNT) {
+        Serial.println("too many LoRa packets, dropped one");
+        unsigned char buf[len];
+        break;
+        // continue;
+      }
+      if (len > LORA_MAX_LEN)
+        len = LORA_MAX_LEN;
+      unsigned char *pkt = (unsigned char*) lora_buf.buf + lora_buf.offs * (LORA_MAX_LEN+1);
+      *pkt = len;
+      rc = radio.readData(pkt+1, len);
+      if (rc != RADIOLIB_ERR_NONE)
+        Serial.printf("  readData2 returned %d\r\n", rc);
+      lora_buf.offs = (lora_buf.offs + 1) % LORA_BUF_CNT;
+      lora_buf.cnt++;
+
+      /*
+      // put module back to listen mode
+      int rc = radio.startReceive();
+      if (rc != RADIOLIB_ERR_NONE)
+        Serial.printf("radio.startReceive() in fish4lora returned %d\r\n", rc);
+      */
+    }
+    radio.startReceive();
+  }
+
+  lora_fetching = false;
+#else // LoRa lib
+    while (-1) {
+    int sz = LoRa.parsePacket();
+    if (sz <= 0)
+      return; // lora_buf.cnt;
+    lora_pkt_cnt++;
+    lora_rcvd_pkts++;
+    if (lora_buf.cnt >= LORA_BUF_CNT) {
+      Serial.printf("   ohh %d, rcvd too many LoRa pkts, cnt=%d\r\n",
+                    sz, lora_buf.cnt);
+      while (sz-- > 0)
+        LoRa.read();
+      continue;
+    }
+    if (sz > LORA_MAX_LEN)
+      sz = LORA_MAX_LEN;
+    unsigned char *pkt = (unsigned char*) lora_buf.buf + lora_buf.offs * (LORA_MAX_LEN+1);
+    unsigned char *ptr = pkt;
+    *ptr++ = sz;
+    while (sz-- > 0)
+      *ptr++ = LoRa.read();
+    lora_buf.offs = (lora_buf.offs + 1) % LORA_BUF_CNT;
+    lora_buf.cnt++;
+    Serial.printf("   rcvd %dB on lora, %s.., now %d pkts in buf\r\n", *pkt, to_hex(pkt+1, 7), lora_buf.cnt);
+  }
+#endif
+}
+
 int fishForNewLoRaPkt()
-{ return 0;
+{
+  // Serial.println("lora receive");
+
+#if defined(HAS_LORA) // && defined(USE_RADIO_LIB)
+  lora_poll();
+#endif
+
+  return 0;
   /*
   while (-1) {
     int sz = LoRa.parsePacket();

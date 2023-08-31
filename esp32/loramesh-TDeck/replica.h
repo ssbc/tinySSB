@@ -41,8 +41,10 @@ public:
 private:
   char *fname;
   int suffix_pos;
-  struct bipf_s *state, *max_seq_ref, *max_pos_ref, *prev_ref, *pending_ref;
+  struct bipf_s *state; // NULL if not loaded yet
+  struct bipf_s *max_seq_ref, *max_pos_ref, *prev_ref, *pending_ref;
 
+  void _load_state();
   int _get_content_len(unsigned char *pkt, int seq, int *valid_len = NULL);
   File _get_entry_start(int seq);
   void _persist_frontier();

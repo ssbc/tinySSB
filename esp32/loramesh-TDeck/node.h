@@ -44,7 +44,11 @@ void incoming_want_request(unsigned char *buf, int len, unsigned char *aux, stru
       if (pkt == NULL)
         continue;
       Serial.printf("  repo.read(%d.%d) -> %s..\r\n", fNDX, seq, to_hex(pkt, 8));
-      io_enqueue(pkt, TINYSSB_PKT_LEN);
+      // io_enqueue(pkt, TINYSSB_PKT_LEN);
+      unsigned char *tmp = (unsigned char*) malloc(TINYSSB_PKT_LEN);
+      memcpy(tmp, pkt, TINYSSB_PKT_LEN);
+      theSched->schedule_asap(tmp, TINYSSB_PKT_LEN, NULL, f);
+ 
       found_something++;
       seq_copy[i]++;
       credit--;
@@ -136,7 +140,11 @@ void incoming_chnk_request(unsigned char *buf, int len, unsigned char *aux, stru
         continue;
       }
       //Serial.printf("   have chunk %d.%d.%d\r\n", fNDX, seq, cnr);
-      io_enqueue(chunk, TINYSSB_PKT_LEN, NULL, f);
+      // io_enqueue(chunk, TINYSSB_PKT_LEN, NULL, f);
+      unsigned char *tmp = (unsigned char*) malloc(TINYSSB_PKT_LEN);
+      memcpy(tmp, pkt, TINYSSB_PKT_LEN);
+      theSched->schedule_asap(tmp, TINYSSB_PKT_LEN);
+       
       found_something++;
       cnr_copy[i]++; // chunk nr
       credit--;
@@ -221,7 +229,8 @@ void incoming_chunk(unsigned char *buf, int len, int blbt_ndx, struct face_s *f)
       Serial.printf("  invalid chunk %d.%d.%d/%d or file problem?\r\n",
                     ndx, tp->seq, tp->cnr, tp->last_cnr);
     fishForNewLoRaPkt();
-    io_dequeue();
+    // io_dequeue();
+    theSched->tick();
   }
   if (is_valid)
     theDmx->arm_blb(bp->h); // remove old CHUNK handler for this hash val
@@ -233,6 +242,7 @@ void incoming_chunk(unsigned char *buf, int len, int blbt_ndx, struct face_s *f)
   chunk_proc_cnt++;
 }
 
+/*
 void node_tick()
 {
   static unsigned char turn; // alternate between requesting log entries an chunks
@@ -269,24 +279,26 @@ void node_tick()
   turn = 1 - turn;
   if (turn) {
     theRepo->mk_want_vect();
-    if (theRepo->want_len > 0)
+    if (theRepo->want_len > 0) {
       io_enqueue(theRepo->want_vect, theRepo->want_len, theDmx->want_dmx);
+    }
   } else { // chunks:
     theRepo->mk_chnk_vect();
-    if (theRepo->chnk_len > 0)
+    if (theRepo->chnk_len > 0) {
       io_enqueue(theRepo->chnk_vect, theRepo->chnk_len, theDmx->chnk_dmx);
+    }
   }
 
   fishForNewLoRaPkt();
   io_dequeue();
 }
-
+*/
 
 void probe_for_want_vect(unsigned char **pkt,
                          unsigned short *len,
                          unsigned short *reprobe_in_millis)
 {
-  *reprobe_in_millis = millis() + NODE_ROUND_LEN/2 + esp_random() % 500;
+  *reprobe_in_millis = NODE_ROUND_LEN/2 + esp_random() % 500;
 
   *pkt = NULL;
   if (theGOset->goset_len == 0)
@@ -294,6 +306,7 @@ void probe_for_want_vect(unsigned char **pkt,
   theRepo->mk_want_vect();
   if (theRepo->want_len <= 0)
     return;
+  Serial.println("   prepare WANT vect");
   *len = 7 + theRepo->want_len;
   *pkt = (unsigned char*) malloc(*len);
   memcpy(*pkt, theDmx->want_dmx, 7);
@@ -305,7 +318,8 @@ void probe_for_chnk_vect(unsigned char **pkt,
                          unsigned short *len,
                          unsigned short *reprobe_in_millis)
 {
-  *reprobe_in_millis = millis() + NODE_ROUND_LEN/2 + esp_random() % 500;
+  // Serial.println("probe_for_chnk_vect");
+  *reprobe_in_millis = NODE_ROUND_LEN/2 + esp_random() % 500;
 
   *pkt = NULL;
   if (theGOset->goset_len == 0)
@@ -313,6 +327,7 @@ void probe_for_chnk_vect(unsigned char **pkt,
   theRepo->mk_chnk_vect();
   if (theRepo->chnk_len <= 0)
     return;
+  Serial.println("   prepare CHNK vect");
   *len = 7 + theRepo->chnk_len;
   *pkt = (unsigned char*) malloc(*len);
   memcpy(*pkt, theDmx->chnk_dmx, 7);
