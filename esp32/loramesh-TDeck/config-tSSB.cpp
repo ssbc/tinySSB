@@ -13,9 +13,7 @@
 
 struct lora_config_s lora_configs[] = {
   // FIXME: these values are copying TNN values - we should step around these
-  {"US902.5", 902500000, 250000, 7, 5, LORA_tSSB_SYNC, LORA_TX_POWER},
-  // {"AU915.a", 917500000, 500000, 8, 5, LORA_tSSB_SYNC, LORA_TX_POWER},
-  {"AU915.a", 917500000, 125000, 8, 5, LORA_tSSB_SYNC, LORA_TX_POWER},
+  {"AU915.a", 917500000, 500000, 8, 5, LORA_tSSB_SYNC, LORA_TX_POWER},
   {"AU915.b", 917500000, 125000, 7, 5, LORA_tSSB_SYNC, LORA_TX_POWER},
   {"EU868.a", 868300000, 250000, 7, 5, LORA_tSSB_SYNC, LORA_TX_POWER},
   {"EU868.b", 868300000, 125000, 7, 5, LORA_tSSB_SYNC, LORA_TX_POWER},
@@ -38,7 +36,7 @@ struct bipf_s* config_load() // returns a BIPF dict with the persisted config di
                   bipf_mkList()); // empty list of bubble publ keys
 
     bipf_dict_set(dict, bipf_mkString("lora_plan"),
-                  bipf_mkString("AU915.a"));
+                  bipf_mkString("AU915.b"));
 
     unsigned char key[crypto_auth_hmacsha512_KEYBYTES]; // 48B
     memset(key, 1, crypto_auth_hmacsha512_KEYBYTES);    // default is #0101...
@@ -55,6 +53,9 @@ struct bipf_s* config_load() // returns a BIPF dict with the persisted config di
   f.close();
   struct bipf_s *dict = bipf_loads(buf, len);
   free(buf);
+
+  bipf_dict_set(dict, bipf_mkString("lora_plan"),
+                bipf_mkString("AU915.b"));
 
   return dict;
 }

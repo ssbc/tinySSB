@@ -11,9 +11,9 @@ SchedClass::SchedClass(probe_fct_t g, probe_fct_t p,
   memset(packets, 0, sizeof(packets));
   next_slot_millis = millis();
   slots[0]           = -1; // g
-  slots[9*SCHED_PPS] = -2; // p
-  slots[3*SCHED_PPS] = -3; // v
-  slots[6*SCHED_PPS] = -4; // c
+  slots[(int)(9*SCHED_PPS)] = -2; // p
+  slots[(int)(3*SCHED_PPS)] = -3; // v
+  slots[(int)(6*SCHED_PPS)] = -4; // c
 }
 
 
@@ -21,10 +21,10 @@ void SchedClass::tick()
 {
   if (millis() < next_slot_millis)
     return;
-  next_slot_millis += 1000 / SCHED_PPS;
+  next_slot_millis += 1000 / (SCHED_PPS);
   int ndx = slots[curr_slot];
   slots[curr_slot] = 0;
-  curr_slot = (curr_slot + 1) % (SCHED_PPS * SCHED_SEC);
+  curr_slot = (curr_slot + 1) % (int)(SCHED_SEC * SCHED_PPS);
   if (ndx == 0)
     return;
   if (ndx > 0) { // pkt slot
@@ -110,7 +110,7 @@ int SchedClass::_find_free_slot(int delay_millis) // evicts pkt if delay > 0
   int max_slot = (SCHED_SEC * 1000 - delay_millis) * SCHED_PPS / 1000;
   int pos = curr_slot + delay_millis * SCHED_PPS / 1000;
   for (int i = 0; i < max_slot; i++) {
-    int j = (pos + i) % (SCHED_PPS * SCHED_SEC);
+    int j = (pos + i) % (int)(SCHED_SEC * SCHED_PPS);
     if (slots[j] == 0)
       return j;
   }

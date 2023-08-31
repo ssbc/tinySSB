@@ -150,7 +150,7 @@ void Repo2Class::mk_want_vect()
     v += (v.length() == 0 ? "[ " : " ") + String(ndx) + "." + String(ns);
     if (encoding_len > 100)
       break;
-    // fishForNewLoRaPkt();
+    // lora_poll();
     // io_dequeue();
   }
   want_offs = (want_offs + i + 1) % theGOset->goset_len;

@@ -51,7 +51,7 @@ void PeersClass::probe_for_peers_beacon(unsigned char **pkt,
                                         unsigned short *len,
                                         unsigned short *reprobe_in_millis)
 {
-  Serial.println("   prepare peers beacons");
+  Serial.println("   prepare PEER beacon");
 
   // send a request (ping)
   char buf[100];
@@ -78,7 +78,7 @@ void PeersClass::incoming_req(unsigned char *pkt, int len, unsigned char *aux,
   memcpy((unsigned char*) str, pkt+7, len-7);
   str[len-7] = '\0';
 
-  Serial.printf("   =P.req/ping <%s> %dB rssi=%d snr=%g\r\n",
+  Serial.printf("   =P.ping <%s> %dB rssi=%d snr=%g\r\n",
                 str, len, (int) radio.getRSSI(), radio.getSNR());
 
   char buf[100];
@@ -112,7 +112,7 @@ void PeersClass::incoming_rep(unsigned char *pkt, int len, unsigned char *aux,
   memcpy((unsigned char*) str, pkt+7, len-7);
   str[len-7] = '\0';
 
-  Serial.printf("   P.rep/pong <%s> %dB rssi=%d snr=%g\r\n",
+  Serial.printf("   =P.pong <%s> %dB rssi=%d snr=%g\r\n",
                 str, len, (int) radio.getRSSI(), radio.getSNR());
 
   // sprintf(str+strlen(str), " / rssi=%d snr=%g",

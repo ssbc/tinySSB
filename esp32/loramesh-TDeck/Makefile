@@ -33,10 +33,10 @@ ARDUINO_ESP_DIR=$(ARDUINO_DATA)/packages/esp32
 
 # ---------------------------------------------------------------------------
 
-ifeq ($shell uname, Linux)
+OS=$(shell uname;)
+ifneq ($(OS), Darwin)
   ESPTOOL_EXT=.py
 endif
-# FIXME: need to also adjust the file extension for Windows
 
 ESPTOOL=$(shell find $(ARDUINO_ESP_DIR)/tools -name "esptool$(ESPTOOL_EXT)";)
 BOOTAPP0PATH=$(shell find $(ARDUINO_ESP_DIR)/hardware -name "boot_app0.bin";)
