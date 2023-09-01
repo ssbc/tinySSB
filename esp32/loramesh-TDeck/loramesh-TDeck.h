@@ -29,8 +29,8 @@ struct lora_config_s *the_lora_config;
 // ---------------------------------------------------------------------------
 
 #include "hw_setup.h"
-#include "ui_setup.h"
 
+UIClass    *theUI;
 DmxClass   *theDmx;
 Repo2Class *theRepo;
 GOsetClass *theGOset;
@@ -107,23 +107,19 @@ void setup()
   delay(1500);
     
   hw_setup();
-  ui_setup();
 
-  lv_obj_t *spinner = lv_spinner_create(lv_scr_act(), 1500, 60);
-  lv_obj_add_style(spinner, &bg_style, LV_PART_ITEMS); // FIXME: no effect ...
-  lv_obj_set_size(spinner, 60, 60);
-  lv_obj_center(spinner);
-  lv_task_handler();
+  theUI = new UIClass();
+  theUI->spinner(true);
+
+  theDmx   = new DmxClass();
+  theRepo  = new Repo2Class();
+  theGOset = new GOsetClass();
+  thePeers = new PeersClass();
+  theSched = new SchedClass(probe_for_goset_vect,
+                            probe_for_peers_beacon,
+                            probe_for_want_vect,
+                            probe_for_chnk_vect);
   {
-    theDmx   = new DmxClass();
-    theRepo  = new Repo2Class();
-    theGOset = new GOsetClass();
-    thePeers = new PeersClass();
-    theSched = new SchedClass(probe_for_goset_vect,
-                              probe_for_peers_beacon,
-                              probe_for_want_vect,
-                              probe_for_chnk_vect);
-
     unsigned char h[32];
     crypto_hash_sha256(h, (unsigned char*) GOSET_DMX_STR, strlen(GOSET_DMX_STR));
     memcpy(theDmx->goset_dmx, h, DMX_LEN);
@@ -136,8 +132,7 @@ void setup()
     // the_TVA_app = new App_TVA_Class(posts);
     // the_TVA_app->restream();
   }
-  lv_obj_del(spinner);
-  lv_task_handler();
+  theUI->spinner(false);
 
   Serial.println("end of setup\n");
 }
@@ -154,6 +149,7 @@ void loop()
   if (Serial.available())
     cmd_rx(Serial.readString());
 
+  loopBLE();
   lora_poll();
   pkt_len = lora_get_pkt(pkt_buf);
   if (pkt_len > 0) {
@@ -167,7 +163,6 @@ void loop()
   theSched->tick();
 
   // loopRadio();
-  loopBLE();
   // io_dequeue();
 
   for (int i = 0; i < 5; i++) {

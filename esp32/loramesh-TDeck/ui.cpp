@@ -1,5 +1,10 @@
-// ui_setup.h
+// ui.cpp
 
+#include "config.h"
+
+extern UIClass *theUI;
+static void _brightness_cb(lv_event_t *e)  { theUI->brightness_cb(e); }
+static void _four_button_cb(lv_event_t *e) { theUI->four_button_cb(e); }
 
 LV_IMG_DECLARE(splash);
 LV_IMG_DECLARE(tremola);
@@ -19,89 +24,13 @@ LV_IMG_DECLARE(tab_left);
 LV_IMG_DECLARE(tab_right);
 
 
-lv_obj_t *tSSB_ta;
-
-lv_obj_t *btn_left;
-lv_obj_t *bar;
-lv_obj_t *btn_right;
-lv_obj_t *posts; // flex layout
-lv_obj_t *log_lbl;
-lv_obj_t *four_buttons[4], *current_btn;
-
-lv_obj_t *hz[3];
-
-// ---------------------------------------------------------------------------
-
-void prep2log(char *txt) // useful for showing internal log messages on the GUI
-{
-  char *olds = lv_label_get_text(log_lbl);
-  char *news = (char*) malloc(strlen(olds) + strlen(txt) + 8);
-  strcpy(news, txt);
-  strcpy(news + strlen(news), "\n---\n");
-  strcpy(news + strlen(news), olds);
-  int i = strlen(news);
-  if (i > 1024)
-    news[1024] = '\0';
-  lv_label_set_text(log_lbl, news);
-  free(news);
-  lv_obj_invalidate(log_lbl);
-}
-
-
-void brightness_cb(lv_event_t *e)
-{
-  static char lvl;
-
-  lvl = (lvl + 1) % 4;
-  if (lvl == 0) {
-    lv_obj_add_flag(hz[0], LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(hz[1], LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(hz[2], LV_OBJ_FLAG_HIDDEN);
-  } else if (lvl == 1) {
-    lv_obj_clear_flag(hz[0], LV_OBJ_FLAG_HIDDEN);
-  } else if (lvl == 2) {
-    lv_obj_add_flag(hz[0], LV_OBJ_FLAG_HIDDEN);
-    lv_obj_clear_flag(hz[1], LV_OBJ_FLAG_HIDDEN);
-  } else {
-    lv_obj_add_flag(hz[1], LV_OBJ_FLAG_HIDDEN);
-    lv_obj_clear_flag(hz[2], LV_OBJ_FLAG_HIDDEN);
-  }
-  lv_obj_invalidate(hz[0]);
-  lv_obj_invalidate(hz[1]);
-  lv_obj_invalidate(hz[2]);
-}
-
-
-void four_button_cb(lv_event_t *e)
-{
-  lv_obj_t *t = lv_event_get_target(e);
-  // void *aux = lv_event_get_user_data(e);
-
-  if (current_btn == t)
-    return;
-
-  // lv_event_stop_bubbling(e);
-  for (int i = 0; i < 4; i++) {
-    lv_obj_clear_state(four_buttons[i],
-                       LV_STATE_CHECKED | LV_STATE_PRESSED);
-    if (t == four_buttons[i])
-      current_btn = t;
-    else
-      lv_obj_add_state(four_buttons[i], LV_STATE_CHECKED);
-    lv_obj_invalidate(four_buttons[i]);
-  }
-  lv_task_handler();
-}
-
-lv_style_t bg_style;
-
-void ui_setup()
+UIClass::UIClass()
 {
     lv_style_init(&bg_style);
     lv_style_set_bg_color(&bg_style, lv_color_white());
     lv_style_set_text_color(&bg_style, lv_color_hex(0xff4040));
 
-    lv_obj_t *scr = lv_scr_act();
+    scr = lv_scr_act();
     lv_obj_t *tmp;
     
     // splash
@@ -155,7 +84,7 @@ void ui_setup()
     lv_obj_set_size(btn_left, 30, 30);
     lv_obj_set_pos(btn_left, 3, 3);
     lv_imgbtn_set_src(btn_left, LV_IMGBTN_STATE_RELEASED, 0, &return_btn, 0);
-    lv_obj_add_event_cb(btn_left, brightness_cb, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(btn_left, _brightness_cb, LV_EVENT_CLICKED, NULL);
 
     bar = lv_label_create(img);
     lv_obj_set_size(bar, LV_HOR_RES - 38 - 38, 30);
@@ -178,7 +107,7 @@ void ui_setup()
     lv_imgbtn_set_src(ib, LV_IMGBTN_STATE_RELEASED, &tab_left, &chat, &tab_right);
     lv_imgbtn_set_src(ib, LV_IMGBTN_STATE_CHECKED_RELEASED, 0, &chat_checked, 0);
     four_buttons[0] = ib;
-    lv_obj_add_event_cb(ib, four_button_cb, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(ib, _four_button_cb, LV_EVENT_CLICKED, NULL);
 
     ib = lv_imgbtn_create(scr);
     lv_obj_set_style_pad_all(ib, 0, LV_PART_MAIN);
@@ -187,7 +116,7 @@ void ui_setup()
     lv_imgbtn_set_src(ib, LV_IMGBTN_STATE_RELEASED, &tab_left, &contacts, &tab_right);
     lv_imgbtn_set_src(ib, LV_IMGBTN_STATE_CHECKED_RELEASED, 0, &contacts_checked, 0);
     four_buttons[1] = ib;
-    lv_obj_add_event_cb(ib, four_button_cb, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(ib, _four_button_cb, LV_EVENT_CLICKED, NULL);
     lv_obj_add_state(ib, LV_STATE_CHECKED);
 
     ib = lv_imgbtn_create(scr);
@@ -197,7 +126,7 @@ void ui_setup()
     lv_imgbtn_set_src(ib, LV_IMGBTN_STATE_RELEASED, &tab_left, &signal_btn, &tab_right);
     lv_imgbtn_set_src(ib, LV_IMGBTN_STATE_CHECKED_RELEASED, 0, &signal_btn_checked, 0);
     four_buttons[2] = ib;
-    lv_obj_add_event_cb(ib, four_button_cb, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(ib, _four_button_cb, LV_EVENT_CLICKED, NULL);
     lv_obj_add_state(ib, LV_STATE_CHECKED);
 
     ib = lv_imgbtn_create(scr);
@@ -207,7 +136,7 @@ void ui_setup()
     lv_imgbtn_set_src(ib, LV_IMGBTN_STATE_RELEASED, &tab_left, &chat, &tab_right);
     lv_imgbtn_set_src(ib, LV_IMGBTN_STATE_CHECKED_RELEASED, 0, &chat_checked, 0);
     four_buttons[3] = ib;
-    lv_obj_add_event_cb(ib, four_button_cb, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(ib, _four_button_cb, LV_EVENT_CLICKED, NULL);
     lv_obj_add_state(ib, LV_STATE_CHECKED);
 
     // "haze" (poor man's way of dimming the screen)
@@ -232,9 +161,97 @@ void ui_setup()
 
     // final refresh
 
-    lv_obj_invalidate(scr);
-    lv_task_handler();
+    spin = lv_spinner_create(lv_scr_act(), 1500, 60);
+    lv_obj_add_style(spin, &bg_style, LV_PART_ITEMS); // FIXME: no effect ...
+    lv_obj_set_size(spin, 60, 60);
+    lv_obj_center(spin);
+    lv_obj_add_flag(spin, LV_OBJ_FLAG_HIDDEN);
+
+    refresh();
 }
 
+
+
+void UIClass::refresh()
+{
+  lv_obj_invalidate(scr);
+  lv_task_handler();
+}
+
+
+void UIClass::spinner(bool show)
+{
+  if (show)
+    lv_obj_clear_flag(spin, LV_OBJ_FLAG_HIDDEN);
+  else
+    lv_obj_add_flag(spin, LV_OBJ_FLAG_HIDDEN);
+  lv_task_handler();
+}
+
+
+void UIClass::brightness_cb(lv_event_t *e)
+{
+  static char lvl;
+
+  lvl = (lvl + 1) % 4;
+  if (lvl == 0) {
+    lv_obj_add_flag(hz[0], LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(hz[1], LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(hz[2], LV_OBJ_FLAG_HIDDEN);
+  } else if (lvl == 1) {
+    lv_obj_clear_flag(hz[0], LV_OBJ_FLAG_HIDDEN);
+  } else if (lvl == 2) {
+    lv_obj_add_flag(hz[0], LV_OBJ_FLAG_HIDDEN);
+    lv_obj_clear_flag(hz[1], LV_OBJ_FLAG_HIDDEN);
+  } else {
+    lv_obj_add_flag(hz[1], LV_OBJ_FLAG_HIDDEN);
+    lv_obj_clear_flag(hz[2], LV_OBJ_FLAG_HIDDEN);
+  }
+  lv_obj_invalidate(hz[0]);
+  lv_obj_invalidate(hz[1]);
+  lv_obj_invalidate(hz[2]);
+}
+
+
+void UIClass::four_button_cb(lv_event_t *e)
+{
+  lv_obj_t *t = lv_event_get_target(e);
+  // void *aux = lv_event_get_user_data(e);
+
+  if (current_btn == t)
+    return;
+
+  // lv_event_stop_bubbling(e);
+  for (int i = 0; i < 4; i++) {
+    lv_obj_clear_state(four_buttons[i],
+                       LV_STATE_CHECKED | LV_STATE_PRESSED);
+    if (t == four_buttons[i])
+      current_btn = t;
+    else
+      lv_obj_add_state(four_buttons[i], LV_STATE_CHECKED);
+    lv_obj_invalidate(four_buttons[i]);
+  }
+  lv_task_handler();
+}
+
+
+/*
+
+void prep2log(char *txt) // useful for showing internal log messages on the GUI
+{
+  char *olds = lv_label_get_text(log_lbl);
+  char *news = (char*) malloc(strlen(olds) + strlen(txt) + 8);
+  strcpy(news, txt);
+  strcpy(news + strlen(news), "\n---\n");
+  strcpy(news + strlen(news), olds);
+  int i = strlen(news);
+  if (i > 1024)
+    news[1024] = '\0';
+  lv_label_set_text(log_lbl, news);
+  free(news);
+  lv_obj_invalidate(log_lbl);
+}
+
+*/
 
 // eof

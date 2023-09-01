@@ -73,6 +73,7 @@ extern unsigned char my_mac[6];
 // those files which have a corresponding *.cpp:
 #include "util.h"
 #include "config-tSSB.h"
+#include "ui.h"
 #include "io.h"
 #include "bipf.h"
 #include "goset.h"
@@ -92,8 +93,6 @@ extern PeersClass *thePeers;
 #if defined(HAS_LORA) && defined(USE_RADIO_LIB)
 void newLoraPacket_cb(void);
 #endif
-
-extern void tft_onOff(int val); // 0=off
 
 #if defined(HAS_LORA) && defined(USE_RADIO_LIB)
   extern SX1262 radio;
