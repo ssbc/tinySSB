@@ -45,7 +45,8 @@ async def launch_adv(sock, get_adv_fct, args):
         for p in pkts:
             o_pkt_cnt += 1
             if args.v:
-                args.log(f"{sock.nm}> {nowstr()} o={o_pkt_cnt:<4} {len(p):3}B 0x{p[:32].hex()}..")
+                args.log(f"{sock.nm}< {nowstr()} o={o_pkt_cnt:<4} {len(p):3}B 0x{p[:32].hex()}..")
+                status_update(f"sending {len(p)}B")
             await sock.send(p)
         await asyncio.sleep(tout)
         
@@ -65,11 +66,12 @@ async def onConnect(sock, node, args):
             pkt = await sock.recv()
             i_pkt_cnt += 1
             if args.v:
-                args.log(f"<{sock.nm} {nowstr()} i={i_pkt_cnt:<4} {len(pkt):3}B 0x{pkt[:20].hex()}.. h={hashlib.sha256(pkt).digest()[:10].hex()}..")
+                # args.log(f"{sock.nm}> {nowstr()} i={i_pkt_cnt:<4} {len(pkt):3}B 0x{pkt[:20].hex()}.. h={hashlib.sha256(pkt).digest()[:10].hex()}..")
+                args.log(f"{sock.nm}> {nowstr()} i={i_pkt_cnt:<4} {len(pkt):3}B {pkt[:8].hex()}..{pkt[-8:].hex()}")
             for p in node.rx(pkt):
                 o_pkt_cnt += 1
                 if args.v:
-                    args.log(f"{sock.nm}> {nowstr()} o={o_pkt_cnt:<4} {len(p):3}B 0x{p[:32].hex()}..")
+                    args.log(f"{sock.nm}< {nowstr()} o={o_pkt_cnt:<4} {len(p):3}B 0x{p[:32].hex()}..")
                     status_update(f"sending {len(p)}B")
                 await sock.send(p)
             await asyncio.sleep(0)

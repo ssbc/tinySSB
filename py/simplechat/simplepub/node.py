@@ -127,7 +127,6 @@ class PubNode:
         return self.goset.get_adv()
 
     def rx(self, pkt):
-        self.log_fct(f"<< incoming {pkt[:20].hex()}.. ({len(pkt)}B)")
         lst = []
         dmx = pkt[:7] # DMX_LEN = 7
         if dmx in self.dmxt:

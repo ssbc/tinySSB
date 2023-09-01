@@ -359,11 +359,14 @@ class MyDisplay(): # Display):
         self.status_str = txt[:self.status_len]
 
     def log(self, txt):
-        self.log_lines.append(txt)
-        self.logscr.scroll()
-        self.logscr.addstr(curses.LINES-5, 2, txt[:curses.COLS-4])
-        if self.show_log:
-            self.logscr.refresh()
+        try:
+            self.log_lines.append(txt)
+            self.logscr.scroll()
+            self.logscr.addstr(curses.LINES-5, 2, txt[:curses.COLS-4])
+            if self.show_log:
+                self.logscr.refresh()
+        except:
+            pass
 
     pass
 
