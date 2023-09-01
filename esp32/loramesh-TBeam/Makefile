@@ -31,9 +31,14 @@ ARDUINO_CLI=$(shell which arduino-cli;)
 ARDUINO_DATA=$(shell arduino-cli config dump |awk '/data/ {print $$2}';)
 ARDUINO_ESP_DIR=$(ARDUINO_DATA)/packages/esp32
 
+OS=$(shell uname;)
+ifneq ($(OS), Darwin)
+  ESPTOOL_EXT=.py
+endif
+
 # ---------------------------------------------------------------------------
 
-ESPTOOL=$(shell find $(ARDUINO_ESP_DIR)/tools -name "esptool.py";)
+ESPTOOL=$(shell find $(ARDUINO_ESP_DIR)/tools -name "esptool$(ESPTOOL_EXT)";)
 BOOTAPP0PATH=$(shell find $(ARDUINO_ESP_DIR)/hardware -name "boot_app0.bin";)
 
 $(info esptool = $(ESPTOOL))
