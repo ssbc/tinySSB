@@ -1,7 +1,7 @@
 // loramesh-TWrist.h
 
-#include "config.h"
-#include "node.h"
+#include "src/config.h"
+#include "src/node.h"
 
 #include <Fonts/FreeMonoBold9pt7b.h>
 
@@ -15,6 +15,7 @@ char ssid[sizeof(tSSB_WIFI_SSID) + 6];
 #endif
 
 DmxClass   *theDmx;
+UIClass    *theUI;
 Repo2Class *theRepo;
 GOsetClass *theGOset;
 PeersClass *thePeers;
@@ -135,6 +136,8 @@ void setup()
   io_init();
 
   theDmx   = new DmxClass();
+  theUI    = new UIClass();
+  theUI->to_next_screen();
   theRepo  = new Repo2Class();
   theGOset = new GOsetClass();
   thePeers = new PeersClass();

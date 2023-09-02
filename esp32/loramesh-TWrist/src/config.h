@@ -98,7 +98,7 @@ extern unsigned char my_mac[6];
 // those files which have a corresponding *.cpp:
 #include "util.h"
 #include "config-tSSB.h"
-// #include "ui.h"
+#include "ui/ui.h"
 #include "io.h"
 #include "bipf.h"
 #include "goset.h"
