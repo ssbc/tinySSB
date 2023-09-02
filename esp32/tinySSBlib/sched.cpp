@@ -1,6 +1,6 @@
 // sched.cpp
 
-#include "config.h"
+#include "tinySSBlib.h"
 
 SchedClass::SchedClass(probe_fct_t g, probe_fct_t p,
                        probe_fct_t v, probe_fct_t c)

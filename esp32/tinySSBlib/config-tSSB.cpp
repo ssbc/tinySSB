@@ -3,7 +3,7 @@
 // tinySSB for ESP32
 // (c) 2023 <christian.tschudin@unibas.ch>
 
-#include "config.h"
+#include "tinySSBlib.h"
 
 #include <sodium/crypto_auth.h>
 

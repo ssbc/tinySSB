@@ -40,7 +40,8 @@ unsigned char* ble_fetch_received(); // first byte has length, up to 127B
 void ble_init();
 void ble_send_stats(unsigned char *str, short len);
 void io_init();
-void io_loop(); // check for receoved packets
+void io_loop(); // check for received packets
+void io_proc(); // process received packets
 void io_send(unsigned char *buf, short len, struct face_s *f=NULL);
 /*
 void io_enqueue(unsigned char *pkt, int len,

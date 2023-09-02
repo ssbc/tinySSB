@@ -1,11 +1,15 @@
 // loramesh-TWrist.h
 
-#include "src/config.h"
+#include "src/lib/tinySSBlib.h"
+
+#if !defined(UTC_OFFSET)
+# define UTC_OFFSET ""
+#endif
 
 // include files with actual code and data structures:
 #include "src/lib/node.h"
 #if defined(HAS_BT)
-# include "src/kiss.h"
+# include "src/lib/kiss.h"
 #endif
 
 struct bipf_s *the_config;
@@ -52,6 +56,7 @@ void setup()
   Serial.println();
   Serial.println("** Welcome to the tinySSB virtual pub "
                  "running on a " DEVICE_MAKE);
+  Serial.println("** compiled " __DATE__ ", " __TIME__ UTC_OFFSET);
 
   esp_efuse_mac_get_default(my_mac);
 #if !defined(HAS_UDP)  // in case of no Wifi: display BT mac addr, instead
@@ -129,6 +134,8 @@ void loop()
   theSched->tick();
 
   io_loop();
+  io_proc();
+
   theUI->loop();
 
   delay(5);

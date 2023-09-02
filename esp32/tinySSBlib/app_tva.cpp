@@ -2,9 +2,9 @@
 
 // (c) Aug 2023, <christian.tschudin@unibas.ch>
 
-#include "config.h"
+#include "tinySSBlib.h"
 
-#if defined(HAS_LORA)
+#if defined(TINYSSB_BOARD_TDECK)
 
 App_TVA_Class::App_TVA_Class(lv_obj_t *flex)
 {
@@ -149,6 +149,6 @@ void App_TVA_Class::new_post(unsigned char *fid, struct bipf_s *tav)
   }
 }
 
-#endif // HAS_LORA
+#endif // TINYSSB_BOARD_TDECK
 
 // eof

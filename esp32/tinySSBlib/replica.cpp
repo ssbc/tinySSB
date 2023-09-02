@@ -16,7 +16,7 @@
     'mid.bin'      sequence of 20B message IDs (back to back)
 */
 
-#include "config.h"
+#include "tinySSBlib.h"
 
 
 static unsigned char nam[PFX_LEN + FID_LEN + 4 + HASH_LEN + TINYSSB_PKT_LEN];  // name computation

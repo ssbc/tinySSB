@@ -8,7 +8,8 @@
 #include <lwip/def.h>
 #include <string.h>
 
-#include "config.h"
+#include "tinySSBlib.h"
+
 
 int _cmp_cnt(const void *a, const void *b)
 {

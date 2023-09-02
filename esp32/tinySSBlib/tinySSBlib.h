@@ -1,49 +1,22 @@
-// config.h
+// tinySSBlib.h
 
 // tinySSB for ESP32, Lilygo T-Deck version
 // (c) 2023 <christian.tschudin@unibas.ch>
 
 // collects main configuration details in this header file
 
-#if !defined(_INCLUDE_CONFIG_H)
-#define _INCLUDE_CONFIG_H
-
-// ---------------------------------------------------------------------------
-// hardware profile:
-
-#if defined(TINYSSB_BOARD_TBOARD)
-# define HAS_BLE
-# define HAS_LORA
-#endif // TINYSSB_BOARD_TBOARD
-
-#if defined(TINYSSB_BOARD_TDECK)
-# define HAS_BLE
-# define HAS_LORA
-# define USE_RADIO_LIB
-#endif // TINYSSB_BOARD_TDECK
-
-#if defined(TINYSSB_BOARD_TWRIST)
-# define HAS_BLE
-#endif // TINYSSB_BOARD_TWRIST
-
-// #define HAS_BLE         // enable Bluetooth Low Energy
-// #define HAS_BT          // the ESP32-3C has no Bluetooth
-// #define HAS_LORA        // enable LoRa
-// #define USE_RADIO_LIB
-
-// #define HAS_UDP
-// #define HAS_ ...
-
-// ---------------------------------------------------------------------------
-
-#if !defined(UTC_OFFSET)
-# define UTC_OFFSET ""
-#endif
-
+#if !defined(_INCLUDE_TINYSSBLIB_H)
+#define _INCLUDE_TINYSSBLIB_H
 
 // ---------------------------------------------------------------------------
 
 #include <Arduino.h>
+
+#include <string.h>
+#include <lwip/def.h> // htonl
+
+#include <sodium/crypto_hash_sha256.h>
+#include <sodium/crypto_sign_ed25519.h>
 
 #include "device.h"
 #include "const.h"
@@ -82,4 +55,4 @@ extern void incoming_chnk_request(unsigned char* buf, int len, unsigned char* au
 
 // ---------------------------------------------------------------------------
 
-#endif // _INCLUDE_CONFIG_H
+#endif // _INCLUDE_TINYSSBLIB_H

@@ -1,7 +1,6 @@
 // peers.cpp
 
-#include "config.h"
-
+#include "tinySSBlib.h"
 
 
 void peer_incoming_rep(unsigned char *pkt, int len, unsigned char *aux,

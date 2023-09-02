@@ -8,7 +8,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "config.h"
+#include "tinySSBlib.h"
 
 extern GOsetClass *theGOset;
 

@@ -124,7 +124,7 @@ monitor:
 
 firmware:
 	rm -f partitions.csv
-	ln -s $(PARTITIONS_CSV) partitions.csv
+	ln -s src/$(PARTITIONS_CSV) partitions.csv
 	mkdir -p build
 	$(ARDUINO_CLI) compile -v \
 		--build-path ./build \

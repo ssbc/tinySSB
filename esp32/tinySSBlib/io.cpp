@@ -10,10 +10,7 @@
    BLE has no CRC value
 */
 
-#include <stdint.h>
-#include <string.h>
-
-#include "config.h"
+#include "tinySSBlib.h"
 #include "io_buf.h"
 
 #define NR_OF_FACES               (sizeof(faces) / sizeof(void*))
@@ -41,7 +38,7 @@ struct face_s *faces[] = {
 #if defined(HAS_BT)
   &bt_face,
 #endif
-#if defined(MAIN_BLEDevice_H_) && defined(HAS_BLE)
+#if defined(HAS_BLE)
   &ble_face
 #endif
 };
@@ -120,6 +117,12 @@ int crc_check(unsigned char *pkt, int len) // returns 0 if OK
 // ---------------------------------------------------------------------------
 
 #if defined(HAS_BLE)
+
+# include <BLEDevice.h>
+# include <BLEServer.h>
+# include <BLEUtils.h>
+# include <BLE2902.h>
+# include "esp_gatt_common_api.h"
 
 BLECharacteristic *RXChar = nullptr; // receive
 BLECharacteristic *TXChar = nullptr; // transmit (notify)
@@ -230,11 +233,12 @@ void ble_init()
 
 void ble_send(unsigned char *buf, short len)
 {
+  // Serial.println("BLE send");
   if (bleDeviceConnected == 0) return;
   // no CRC added, we rely on BLE's CRC
   TXChar->setValue(buf, len);
   TXChar->notify();
-  Serial.printf("b< %3dB %s..\r\n", len, to_hex(buf,8,0));
+  Serial.printf("b< %dB %s..\r\n", len, to_hex(buf,8,0));
 }
 
 
@@ -255,7 +259,11 @@ void ble_send_stats(unsigned char *str, short len)
 #if defined(HAS_LORA)
 
 #if defined(USE_RADIO_LIB)
+# define USING_SX1262
+# include "RadioLib.h"
   SX1262 radio;
+#else
+# include <LoRa.h>
 #endif
 
 int lora_send_ok;
@@ -436,6 +444,9 @@ int lora_get_pkt(unsigned char *dst)
 
 #if defined(HAS_UDP)
 
+# include <WiFi.h>
+# include <WiFiAP.h>
+
 void udp_send(unsigned char *buf, short len)
 {
 #if !defined(NO_WIFI)
@@ -463,6 +474,7 @@ void udp_send(unsigned char *buf, short len)
 
 #if defined(HAS_BT)
 
+#include <BluetoothSerial.h>
 BluetoothSerial BT;
 
 extern void kiss_write(Stream &s, unsigned char *buf, short len);
@@ -498,14 +510,14 @@ void io_init()
   udp_face.next_delta = UDP_INTERPACKET_TIME;
   udp_face.send = udp_send;
 #endif
-#if defined(MAIN_BLEDevice_H_) && defined(HAS_BLE)
+#if defined(HAS_BLE)
   ble_init();
   ble_face.name = (char*) "ble";
   ble_face.next_delta = UDP_INTERPACKET_TIME;
   ble_face.send = ble_send;
 #endif
 #if defined(HAS_BT)
-  bt_face.name = (char*) "bt";
+  bt_face.name = (char*) "BT";
   bt_face.next_delta = UDP_INTERPACKET_TIME;
   bt_face.send = bt_send;
 #endif
@@ -513,7 +525,7 @@ void io_init()
 
 void io_send(unsigned char *buf, short len, struct face_s *f)
 {
-  // Serial.printf("io_send %d bytes\r\n", len);
+  // Serial.printf("io_send %d bytes %p\r\n", len, f);
   for (int i = 0; i < NR_OF_FACES; i++) {
     if (faces[i]->send == NULL)
       continue;

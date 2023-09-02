@@ -1,9 +1,28 @@
-// ui/epd-200x200.cpp
+// ui-twrist.cpp
 
 #if defined(TINYSSB_BOARD_TWRIST)
 
-#include "../config.h"
+#include "lib/tinySSBlib.h"
 #include "epd-scuttleshell.h"
+
+#include <GxEPD.h>
+#include <GxDEPG0150BN/GxDEPG0150BN.h>    // 1.54" b/w 200x200
+// #include <GxGDEH0154Z90/GxGDEH0154Z90.h>  // 1.54" b/w/r 200x200
+#include <GxIO/GxIO_SPI/GxIO_SPI.h>
+#include <GxIO/GxIO.h>
+
+#define PIN_MOTOR 4
+#define PIN_KEY GPIO_NUM_35
+#define PWR_EN 5
+#define Backlight 33
+
+#define SPI_SCK 14
+#define SPI_DIN 13
+#define EPD_CS 15
+#define EPD_DC 2
+#define SRAM_CS -1
+#define EPD_RESET 17
+#define EPD_BUSY 16
 
 #include <Fonts/FreeMonoBold9pt7b.h>
 
