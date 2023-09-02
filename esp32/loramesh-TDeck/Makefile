@@ -43,12 +43,13 @@ BOOTAPP0PATH=$(shell find $(ARDUINO_ESP_DIR)/hardware -name "boot_app0.bin";)
 
 ifdef BOARD
 else
-  BOARD=TBeam
+  $(info ">> please specify a BOARD")
+  stop
 endif
 
-# name of the ino file:
 MAIN=$(shell ls *.ino)
 
+BAUD=921600
 FLASH_BIN=firmware-$(BOARD).bin
 
 FLAGS_ALL=-DUTC_OFFSET=\"$(shell date +%z)\"
@@ -60,6 +61,13 @@ ifeq ($(BOARD),heltec)
   MAX_UPLOAD=1572864 # 1.5MB
   FLASH_SIZE=8MB
   FLASH_OFFS=0x1000
+else ifeq ($(BOARD),TBeam)
+  CHIP=esp32
+  FQBN=esp32:esp32:t-beam
+  PARTITIONS_CSV=partitions-tbeam.csv
+  MAX_UPLOAD=1572864 # 1.5MB
+  FLASH_SIZE=4MB
+  FLASH_OFFS=0x1000
 else ifeq ($(BOARD),TDeck)
   CHIP=esp32s3
   FQBN=esp32:esp32:esp32s3:PSRAM=opi,FlashSize=16M,CDCOnBoot=cdc
@@ -67,22 +75,28 @@ else ifeq ($(BOARD),TDeck)
   MAX_UPLOAD=2097152 # 2MB
   FLASH_SIZE=16MB
   FLASH_OFFS=0x0
-  FLAGS_BOARD=-DESP32 -DCORE_DEBUG_LEVEL=0 -DARDUINO_RUNNING_CORE=1 -DARDUINO_EVENT_RUNNING_CORE=1 -DBOARD_HAS_PSRAM -DARDUINO_USB_MODE=1 -DARDUINO_USB_CDC_ON_BOOT=1 -DARDUINO_USB_MSC_ON_BOOT=0 -DARDUINO_USB_DFU_ON_BOOT=0
-else # default is T-Beam
+  FLAGS_BOARD=-DTINYSSB_BOARD_TDECK -DESP32 -DCORE_DEBUG_LEVEL=0 -DARDUINO_RUNNING_CORE=1 -DARDUINO_EVENT_RUNNING_CORE=1 -DBOARD_HAS_PSRAM -DARDUINO_USB_MODE=1 -DARDUINO_USB_CDC_ON_BOOT=1 -DARDUINO_USB_MSC_ON_BOOT=0 -DARDUINO_USB_DFU_ON_BOOT=0
+else ifeq ($(BOARD),TWrist)
+  BAUD=460800
   CHIP=esp32
-  BOARD=TBeam
-  FQBN=esp32:esp32:t-beam
-  PARTITIONS_CSV=partitions-tbeam.csv
+  FQBN=esp32:esp32:esp32
+  PARTITIONS_CSV=partitions-twrist.csv
   MAX_UPLOAD=1572864 # 1.5MB
   FLASH_SIZE=4MB
   FLASH_OFFS=0x1000
+  FLAGS_BOARD=-DTINYSSB_BOARD_TWRIST -DESP32 -DCORE_DEBUG_LEVEL=0 -DARDUINO_RUNNING_CORE=1 -DARDUINO_EVENT_RUNNING_CORE=1 -DARDUINO_USB_CDC_ON_BOOT=0
+else
+  $(info ">> unknown board $(BOARD)")
+  stop
 endif
 
 ifndef SERIAL
   ifeq ($(BOARD),heltec) # heltec LORA32
-    SERIAL = $(shell ls /dev/tty.usbserial-*)
+    SERIAL = $(shell ls /dev/tty.usbserial-????)
   else ifeq ($(BOARD),TDeck)
     SERIAL = $(shell ls /dev/tty.usbmodem*)
+  else ifeq ($(BOARD),TWrist)
+    SERIAL = $(shell ls /dev/tty.usbserial-???????????)
   else # T-Beam
     SERIAL= $(shell ls /dev/tty* | grep 'ACM\|USB\|wchusb')
   endif
@@ -108,7 +122,7 @@ monitor:
 
 firmware:
 	rm -f partitions.csv
-	ln -s $(PARTITIONS_CSV) partitions.csv
+	ln -s src/$(PARTITIONS_CSV) partitions.csv
 	mkdir -p build
 	$(ARDUINO_CLI) compile -v \
 		--build-path ./build \
@@ -130,7 +144,7 @@ flash:
 	 $(foreach var,$(SERIAL), \
 		$(ESPTOOL) \
 		--chip $(CHIP) \
-		--port $(var) --baud 921600 \
+		--port $(var) --baud $(BAUD) \
 		--before default_reset --after hard_reset \
 		write_flash -z --flash_mode dio --flash_freq 80m \
 		--flash_size $(FLASH_SIZE) \
