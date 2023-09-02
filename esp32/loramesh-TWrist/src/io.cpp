@@ -6,13 +6,15 @@
 /*
    tinySSB packet format:
    dmx(7B) + more_data(var) + CRC32(4B)
+
+   BLE has no CRC value
 */
 
 #include <stdint.h>
 #include <string.h>
 
 #include "config.h"
-#include "io.h"
+#include "io_buf.h"
 
 #define NR_OF_FACES               (sizeof(faces) / sizeof(void*))
 
@@ -25,7 +27,7 @@
 #if defined(HAS_BT)
   struct face_s bt_face;
 #endif
-#if defined(MAIN_BLEDevice_H_) && defined(HAS_BLE)
+#if defined(HAS_BLE)
   struct face_s ble_face;
 #endif
 
@@ -44,12 +46,22 @@ struct face_s *faces[] = {
 #endif
 };
 
-int lora_pkt_cnt; // for counting in/outcoming packets, per NODE round
-float lora_pps;   // packet-per-seconds, gliding average
 
-int lora_sent_pkts = 0; // absolute counter
-int lora_rcvd_pkts = 0; // absolute counter
+void io_loop()
+{
+#if defined(HAS_LORA)
+  lora_poll();
+#endif
+}
 
+void io_proc()
+{
+#if defined(HAS_BLE)
+  unsigned char *cp = ble_fetch_received();
+  if (cp != NULL)
+    incoming(&ble_face, cp+1, *cp, 0);
+#endif
+}
 
 // ---------------------------------------------------------------------------
 
@@ -98,9 +110,16 @@ uint32_t crc32_ieee(unsigned char *pkt, int len) { // Ethernet/ZIP polynomial
   return htonl(crc ^ 0xffffffffu);
 }
 
+
+int crc_check(unsigned char *pkt, int len) // returns 0 if OK
+{
+  uint32_t crc = crc32_ieee(pkt, len-sizeof(crc));
+  return memcmp(pkt+len-sizeof(crc), (void*)&crc, sizeof(crc));
+}
+
 // ---------------------------------------------------------------------------
 
-#if defined(MAIN_BLEDevice_H_) && defined(HAS_BLE)
+#if defined(HAS_BLE)
 
 BLECharacteristic *RXChar = nullptr; // receive
 BLECharacteristic *TXChar = nullptr; // transmit (notify)
@@ -112,6 +131,7 @@ typedef unsigned char tssb_pkt_t[1+127];
 tssb_pkt_t ble_ring_buf[BLE_RING_BUF_SIZE];
 int ble_ring_buf_len = 0;
 int ble_ring_buf_cur = 0;
+
 
 unsigned char* ble_fetch_received() // first byte has length, up to 127B
 {
@@ -125,6 +145,7 @@ unsigned char* ble_fetch_received() // first byte has length, up to 127B
   // interrupts();
   return cp;
 }
+
 
 class UARTServerCallbacks: public BLEServerCallbacks {
     void onConnect(BLEServer* pServer) {
@@ -141,6 +162,7 @@ class UARTServerCallbacks: public BLEServerCallbacks {
       pServer->getAdvertising()->start();
     }
 };
+
 
 class RXCallbacks: public BLECharacteristicCallbacks {
   void onWrite(BLECharacteristic *pChar) {
@@ -159,7 +181,6 @@ class RXCallbacks: public BLECharacteristicCallbacks {
   }
 };
 
-extern char ssid[];
 
 void ble_init()
 {
@@ -206,14 +227,49 @@ void ble_init()
     BLEDevice::startAdvertising();
 }
 
+
+void ble_send(unsigned char *buf, short len)
+{
+  if (bleDeviceConnected == 0) return;
+  // no CRC added, we rely on BLE's CRC
+  TXChar->setValue(buf, len);
+  TXChar->notify();
+  Serial.printf("b< %3dB %s..\r\n", len, to_hex(buf,8,0));
+}
+
+
+void ble_send_stats(unsigned char *str, short len)
+{
+  if (bleDeviceConnected == 0) return;
+  // no CRC added, we rely on BLE's CRC
+  STChar->setValue(str, len);
+  STChar->notify();
+  // Serial.printf("   BLE  sent %3dB stat <%s>\r\n", len, str);
+}
+
 #endif // BLE
 
 
-// --------------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+
+#if defined(HAS_LORA)
+
+#if defined(USE_RADIO_LIB)
+  SX1262 radio;
+#endif
 
 int lora_send_ok;
 
-#if defined(HAS_LORA) && defined(USE_RADIO_LIB)
+int lora_pkt_cnt; // for counting in/outcoming packets, per NODE round
+float lora_pps;   // packet-per-seconds, gliding average
+
+int lora_sent_pkts = 0; // absolute counter
+int lora_rcvd_pkts = 0; // absolute counter
+
+RingBuffer lora_buf(4, 127); // incoming packets
+
+
+#if defined(USE_RADIO_LIB)
   volatile bool lora_fetching = false;
   volatile bool lora_transmitting = false;
   volatile bool new_lora_pkt = false;
@@ -228,7 +284,6 @@ int lora_send_ok;
 #endif
 
 
-#if defined(HAS_LORA)
 
 void lora_send(unsigned char *buf, short len)
 {
@@ -279,247 +334,8 @@ void lora_send(unsigned char *buf, short len)
 
 #endif // USE_RADIO_LIB
 }
-#endif
-
-#if defined(HAS_UDP)
-void udp_send(unsigned char *buf, short len)
-{
-#if !defined(NO_WIFI)
-  if (udp.beginMulticastPacket()) {
-    uint32_t crc = crc32_ieee(buf, len);
-    udp.write(buf, len);
-    udp.write((unsigned char*) &crc, sizeof(crc));
-    udp.endPacket();
-    Serial.println("   UDP  sent " + String(len + sizeof(crc), DEC) + "B: "
-                   + to_hex(buf,8,0) + ".." + to_hex(buf + len - 6, 6, 0));
-  } else
-    Serial.println("udp send failed");
-  /*
-  if (udp_sock >= 0 && udp_addr_len > 0) {
-    if (lwip_sendto(udp_sock, buf, len, 0,
-                  (sockaddr*)&udp_addr, udp_addr_len) < 0)
-        // err_cnt += 1;
-    }
-  */
-#endif
-}
-#endif // HAS_UDP
-
-#if defined(MAIN_BLEDevice_H_) && defined(HAS_BLE)
-
-void ble_send(unsigned char *buf, short len)
-{
-  if (bleDeviceConnected == 0) return;
-  // no CRC added, we rely on BLE's CRC
-  TXChar->setValue(buf, len);
-  TXChar->notify();
-  Serial.printf("b< %3dB %s..\r\n", len, to_hex(buf,8,0));
-}
-
-void ble_send_stats(unsigned char *str, short len)
-{
-  if (bleDeviceConnected == 0) return;
-  // no CRC added, we rely on BLE's CRC
-  STChar->setValue(str, len);
-  STChar->notify();
-  // Serial.printf("   BLE  sent %3dB stat <%s>\r\n", len, str);
-}
-
-#endif // BLE
-
-#if defined(HAS_BT)
-void bt_send(unsigned char *buf, short len)
-{
-  if (BT.connected()) {
-    uint32_t crc = crc32_ieee(buf, len);
-    unsigned char *buf2 = (unsigned char*) malloc(len + sizeof(crc));
-    memcpy(buf2, buf, len);
-    memcpy(buf2+len, &crc, sizeof(crc));
-    kiss_write(BT, buf2, len+sizeof(crc));
-    Serial.println("   BT   sent " + String(len + sizeof(crc)) + "B: "
-                   + to_hex(buf2,8) + ".." + to_hex(buf2 + len + sizeof(crc) - 6, 6, 0));
-
-  } // else
-    // Serial.println("BT not connected");
-}
-#endif
-
-// --------------------------------------------------------------------------------
-
-void io_init()
-{
-#if defined(HAS_LORA)
-  lora_face.name = (char*) "lora";
-  lora_face.next_delta = LORA_INTERPACKET_TIME;
-  lora_face.send = lora_send;
-#endif
-#if defined(HAS_UDP)
-  udp_face.name = (char*) "udp";
-  udp_face.next_delta = UDP_INTERPACKET_TIME;
-  udp_face.send = udp_send;
-#endif
-#if defined(MAIN_BLEDevice_H_) && defined(HAS_BLE)
-  ble_init();
-  ble_face.name = (char*) "ble";
-  ble_face.next_delta = UDP_INTERPACKET_TIME;
-  ble_face.send = ble_send;
-#endif
-#if defined(HAS_BT)
-  bt_face.name = (char*) "bt";
-  bt_face.next_delta = UDP_INTERPACKET_TIME;
-  bt_face.send = bt_send;
-#endif
-}
-
-void io_send(unsigned char *buf, short len, struct face_s *f)
-{
-  // Serial.printf("io_send %d bytes\r\n", len);
-  for (int i = 0; i < NR_OF_FACES; i++) {
-    if (faces[i]->send == NULL)
-      continue;
-    if (f == NULL || f == faces[i])
-      faces[i]->send(buf, len);
-  }
-}
-
-#ifdef NOT_USED
-void io_enqueue(unsigned char *pkt, int len, unsigned char *dmx, struct face_s *f)
-{
-  // Serial.printf("   enqueue %dB %s..\r\n", len, to_hex(dmx?dmx:pkt,7));
-  for (int i = 0; i < NR_OF_FACES; i++) {
-    if (faces[i]->send == NULL)
-      continue;
-    if (f == NULL || f == faces[i]) {
-      if (faces[i]->queue_len >= IO_MAX_QUEUE_LEN) {
-        Serial.printf("   IO: outgoing queue full for %s %s..\r\n",
-                      faces[i]->name, to_hex(dmx?dmx:pkt,7,0));
-        continue;
-      }
-      int sz = len + (dmx ? DMX_LEN : 0);
-      unsigned char *buf = (unsigned char*) malloc(1+sz);
-      buf[0] = sz;
-      if (dmx) {
-        memcpy(buf+1, dmx, DMX_LEN);
-        memcpy(buf+1+DMX_LEN, pkt, len);
-      } else
-        memcpy(buf+1, pkt, len);
-      /*
-      io_send(buf+1, sz, faces[i]);
-      free(buf);
-      continue;
-      */
-     
-      // only insert if packet content is not already enqueued:
-      int k;
-      for (k = 0; k < faces[i]->queue_len; k++)
-        if (!memcmp(faces[i]->queue[(faces[i]->offs + k)%IO_MAX_QUEUE_LEN], buf, 1+sz))
-          break;
-      if (k == faces[i]->queue_len) {
-        Serial.printf("   enqueue %dB %s.. on face %s\r\n", *buf, to_hex(buf+1,7), faces[i]->name);
-        faces[i]->queue[(faces[i]->offs + faces[i]->queue_len) % IO_MAX_QUEUE_LEN] = buf;
-        faces[i]->queue_len++;
-      } else
-        free(buf);
-    }
-  }
-}
-
-/*
-void io_dequeue() // enforces interpacket time
-{
-  unsigned long now = millis();
-  for (int i = 0; i < NR_OF_FACES; i++) {
-    struct face_s *f = faces[i];
-    if (f->send == NULL || f->queue_len <= 0 || now < f->next_send) // FIXME: handle wraparound
-      continue;
-    // Serial.printf("   dequeue i=%d, len=%d\r\n", i, f->queue_len);
-    f->next_send = now + f->next_delta + esp_random() % (f->next_delta/10);
-    unsigned char *buf = f->queue[f->offs];
-    // io_send(buf+1, *buf, f);
-    f->send(buf+1, *buf);
-    free(buf);
-    f->offs = (f->offs + 1) % IO_MAX_QUEUE_LEN;
-    f->queue_len--;
-  }
-}
-*/
-
-#endif
-
-int crc_check(unsigned char *pkt, int len) // returns 0 if OK
-{
-  uint32_t crc = crc32_ieee(pkt, len-sizeof(crc));
-  return memcmp(pkt+len-sizeof(crc), (void*)&crc, sizeof(crc));
-}
 
 
-// ---------------------------------------------------------------------------
-// int lora_new_cnt = 0;
-
-/*
-void newLoRaPkt(int sz) {
-  int packetSize = sz;
-  // LoRa.parsePacket();
-  // if (packetSize != sz)
-  //   Serial.printf("lora <> %d %d\r\n", packetSize, sz);
-  // if (packetSize == 0 ||
-  
-  if (lora_buf_cnt >= LORA_BUF_CNT)
-    return;
-  unsigned char *pkt = (unsigned char*) lora_buf + lora_buf_offs * (LORA_MAX_LEN+1);
-  int cnt;
-  if (packetSize > LORA_MAX_LEN)
-    packetSize = LORA_MAX_LEN;
-  *pkt++ = packetSize;
-  for (cnt = 0; cnt < packetSize; cnt++)
-    *pkt++ = LoRa.read();
-  lora_buf_offs = (lora_buf_offs + 1) % LORA_BUF_CNT;
-  lora_buf_cnt++;
-}
-*/
-
-// ---------------------------------------------------------------------------
-
-class RingBuffer { // FIFO
-#define LORA_BUF_CNT 4
-#define LORA_MAX_LEN 127
-
-public:
-  bool is_empty();
-  bool is_full();
-  void in(unsigned char *pkt, short len);
-  short out(unsigned char *dst);
-  volatile unsigned char buf[LORA_BUF_CNT * (LORA_MAX_LEN+1)];
-  volatile short cnt, offs;
-};
-
-bool RingBuffer::is_empty() { return cnt == 0; }
-bool RingBuffer::is_full()  { return cnt >= LORA_BUF_CNT; }
-void RingBuffer::in(unsigned char *pkt, short len)
-{
-  if (len > LORA_MAX_LEN)
-    len = LORA_MAX_LEN;
-  unsigned char *cp = (unsigned char*) buf + offs * (LORA_MAX_LEN+1);
-  *cp = len;
-  memcpy(cp+1, pkt, len);
-  offs = (offs + 1) % LORA_BUF_CNT;
-  cnt++;
-}
-short RingBuffer::out(unsigned char *dst)
-{
-  unsigned char *cp = (unsigned char*) buf +
-                 ((offs + LORA_BUF_CNT - cnt) % LORA_BUF_CNT) * (LORA_MAX_LEN+1);
-  short pkt_len = *cp;
-  memcpy(dst, cp+1, pkt_len);
-  cnt--;
-  return pkt_len;
-}
-
-RingBuffer lora_buf;
-
-// ---------------------------------------------------------------------------
-
-#if defined(HAS_LORA)
 void lora_poll()
 {
 #if defined(HAS_LORA) && defined(USE_RADIO_LIB)
@@ -606,12 +422,104 @@ void lora_poll()
 #endif
 }
 
+
 int lora_get_pkt(unsigned char *dst)
 {
   if (lora_buf.is_empty())
     return 0;
   return lora_buf.out(dst);
 }
+
+#endif // HAS_LORA
+
+// ---------------------------------------------------------------------------
+
+#if defined(HAS_UDP)
+
+void udp_send(unsigned char *buf, short len)
+{
+#if !defined(NO_WIFI)
+  if (udp.beginMulticastPacket()) {
+    uint32_t crc = crc32_ieee(buf, len);
+    udp.write(buf, len);
+    udp.write((unsigned char*) &crc, sizeof(crc));
+    udp.endPacket();
+    Serial.println("   UDP  sent " + String(len + sizeof(crc), DEC) + "B: "
+                   + to_hex(buf,8,0) + ".." + to_hex(buf + len - 6, 6, 0));
+  } else
+    Serial.println("udp send failed");
+  /*
+  if (udp_sock >= 0 && udp_addr_len > 0) {
+    if (lwip_sendto(udp_sock, buf, len, 0,
+                  (sockaddr*)&udp_addr, udp_addr_len) < 0)
+        // err_cnt += 1;
+    }
+  */
 #endif
+}
+#endif // HAS_UDP
+
+// ---------------------------------------------------------------------------
+
+#if defined(HAS_BT)
+
+BluetoothSerial BT;
+
+extern void kiss_write(Stream &s, unsigned char *buf, short len);
+
+void bt_send(unsigned char *buf, short len)
+{
+  if (BT.connected()) {
+    uint32_t crc = crc32_ieee(buf, len);
+    unsigned char *buf2 = (unsigned char*) malloc(len + sizeof(crc));
+    memcpy(buf2, buf, len);
+    memcpy(buf2+len, &crc, sizeof(crc));
+    kiss_write(BT, buf2, len+sizeof(crc));
+    Serial.println("   BT   sent " + String(len + sizeof(crc)) + "B: "
+                   + to_hex(buf2,8) + ".." + to_hex(buf2 + len + sizeof(crc) - 6, 6, 0));
+
+  } // else
+    // Serial.println("BT not connected");
+}
+
+#endif // HAS_B
+
+// ---------------------------------------------------------------------------
+
+void io_init()
+{
+#if defined(HAS_LORA)
+  lora_face.name = (char*) "lora";
+  lora_face.next_delta = LORA_INTERPACKET_TIME;
+  lora_face.send = lora_send;
+#endif
+#if defined(HAS_UDP)
+  udp_face.name = (char*) "udp";
+  udp_face.next_delta = UDP_INTERPACKET_TIME;
+  udp_face.send = udp_send;
+#endif
+#if defined(MAIN_BLEDevice_H_) && defined(HAS_BLE)
+  ble_init();
+  ble_face.name = (char*) "ble";
+  ble_face.next_delta = UDP_INTERPACKET_TIME;
+  ble_face.send = ble_send;
+#endif
+#if defined(HAS_BT)
+  bt_face.name = (char*) "bt";
+  bt_face.next_delta = UDP_INTERPACKET_TIME;
+  bt_face.send = bt_send;
+#endif
+}
+
+void io_send(unsigned char *buf, short len, struct face_s *f)
+{
+  // Serial.printf("io_send %d bytes\r\n", len);
+  for (int i = 0; i < NR_OF_FACES; i++) {
+    if (faces[i]->send == NULL)
+      continue;
+    if (f == NULL || f == faces[i])
+      faces[i]->send(buf, len);
+  }
+}
 
 // eof
