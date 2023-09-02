@@ -39,7 +39,7 @@ void incoming_want_request(unsigned char *buf, int len, unsigned char *aux, stru
       int fNDX = (offs + i-1) % theGOset->goset_len;
       unsigned char *fid = theGOset->get_key(fNDX);
       int seq = seq_copy[i];
-      lora_poll();
+      // lora_poll();
       unsigned char *pkt = theRepo->fid2replica(fid)->get_entry_pkt(seq);
       if (pkt == NULL)
         continue;
@@ -132,7 +132,7 @@ void incoming_chnk_request(unsigned char *buf, int len, unsigned char *aux, stru
         // Serial.printf("   -- chunk nr > maxchunks (%d.%d.%d > %d)\r\n", fNDX, seq, cnr, max_chunks);
         continue;
       }
-      lora_poll();
+      // lora_poll();
       unsigned char *chunk = theRepo->fid2replica(fid)->get_chunk_pkt(seq, cnr);
 
       if (chunk == NULL) { // missing content
@@ -185,8 +185,8 @@ void incoming_pkt(unsigned char *buf, int len, unsigned char *fid, struct face_s
     // install handler for next pkt:
     unsigned char dmx_val[DMX_LEN];
     int ns = r->get_next_seq(dmx_val);
-    Serial.printf("   appended %d.%d\r\n", theGOset->_key_index(fid), ns-1);
-    lora_poll();
+    Serial.printf("   appended %d.%d", theGOset->_key_index(fid), ns-1);
+    // lora_poll();
     // int ndx = theGOset->_key_index(fid);
     theDmx->arm_dmx(dmx_val, incoming_pkt, r->fid, /*ndx,*/ ns);
 
@@ -201,7 +201,7 @@ void incoming_pkt(unsigned char *buf, int len, unsigned char *fid, struct face_s
   } else
     Serial.printf("   .. not a valid pkt\r\n");
   int delta = millis() - now;
-  Serial.printf("  .. stored in %d msec\r\n", delta);
+  Serial.printf("   .. stored in %d msec\r\n", delta);
   packet_proc_time += delta;
   packet_proc_cnt++;
 }
@@ -220,15 +220,15 @@ void incoming_chunk(unsigned char *buf, int len, int blbt_ndx, struct face_s *f)
     int next_cnr;
     if (theRepo->fid2replica(tp->fid)->ingest_chunk_pkt(buf, tp->seq, &next_cnr)) {
       is_valid = 1;
-      Serial.printf("   persisted chunk %d.%d.%d\r\n", ndx, tp->seq, tp->cnr);
+      Serial.printf("   persisted chunk %d.%d.%d", ndx, tp->seq, tp->cnr);
       theRepo->chnk_is_valid = 0;
       theRepo->chunk_cnt++;
       if (next_cnr > 0)
         theDmx->arm_blb(buf+100, incoming_chunk, tp->fid, tp->seq, tp->cnr+1, tp->last_cnr);
     } else 
-      Serial.printf("  invalid chunk %d.%d.%d/%d or file problem?\r\n",
+      Serial.printf("  invalid chunk %d.%d.%d/%d or file problem?",
                     ndx, tp->seq, tp->cnr, tp->last_cnr);
-    lora_poll();
+    // lora_poll();
     // io_dequeue();
     theSched->tick();
   }

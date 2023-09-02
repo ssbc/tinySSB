@@ -3,7 +3,6 @@
 #include "config.h"
 
 
-#if defined(HAS_LORA)
 
 void peer_incoming_rep(unsigned char *pkt, int len, unsigned char *aux,
                        struct face_s *face)
@@ -66,7 +65,7 @@ void PeersClass::probe_for_peers_beacon(unsigned char **pkt,
 #endif
 
   theSched->schedule_asap((unsigned char*) buf, strlen(buf),
-                          peer_dmx_req, &lora_face);
+                          peer_dmx_req);
 
   *reprobe_in_millis = PEERS_INTERVAL + esp_random() % 2000;
 }
@@ -80,13 +79,21 @@ void PeersClass::incoming_req(unsigned char *pkt, int len, unsigned char *aux,
   memcpy((unsigned char*) str, pkt+7, len-7);
   str[len-7] = '\0';
 
-  Serial.printf("   =P.ping <%s> %dB rssi=%d snr=%g\r\n",
+  Serial.printf("   =P.ping <%s> %dB", str, len);
+#if defined(HAS_LORA) && defined(USE_RADIO_LIB)
+  Serial.print(" rssi=%d snr=%g",
                 str, len, (int) radio.getRSSI(), radio.getSNR());
+#endif
+  Serial.printf("\r\n");
 
   char buf[100];
-  sprintf(buf, "R %02x%02x t=%d rssi=%d snr=%g", my_mac[4], my_mac[5],
-          peer_clock, (int) radio.getRSSI(), radio.getSNR());
+  sprintf(buf, "R %02x%02x t=%d", my_mac[4], my_mac[5], peer_clock);
 
+#if defined(HAS_LORA) && defined(USE_RADIO_LIB)
+  sprintf(buf+strlen(buf), " rssi=%d snr=%g"
+                                   (int) radio.getRSSI(), radio.getSNR());
+#endif
+  
 #if defined(ARDUINO_TBEAM_USE_RADIO_SX1262)
   if (gps.location.isValid())
     sprintf(buf+strlen(buf), " gps=%.8g,%.8g,%g", gps.location.lat(),
@@ -114,8 +121,11 @@ void PeersClass::incoming_rep(unsigned char *pkt, int len, unsigned char *aux,
   memcpy((unsigned char*) str, pkt+7, len-7);
   str[len-7] = '\0';
 
-  Serial.printf("   =P.pong <%s> %dB rssi=%d snr=%g\r\n",
-                str, len, (int) radio.getRSSI(), radio.getSNR());
+  Serial.printf("   =P.pong <%s> %dB", str, len);
+#if defined(HAS_LORA) && defined(USE_RADIO_LIB)
+  Serial.print(" rssi=%d snr=%g", (int) radio.getRSSI(), radio.getSNR());
+#endif
+  Serial.printf("\r\n");
 
   // sprintf(str+strlen(str), " / rssi=%d snr=%g",
   //        (int) radio.getRSSI(), radio.getSNR());
@@ -145,6 +155,5 @@ void PeersClass::save2log(char *s)
 */
 
 
-#endif // HAS_LORA
 
 // eof

@@ -289,7 +289,7 @@ char ReplicaClass::ingest_entry_pkt(unsigned char *pkt) // True/False
     Serial.println("   DMX mismatch");
     return 0;
   }
-  lora_poll();
+  // lora_poll();
 
   // check signature, nam still contains the packet's name
   memcpy(nam + strlen(DMX_PFX) + FID_LEN + 4 + HASH_LEN, pkt, TINYSSB_PKT_LEN);
@@ -302,7 +302,7 @@ char ReplicaClass::ingest_entry_pkt(unsigned char *pkt) // True/False
   crypto_hash_sha256(h256, nam, sizeof(nam));
   memcpy(prev_ref->u.buf, h256, HASH_LEN); // =msgID
   // t2 = millis(); durations[2] = t2 - t1; t1 = t2;
-  lora_poll();
+  // lora_poll();
 
   _mk_fname(0); // log
   File f = MyFS.open(fname, FILE_APPEND, false);
@@ -345,7 +345,7 @@ char ReplicaClass::ingest_entry_pkt(unsigned char *pkt) // True/False
   max_seq_ref->u.i++;
   _persist_frontier();
   // t2 = millis(); durations[4] = t2 - t1; t1 = t2;
-  lora_poll();
+  // lora_poll();
 
   // t2 = millis(); durations[5] = t2 - t1; t1 = t2;
   // t2 = millis(); durations[6] = t2 - t1; t1 = t2;

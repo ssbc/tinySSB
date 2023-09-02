@@ -424,6 +424,7 @@ void io_enqueue(unsigned char *pkt, int len, unsigned char *dmx, struct face_s *
   }
 }
 
+/*
 void io_dequeue() // enforces interpacket time
 {
   unsigned long now = millis();
@@ -441,6 +442,8 @@ void io_dequeue() // enforces interpacket time
     f->queue_len--;
   }
 }
+*/
+
 #endif
 
 int crc_check(unsigned char *pkt, int len) // returns 0 if OK

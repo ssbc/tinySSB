@@ -363,12 +363,10 @@ void GOsetClass::probe_for_goset_vect(unsigned char **pkt,
                                       unsigned short *len,
                                       unsigned short *reprobe_in_millis)
 {
-  // Serial.printf("probe goset len=%d\r\n", goset_len);
+  // Serial.printf("   probe goset len=%d\r\n", goset_len);
   *reprobe_in_millis = GOSET_ROUND_LEN/4 + esp_random() % 500;
 
   *pkt = NULL;
-  if (goset_len == 0)
-    return;
 
   if (last_round + GOSET_ROUND_LEN < millis()) {
     last_round = millis();
@@ -379,6 +377,9 @@ void GOsetClass::probe_for_goset_vect(unsigned char **pkt,
       return;
     }
 
+    if (goset_len == 0)
+      return;
+
     unsigned char *claim = _mkClaim(0, goset_len-1);
     if (memcmp(goset_state, claim+65, GOSET_KEY_LEN)) { // GOset changed
       memcpy(goset_state, claim+65, GOSET_KEY_LEN);
@@ -388,7 +389,7 @@ void GOsetClass::probe_for_goset_vect(unsigned char **pkt,
     _mk_goset_pkt(pkt, len, claim, CLAIM_LEN);
     return;
   }
-  if (pending_c_cnt <= 0)
+  if (pending_c_cnt <= 0 || goset_len == 0)
     return;
   Serial.println("   G: there are pending claims");
 
