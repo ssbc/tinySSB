@@ -54,6 +54,10 @@ void Repo2Class::reset(char *path)
 void Repo2Class::load()
 {
   File fdir = MyFS.open(FEED_DIR);
+  if (!fdir) {
+    Serial.printf("can't open %s\r\n", FEED_DIR);
+    return;
+  }
   File f = fdir.openNextFile(FILE_READ);
   while (f) {
     char* fn = (char*) f.name();
@@ -146,7 +150,7 @@ void Repo2Class::mk_want_vect()
     v += (v.length() == 0 ? "[ " : " ") + String(ndx) + "." + String(ns);
     if (encoding_len > 100)
       break;
-    // fishForNewLoRaPkt();
+    // lora_poll();
     // io_dequeue();
   }
   want_offs = (want_offs + i + 1) % theGOset->goset_len;

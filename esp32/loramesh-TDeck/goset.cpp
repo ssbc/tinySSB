@@ -125,9 +125,11 @@ void GOsetClass::add(unsigned char *key)
   theRepo->add_replica(key);
 
   if (this->goset_len >= this->largest_claim_span) { // only rebroadcast if we are up to date
-    if (this->novelty_credit-- > 0)
-      io_enqueue(_mkNovelty(key, 1), NOVELTY_LEN, theDmx->goset_dmx, NULL);
-    else {
+    if (this->novelty_credit-- > 0) {
+      // io_enqueue(_mkNovelty(key, 1), NOVELTY_LEN, theDmx->goset_dmx, NULL);
+      theSched->schedule_asap(_mkNovelty(key, 1), NOVELTY_LEN,
+                              theDmx->goset_dmx, NULL);
+    } else {
       if (this->pending_n_cnt < MAX_PENDING)
         memcpy(this->pending_novelty + this->pending_n_cnt++, _mkNovelty(key, 1), NOVELTY_LEN);
     }
@@ -221,12 +223,16 @@ void GOsetClass::tick()
   if (this->goset_len == 0)
     return;
   if (this->goset_len == 1) { // can't send a claim, send the one key as novelty
-    io_enqueue(_mkNovelty(this->goset_keys, 1), NOVELTY_LEN, theDmx->goset_dmx, NULL);
+    // io_enqueue(_mkNovelty(this->goset_keys, 1), NOVELTY_LEN, theDmx->goset_dmx, NULL);
+    theSched->schedule_asap(_mkNovelty(this->goset_keys, 1), NOVELTY_LEN,
+                            theDmx->goset_dmx, NULL);
     return;
   }
 
   while (this->novelty_credit-- > 0 && this->pending_n_cnt > 0) {
-    io_enqueue((unsigned char*) this->pending_novelty, NOVELTY_LEN, theDmx->goset_dmx, NULL);
+    // io_enqueue((unsigned char*) this->pending_novelty, NOVELTY_LEN, theDmx->goset_dmx, NULL);
+    theSched->schedule_asap((unsigned char*) this->pending_novelty, NOVELTY_LEN,
+                            theDmx->goset_dmx, NULL);
     memmove(this->pending_novelty, this->pending_novelty+1, NOVELTY_LEN * --this->pending_n_cnt);
   }
   this->novelty_credit = NOVELTY_PER_ROUND;
@@ -236,9 +242,10 @@ void GOsetClass::tick()
     memcpy(this->goset_state, claim+65, GOSET_KEY_LEN);
     theDmx->set_want_dmx();
   }
-  Serial.printf(">> G [xo=%s, ||=%d] %d\r\n", to_hex(claim+65, GOSET_KEY_LEN),
+  Serial.printf("   G: mk [xo=%s, ||=%d] %d\r\n", to_hex(claim+65, GOSET_KEY_LEN),
                 this->goset_len, CLAIM_LEN);
-  io_enqueue(claim, CLAIM_LEN, theDmx->goset_dmx, NULL);
+  // io_enqueue(claim, CLAIM_LEN, theDmx->goset_dmx, NULL);
+  theSched->schedule_asap(claim, CLAIM_LEN, theDmx->goset_dmx, NULL);
   
   // sort pending entries, smallest first
   qsort(this->pending_claims, this->pending_c_cnt, CLAIM_LEN, _cmp_cnt);
@@ -266,7 +273,9 @@ void GOsetClass::tick()
                       partial->cnt,
                       this->_key_index(partial->lo),
                       this->_key_index(partial->hi));
-        io_enqueue((unsigned char*) partial, CLAIM_LEN, theDmx->goset_dmx, NULL);
+        // io_enqueue((unsigned char*) partial, CLAIM_LEN, theDmx->goset_dmx, NULL);
+        theSched->schedule_asap((unsigned char*) partial, CLAIM_LEN,
+                                theDmx->goset_dmx, NULL);
       }
       if (partial->cnt < cp->cnt) {
         cp++;
@@ -283,16 +292,24 @@ void GOsetClass::tick()
       Serial.print("   offer help span=" + String(partial->cnt - 2));
       Serial.print(String(" ") + to_hex(this->goset_keys+lo*GOSET_KEY_LEN,4,0) + String(".."));
       Serial.println(String(" ") + to_hex(this->goset_keys+hi*GOSET_KEY_LEN,4,0) + String(".."));
-      if (hi <= lo)
-        io_enqueue(_mkNovelty(this->goset_keys+lo*GOSET_KEY_LEN, 1), NOVELTY_LEN, theDmx->goset_dmx, NULL);
-      else if (hi - lo <= 2) // span of 2 or 3
-        io_enqueue(this->_mkClaim(lo, hi), CLAIM_LEN, theDmx->goset_dmx, NULL);
-      else { // split span in two intervals
+      if (hi <= lo) {
+        // io_enqueue(_mkNovelty(this->goset_keys+lo*GOSET_KEY_LEN, 1), NOVELTY_LEN, theDmx->goset_dmx, NULL);
+        theSched->schedule_asap(_mkNovelty(this->goset_keys+lo*GOSET_KEY_LEN,1),
+                                NOVELTY_LEN, theDmx->goset_dmx);
+      } else if (hi - lo <= 2) { // span of 2 or 3
+        // io_enqueue(this->_mkClaim(lo, hi), CLAIM_LEN, theDmx->goset_dmx, NULL);
+        theSched->schedule_asap(this->_mkClaim(lo, hi), CLAIM_LEN,
+                                theDmx->goset_dmx);
+      } else { // split span in two intervals
         int sz = (hi+1 - lo) / 2;
-        Serial.printf("    helping: [%d..%d], [%d..%d]\r\n",
+        Serial.printf("   G: helping: [%d..%d], [%d..%d]\r\n",
                       lo, lo+sz-1, lo+sz, hi);
-        io_enqueue(this->_mkClaim(lo, lo+sz-1), CLAIM_LEN, theDmx->goset_dmx, NULL);
-        io_enqueue(this->_mkClaim(lo+sz, hi), CLAIM_LEN, theDmx->goset_dmx, NULL);
+        // io_enqueue(this->_mkClaim(lo, lo+sz-1), CLAIM_LEN, theDmx->goset_dmx, NULL);
+        theSched->schedule_asap(this->_mkClaim(lo, lo+sz-1), CLAIM_LEN,
+                                theDmx->goset_dmx);
+        // io_enqueue(this->_mkClaim(lo+sz, hi), CLAIM_LEN, theDmx->goset_dmx, NULL);
+        theSched->schedule_asap(this->_mkClaim(lo+sz, hi), CLAIM_LEN,
+                                theDmx->goset_dmx);        
       }
       memmove(cp, cp+1, (this->pending_c_cnt - i - 1)*CLAIM_LEN);
       this->pending_c_cnt--;
@@ -310,7 +327,7 @@ void GOsetClass::tick()
   // if (this->pending_c_cnt > 2)
   //   this->pending_c_cnt = 2; // better: log2(largest_claim_span) ?
   if (this->pending_c_cnt > 0)
-    Serial.printf("   |GOset|=%d, %d pending claims:\r\n", this->goset_len, this->pending_c_cnt);
+    Serial.printf("   G: len=%d, %d pending claims:\r\n", this->goset_len, this->pending_c_cnt);
   // unsigned char *heap = reinterpret_cast<unsigned char*>(sbrk(0));
   // Serial.println(String(", heap sbrk=") + to_hex((unsigned char *)&heap, sizeof(heap)));
   for (int i = 0; i < this->pending_c_cnt; i++)
@@ -330,5 +347,155 @@ void GOsetClass::do_zap(int ndx)
   this->zap_next = now + 1000;
   io_send(this->_mkZap(), DMX_LEN + ZAP_LEN, NULL);
 }
+
+
+static void _mk_goset_pkt(unsigned char **dptr, unsigned short *dlen,
+                   unsigned char *src, unsigned short slen)
+// mallocs, and prepends DMX field
+{
+  *dlen = 7 + slen;
+  *dptr = (unsigned char*) malloc(*dlen);
+  memcpy(*dptr, theDmx->goset_dmx, 7);
+  memcpy(*dptr + 7, src, slen);
+}
+
+void GOsetClass::probe_for_goset_vect(unsigned char **pkt,
+                                      unsigned short *len,
+                                      unsigned short *reprobe_in_millis)
+{
+  // Serial.printf("probe goset len=%d\r\n", goset_len);
+  *reprobe_in_millis = GOSET_ROUND_LEN/4 + esp_random() % 500;
+
+  *pkt = NULL;
+  if (goset_len == 0)
+    return;
+
+  if (last_round + GOSET_ROUND_LEN < millis()) {
+    last_round = millis();
+
+    if (goset_len == 1) { // can't send a claim, send the one key as novelty
+      Serial.println("   G: mk one novelty");
+      _mk_goset_pkt(pkt, len, _mkNovelty(goset_keys, 1), NOVELTY_LEN);
+      return;
+    }
+
+    unsigned char *claim = _mkClaim(0, goset_len-1);
+    if (memcmp(goset_state, claim+65, GOSET_KEY_LEN)) { // GOset changed
+      memcpy(goset_state, claim+65, GOSET_KEY_LEN);
+      theDmx->set_want_dmx();
+    }
+    Serial.printf("   G: mk full claim\r\n");
+    _mk_goset_pkt(pkt, len, claim, CLAIM_LEN);
+    return;
+  }
+  if (pending_c_cnt <= 0)
+    return;
+  Serial.println("   G: there are pending claims");
+
+  // work on pending requests, start by sorting them
+  // sort pending entries, smallest first
+  qsort(pending_claims, pending_c_cnt, CLAIM_LEN, _cmp_cnt);
+  int max_ask = ASK_PER_ROUND;
+  int max_help = HELP_PER_ROUND;
+
+  struct claim_s *cp = pending_claims;
+  for (int i = 0; i < pending_c_cnt; i++) {
+    int lo = _key_index(cp->lo);
+    int hi = _key_index(cp->hi);
+    struct claim_s *partial = (struct claim_s*) _mkClaim(lo, hi);
+
+    if (cp->cnt == 0 || lo < 0 || hi < 0 || lo > hi // eliminate claims that match or are bogous
+        // || !memcmp(partial->xo, this->goset_state, GOSET_KEY_LEN)
+        || !memcmp(partial->xo, cp->xo, GOSET_KEY_LEN) ) {
+      memmove(cp, cp+1, (pending_c_cnt - i - 1)*CLAIM_LEN);
+      pending_c_cnt--;
+      i--;
+      continue;
+    } 
+    // Serial.println("  not eliminated " + String(lo,DEC) + " " + String(hi,DEC) + " " + String(cp->cnt));
+    if (partial->cnt <= cp->cnt) { // ask for help, but only for smallest entry, and only once in this round
+      if (max_ask-- > 0) {
+        Serial.printf("   G: me asking for help cnt=%d [%d..%d]\r\n",
+                      partial->cnt,
+                      _key_index(partial->lo),
+                      _key_index(partial->hi));
+        {
+          unsigned char *p;
+          unsigned short l;
+          _mk_goset_pkt(&p, &l, (unsigned char*) partial, CLAIM_LEN);
+          // Serial.printf("     mk sub-claim, %dB\r\n", l);
+          theSched->schedule_asap(p, l);
+        }
+        // io_enqueue((unsigned char*) partial, CLAIM_LEN, theDmx->goset_dmx, NULL);
+      }
+      if (partial->cnt < cp->cnt) {
+        cp++;
+        // memmove(cp, cp+1, (this->pending_c_cnt - i - 1)*CLAIM_LEN); // remove this claim we reacted on
+        // this->pending_c_cnt--;
+        // i--;
+        // // do not help if we have holes ...
+        // max_help = 0;
+        continue;
+      }
+    }
+    if (max_help-- > 0) { // we have larger claim span, offer help (but limit # of claims)
+      hi--, lo++;
+      Serial.print("   G: offer help span=" + String(partial->cnt - 2));
+      Serial.print(String(" ") + to_hex(goset_keys+lo*GOSET_KEY_LEN,4,0) + String(".."));
+      Serial.println(String(" ") + to_hex(goset_keys+hi*GOSET_KEY_LEN,4,0) + String(".."));
+      if (hi <= lo) {
+        // io_enqueue(_mkNovelty(this->goset_keys+lo*GOSET_KEY_LEN, 1), NOVELTY_LEN, theDmx->goset_dmx, NULL);
+        unsigned char *p;
+        unsigned short l;
+        _mk_goset_pkt(&p, &l, _mkNovelty(goset_keys+lo*GOSET_KEY_LEN, 1),
+                      NOVELTY_LEN);
+        Serial.printf("   G: schedule a sub-claim, %dB\r\n", l);
+        theSched->schedule_asap(p, l);
+      } else if (hi - lo <= 2) { // span of 2 or 3
+        // io_enqueue(this->_mkClaim(lo, hi), CLAIM_LEN, theDmx->goset_dmx, NULL);
+        unsigned char *p;
+        unsigned short l;
+        _mk_goset_pkt(&p, &l, _mkClaim(lo, hi), CLAIM_LEN);
+        Serial.printf("   G: schedule a sub-claim, %dB\r\n", l);
+        theSched->schedule_asap(p, l);
+      } else { // split span in two intervals
+        int sz = (hi+1 - lo) / 2;
+        Serial.printf("   G: helping with [%d..%d], [%d..%d]\r\n",
+                      lo, lo+sz-1, lo+sz, hi);
+        unsigned char *p;
+        unsigned short l;
+        // io_enqueue(this->_mkClaim(lo, lo+sz-1), CLAIM_LEN, theDmx->goset_dmx, NULL);
+        _mk_goset_pkt(&p, &l, _mkClaim(lo, lo+sz-1), CLAIM_LEN);
+        Serial.printf("   G: mk 1st sub-claim, %dB\r\n", l);
+        theSched->schedule_asap(p, l);
+        // io_enqueue(this->_mkClaim(lo+sz, hi), CLAIM_LEN, theDmx->goset_dmx, NULL);
+        _mk_goset_pkt(&p, &l, _mkClaim(lo+sz, hi), CLAIM_LEN);
+        Serial.printf("   G: mk 2nd sub-claim, %dB\r\n", l);
+        theSched->schedule_asap(p, l);
+      }
+      memmove(cp, cp+1, (pending_c_cnt - i - 1)*CLAIM_LEN);
+      pending_c_cnt--;
+      i--;
+      continue;
+    }
+    cp++;
+    // option: trim pending claims?
+    // this->pending_c_cnt = i+1;
+    // break;
+  }
+  // make room for new claims
+  if (pending_c_cnt > (MAX_PENDING-5))
+    pending_c_cnt = MAX_PENDING-5;
+  // if (this->pending_c_cnt > 2)
+  //   this->pending_c_cnt = 2; // better: log2(largest_claim_span) ?
+  if (pending_c_cnt > 0)
+    Serial.printf("   |GOset|=%d, %d pending claims:\r\n", goset_len, pending_c_cnt);
+  // unsigned char *heap = reinterpret_cast<unsigned char*>(sbrk(0));
+  // Serial.println(String(", heap sbrk=") + to_hex((unsigned char *)&heap, sizeof(heap)));
+  for (int i = 0; i < pending_c_cnt; i++)
+    Serial.printf("     xor=%s, |span|=%d\r\n", to_hex(pending_claims[i].xo,32,0), pending_claims[i].cnt);
+  
+}
+
 
 // eof

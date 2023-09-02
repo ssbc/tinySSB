@@ -11,10 +11,13 @@
 #define HAS_BLE         // enable Bluetooth Low Energy
 // #define HAS_BT          // the ESP32-3C has no Bluetooth
 #define HAS_LORA        // enable LoRa
-#define USE_RADIO_LIB 1
+#define USE_RADIO_LIB
 
 // #define HAS_UDP
-// HAS_ ...
+// #define HAS_ ...
+
+
+#define PEERS_INTERVAL 20000 // how often to sent pings, in msec
 
 // ---------------------------------------------------------------------------
 
@@ -54,6 +57,8 @@
 
 #define BLE_RING_BUF_SIZE 3
 
+#define NODE_ROUND_LEN   14000  // millis, for GOset, 1/2 is basis for WANT/CHNK
+
 // ---------------------------------------------------------------------------
 
 #include <Arduino.h>
@@ -63,9 +68,12 @@
 
 #include "device.h"
 
+extern unsigned char my_mac[6];
+
 // those files which have a corresponding *.cpp:
 #include "util.h"
 #include "config-tSSB.h"
+#include "ui.h"
 #include "io.h"
 #include "bipf.h"
 #include "goset.h"
@@ -76,10 +84,17 @@ extern DmxClass   *theDmx;
 #include "repo.h"
 extern Repo2Class *theRepo;
 #include "app_tva.h"
+#include "sched.h"
+extern SchedClass *theSched;
+#include "peers.h"
+extern PeersClass *thePeers;
 
-extern void tft_onOff(int val); // 0=off
 
-#if defined(HAS_LORA) && USE_RADIO_LIB
+#if defined(HAS_LORA) && defined(USE_RADIO_LIB)
+void newLoraPacket_cb(void);
+#endif
+
+#if defined(HAS_LORA) && defined(USE_RADIO_LIB)
   extern SX1262 radio;
 #endif
 

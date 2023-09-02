@@ -191,12 +191,8 @@ void DmxClass::compute_dmx(unsigned char *dst, unsigned char *buf, int len)
   // Serial.printf(" --> dmx=%s\n", to_hex(dst, DMX_LEN));
 }
 
-int DmxClass::on_rx(unsigned char *buf, int len, struct face_s *f)
+int DmxClass::on_rx(unsigned char *buf, int len, unsigned char *h, struct face_s *f)
 {
-  unsigned char h[crypto_hash_sha256_BYTES];
-  crypto_hash_sha256(h, buf, len);
-  Serial.printf("<%c %dB %s..., hash=", f->name[0], len, to_hex(buf,16,0));
-  Serial.println(to_hex(h, HASH_LEN));
   int rc = -1;
 
   int ndx = this->_dmxt_index(buf);

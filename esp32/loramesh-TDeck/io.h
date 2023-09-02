@@ -34,6 +34,7 @@ extern float lora_pps;   // packet-per-seconds, gliding average
 extern int lora_sent_pkts; // absolute counter
 extern int lora_rcvd_pkts; // absolute counter
 
+int incoming(struct face_s *f, unsigned char *pkt, int len, int has_crc);
 uint32_t crc32_ieee(unsigned char *pkt, int len); // Ethernet/ZIP polynomial
 unsigned char* ble_fetch_received(); // first byte has length, up to 127B
 void ble_init();
@@ -46,6 +47,7 @@ void io_dequeue(); // enforces interpacket time
 int crc_check(unsigned char *pkt, int len); // returns 0 if OK
 
 int fishForNewLoRaPkt();
+void lora_poll();
 int lora_get_pkt(unsigned char *dst);
 
 #endif

@@ -20,17 +20,22 @@
 #include "heatmap.h"
 */
 
+void listDir(fs::FS &fs, const char *dirname, uint8_t levels);
 struct bipf_s *the_config;
 struct lora_config_s *the_lora_config;
+
+#include "cmd.h"
 
 // ---------------------------------------------------------------------------
 
 #include "hw_setup.h"
-#include "ui_setup.h"
 
+UIClass    *theUI;
 DmxClass   *theDmx;
 Repo2Class *theRepo;
 GOsetClass *theGOset;
+PeersClass *thePeers;
+SchedClass *theSched;
 
 App_TVA_Class *the_TVA_app;
 
@@ -76,6 +81,21 @@ void listDir(fs::FS &fs, const char *dirname, uint8_t levels)
 
 // --------------------------------------------------------------------------
 
+void probe_for_goset_vect(unsigned char **pkt,
+                          unsigned short *len,
+                          unsigned short *reprobe_in_millis)
+{
+  theGOset->probe_for_goset_vect(pkt, len, reprobe_in_millis);
+}
+
+void probe_for_peers_beacon(unsigned char **pkt,
+                            unsigned short *len,
+                            unsigned short *reprobe_in_millis)
+{
+  thePeers->probe_for_peers_beacon(pkt, len, reprobe_in_millis);
+}
+
+
 void setup()
 {
   char msg[100];
@@ -87,18 +107,19 @@ void setup()
   delay(1500);
     
   hw_setup();
-  ui_setup();
 
-  lv_obj_t *spinner = lv_spinner_create(lv_scr_act(), 1500, 60);
-  lv_obj_add_style(spinner, &bg_style, LV_PART_ITEMS); // FIXME: no effect ...
-  lv_obj_set_size(spinner, 60, 60);
-  lv_obj_center(spinner);
-  lv_task_handler();
+  theUI = new UIClass();
+  theUI->spinner(true);
+
+  theDmx   = new DmxClass();
+  theRepo  = new Repo2Class();
+  theGOset = new GOsetClass();
+  thePeers = new PeersClass();
+  theSched = new SchedClass(probe_for_goset_vect,
+                            probe_for_peers_beacon,
+                            probe_for_want_vect,
+                            probe_for_chnk_vect);
   {
-    theDmx   = new DmxClass();
-    theRepo  = new Repo2Class();
-    theGOset = new GOsetClass();
-  
     unsigned char h[32];
     crypto_hash_sha256(h, (unsigned char*) GOSET_DMX_STR, strlen(GOSET_DMX_STR));
     memcpy(theDmx->goset_dmx, h, DMX_LEN);
@@ -106,43 +127,48 @@ void setup()
     Serial.printf("   DMX for GOST is %s\r\n", to_hex(theDmx->goset_dmx, 7, 0));
 
     theRepo->load();
+
     // listDir(MyFS, "/", 2); // FEED_DIR, 2);
-    the_TVA_app = new App_TVA_Class(posts);
-    the_TVA_app->restream();
+    // the_TVA_app = new App_TVA_Class(posts);
+    // the_TVA_app->restream();
   }
-  lv_obj_del(spinner);  
+  theUI->spinner(false);
+
+  Serial.println("end of setup\n");
 }
 
 void loop()
 {
-  delay(5);
+  unsigned char pkt_buf[200];
+  int pkt_len;
+  
+  // delay(5);
 
   button.check();
   
-  theGOset->tick();
-  node_tick();
+  if (Serial.available())
+    cmd_rx(Serial.readString());
+
+  loopBLE();
+  lora_poll();
+  pkt_len = lora_get_pkt(pkt_buf);
+  if (pkt_len > 0) {
+    // lora_cnt++;
+    // theStatus->advance_lora_wheel();
+    // Serial.printf("Rcv LoRa %dB\r\n", pkt_len);
+    incoming(&lora_face, pkt_buf, pkt_len, 1);
+    // sprintf(lora_line, "LoRa %d/%d: %dB, rssi=%d", lora_cnt, lora_bad_crc, pkt_len, LoRa.packetRssi());
+  }
+  
+  theSched->tick();
 
   // loopRadio();
-  loopBLE();
-  io_dequeue();
-  
-  lv_task_handler();
+  // io_dequeue();
 
-  /*
-  static long int next_lora;
-  char msg[100];
-
-  if (millis() > next_lora) {
-    char *s = "hello world";
-    io_send((unsigned char*)s, strlen(s));
-    io_dequeue();
-    next_lora = millis() + 2000;
-    sprintf(msg, "%d: sent LoRa %d - %d", millis()%1000000, (next_lora/1000)%16, lora_send_ok);
-    Serial.println(msg);
-    prep2log(msg);
+  for (int i = 0; i < 5; i++) {
+    lv_task_handler();
+    delay(1);
   }
-  */
-
 }
 
 // eof

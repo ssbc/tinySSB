@@ -8,7 +8,7 @@ bool        clicked = false;
 TouchLib *touch = NULL;
 uint8_t   touchAddress = GT911_SLAVE_ADDRESS2;
 
-#if defined(HAS_LORA) && USE_RADIO_LIB
+#if defined(HAS_LORA) && defined(USE_RADIO_LIB)
 SX1262 radio = new Module(RADIO_CS_PIN, RADIO_DIO1_PIN,
                           RADIO_RST_PIN, RADIO_BUSY_PIN);
 #endif
@@ -204,10 +204,11 @@ void initBoard()
 
 bool setupSD()
 {
+  /*
     digitalWrite(BOARD_SDCARD_CS, HIGH);
     digitalWrite(RADIO_CS_PIN, HIGH);
     digitalWrite(BOARD_TFT_CS, HIGH);
-
+  */
     if (SD.begin(BOARD_SDCARD_CS, SPI, 800000U)) {
         uint8_t cardType = SD.cardType();
         if (cardType == CARD_NONE) {
@@ -325,11 +326,14 @@ void setupLvgl()
     static lv_color_t buf[ LVGL_BUFFER_SIZE ];
 #else
 #define LVGL_BUFFER_SIZE    (TFT_WIDTH * TFT_HEIGHT * sizeof(lv_color_t))
-    static lv_color_t *buf = (lv_color_t *)ps_malloc(LVGL_BUFFER_SIZE);
+    static lv_color_t *buf = (lv_color_t *) ps_malloc(LVGL_BUFFER_SIZE);
     if (!buf) {
-        Serial.println("menory alloc failed!");
-        delay(5000);
-        assert(buf);
+      Serial.printf("PSRAM malloc for LVGL failed: free=%d %d %d %d, trying standard RAM\r\n",
+                    ESP.getFreeHeap(),
+                    LVGL_BUFFER_SIZE, TFT_WIDTH, TFT_HEIGHT);
+      buf = (lv_color_t *) malloc(LVGL_BUFFER_SIZE);    
+      delay(5000);
+      assert(buf);
     }
 #endif
     memset(buf, 0, LVGL_BUFFER_SIZE);
@@ -384,27 +388,6 @@ void setupLvgl()
 
 // ---------------------------------------------------------------------------
 
-int incoming(struct face_s *f, unsigned char *pkt, int len, int has_crc)
-{
-  if (len <= (DMX_LEN + sizeof(uint32_t)) || (has_crc && crc_check(pkt, len) != 0)) {
-    Serial.println(String("Bad CRC for face ") + f->name + String(" pkt=") + to_hex(pkt, len, 0));
-    // lora_bad_crc++;
-    return -1;
-  }
-  if (has_crc) {
-    // Serial.println("CRC OK");
-    len -= sizeof(uint32_t);
-  }
-  // Serial.printf("<  incoming packet, %d bytes\r\n", len);
-
-  if (!theDmx->on_rx(pkt, len, f))
-    return 0;
-  Serial.println(String("   unknown DMX ") + to_hex(pkt, DMX_LEN, 0));
-  return -1;
-}
-
-// ---------------------------------------------------------------------------
-
 void setupBT()
 {
 #if defined(HAS_BT)
@@ -424,14 +407,13 @@ void loopBLE()
 }
 
 // ---------------------------------------------------------------------------
-
 int lora_ok;
 
 void setupLoRa()
 {
 #if defined(HAS_LORA)
 
-#if USE_RADIO_LIB
+#if defined(USE_RADIO_LIB)
 
   /*
   digitalWrite(BOARD_SDCARD_CS, HIGH);
@@ -454,10 +436,14 @@ void setupLoRa()
     radio.setCurrentLimit(140); // (accepted range is 45 - 140 mA), 0=disable
     radio.setPreambleLength(8); // (accepted range is 0 - 65535)
     radio.setCRC(false);
-
+    
     // set the function that will be called
     // when new packet is received
-    // radio.setDio1Action(setFlag);
+    radio.setPacketReceivedAction(newLoraPacket_cb);
+    
+    int rc = radio.startReceive();
+    if (rc != RADIOLIB_ERR_NONE)
+      Serial.printf("radio.startReceive() returned %d\r\n", rc);
 
     Serial.printf("LoRa configured for fr=%d, bw=%d, sf=%d\r\n",
                 the_lora_config->fr, the_lora_config->bw, the_lora_config->sf);
@@ -466,19 +452,32 @@ void setupLoRa()
 # else
 
   /*
+  delay(4000);
   digitalWrite(BOARD_SDCARD_CS, HIGH);
   digitalWrite(RADIO_CS_PIN, HIGH);
   digitalWrite(BOARD_TFT_CS, HIGH);
-  */
+
   SPI.end();
   SPI.begin(BOARD_SPI_SCK, BOARD_SPI_MISO, BOARD_SPI_MOSI, RADIO_CS_PIN);
 
-  LoRa.setPins(RADIO_CS_PIN, RADIO_RST_PIN, RADIO_DIO1_PIN);  
-  if (!LoRa.begin(the_lora_config->fr)) {
-    lora_ok = -1;
-    Serial.println("LoRa init failed");
-    // while (1);
-  } else {
+  SPI.end();
+  SPI.begin(BOARD_SPI_SCK, BOARD_SPI_MISO, BOARD_SPI_MOSI); //SD
+  */
+
+  pinMode(RADIO_RST_PIN, OUTPUT);
+  digitalWrite(RADIO_RST_PIN, LOW);
+  delay(100);
+  digitalWrite(RADIO_RST_PIN, HIGH);
+  
+  lora_ok = false;
+  delay(3000);
+  LoRa.setSPI(SPI);
+  LoRa.setPins(RADIO_CS_PIN, RADIO_RST_PIN, RADIO_DIO1_PIN);
+  // LoRa.setPins(9, 17, 45);  //Meshtastic
+  if (LoRa.begin(the_lora_config->fr)) {
+    lora_ok = true;
+  }
+  if (lora_ok) {
       LoRa.setSignalBandwidth(the_lora_config->bw);
       LoRa.setSpreadingFactor(the_lora_config->sf);
       LoRa.setCodingRate4(the_lora_config->cr);
@@ -490,7 +489,8 @@ void setupLoRa()
       Serial.printf("LoRa configured for fr=%d, bw=%d, sf=%d\r\n",
                the_lora_config->fr, the_lora_config->bw, the_lora_config->sf);
       Serial.flush();
-  }
+  } else
+    Serial.println("LoRa init failed");
 
 #endif
 
@@ -501,6 +501,13 @@ void setupLoRa()
 
 void hw_setup()
 {
+  /*
+  Serial.printf("Total heap: %d\r\n", ESP.getHeapSize());
+  Serial.printf("Free heap: %d\r\n", ESP.getFreeHeap());
+  Serial.printf("Total PSRAM: %d\r\n", ESP.getPsramSize());
+  Serial.printf("Free PSRAM: %d\r\n", ESP.getFreePsram());
+  */
+  
   esp_efuse_mac_get_default(my_mac);
 
 #if !defined(HAS_UDP)  // in case of no Wifi: display BT mac addr, instead
@@ -509,6 +516,7 @@ void hw_setup()
 #endif
 #if defined(HAS_UDP) || defined(HAS_BT) || defined(HAS_BLE)
   sprintf(ssid, "%s-%s", tSSB_WIFI_SSID, to_hex(my_mac+4, 2));
+  Serial.printf("This is node %s\r\n\r\n", ssid);
 #endif
 
   initBoard();
@@ -535,7 +543,9 @@ void hw_setup()
   */
 
   // FIXME: we should not print the mgmt signing key to the console ?
-  Serial.printf("tinySSB config is %s\r\n", bipf2String(the_config,"\r\n").c_str());
+  Serial.printf("tinySSB config is %s\r\n",
+                bipf2String(the_config, "\r\n", 1).c_str());
+  Serial.println();
   
   the_lora_config = lora_configs;
   // struct bipf_s k = { BIPF_STRING, 9, {.str = "lora_plan"} };

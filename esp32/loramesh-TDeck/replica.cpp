@@ -9,19 +9,15 @@
   feeds are stored as two files:
     'log.bin'      the log, with side chain expanded right after a log entry
     'frt.bin'      feed state, in BIPF
+
     'tmp.bin'      same as above, before being renamed to frt.bin
+
+    for nodes with apps:
+    'mid.bin'      sequence of 20B message IDs (back to back)
 */
-
-
-#include <lwip/def.h>
-#include <LittleFS.h>
-#include <ctype.h>
-// #include <stdio.h>
-#include <string.h>
 
 #include "config.h"
 
-#define MyFS LittleFS
 
 static unsigned char nam[PFX_LEN + FID_LEN + 4 + HASH_LEN + TINYSSB_PKT_LEN];  // name computation
 
@@ -83,23 +79,28 @@ ReplicaClass::ReplicaClass(char *datapath, unsigned char *fID)
     _mk_fname(1);
     if (!MyFS.exists(fname))
       _init_frontier();
-    // read the frontier file
-    _mk_fname(1);
-    f = MyFS.open(fname, FILE_READ, false);
-    int frt_len = f.size();
-    // FIXME: check whether length is zero, recover content
-    unsigned char *buf = (unsigned char*) malloc(frt_len);
-    f.read(buf, frt_len);
-    f.close();
-    // Serial.printf("   frt content is %s\r\n", to_hex(buf, frt_len, 0));
-    state = bipf_loads(buf, frt_len);
-    // Serial.printf("FID=%s\r\n", to_hex(fID, 32));
-    // Serial.println("   state=" + bipf2String(state));
-    free(buf);
-    max_seq_ref = bipf_dict_getref(state, str2bipf("max_seq"));
-    max_pos_ref = bipf_dict_getref(state, str2bipf("max_pos"));
-    prev_ref    = bipf_dict_getref(state, str2bipf("prev"));
-    pending_ref = bipf_dict_getref(state, str2bipf("pend_sc"));
+    else {
+      state = NULL; // delay state loading
+#ifdef NOT_USED
+      // read the frontier file
+      _mk_fname(1);
+      f = MyFS.open(fname, FILE_READ, false);
+      int frt_len = f.size();
+      // FIXME: check whether length is zero, recover content
+      unsigned char *buf = (unsigned char*) malloc(frt_len);
+      f.read(buf, frt_len);
+      f.close();
+      // Serial.printf("   frt content is %s\r\n", to_hex(buf, frt_len, 0));
+      state = bipf_loads(buf, frt_len);
+      // Serial.printf("FID=%s\r\n", to_hex(fID, 32));
+      // Serial.println("   state=" + bipf2String(state));
+      free(buf);
+      max_seq_ref = bipf_dict_getref(state, str2bipf("max_seq"));
+      max_pos_ref = bipf_dict_getref(state, str2bipf("max_pos"));
+      prev_ref    = bipf_dict_getref(state, str2bipf("prev"));
+      pending_ref = bipf_dict_getref(state, str2bipf("pend_sc"));
+ #endif
+    }
     // Serial.printf("   msr=%p mpr=%p pvr=%p per=%p\r\n",
     //               max_seq_ref, max_pos_ref, prev_ref, pending_ref);
     // Serial.println("   pend_sc=" + bipf2String(pending_ref));
@@ -140,6 +141,31 @@ ReplicaClass::ReplicaClass(char *datapath, unsigned char *fID)
 }
 
 
+void ReplicaClass::_load_state()
+{
+  // Serial.println("   _load_state");
+  if (state != NULL)
+    return;
+  // read the frontier file
+  _mk_fname(1);
+  File f = MyFS.open(fname, FILE_READ, false);
+  int frt_len = f.size();
+  // FIXME: check whether length is zero, recover content
+  unsigned char *buf = (unsigned char*) malloc(frt_len);
+  f.read(buf, frt_len);
+  f.close();
+  // Serial.printf("   frt content is %s\r\n", to_hex(buf, frt_len, 0));
+  state = bipf_loads(buf, frt_len);
+  // Serial.printf("FID=%s\r\n", to_hex(fID, 32));
+  // Serial.println("   state=" + bipf2String(state));
+  free(buf);
+  max_seq_ref = bipf_dict_getref(state, str2bipf("max_seq"));
+  max_pos_ref = bipf_dict_getref(state, str2bipf("max_pos"));
+  prev_ref    = bipf_dict_getref(state, str2bipf("prev"));
+  pending_ref = bipf_dict_getref(state, str2bipf("pend_sc"));
+}
+
+
 int ReplicaClass::_get_content_len(unsigned char *pkt, int seq, int *valid_len)
 {
   if (pkt[DMX_LEN] == PKTTYPE_plain48) {
@@ -152,6 +178,7 @@ int ReplicaClass::_get_content_len(unsigned char *pkt, int seq, int *valid_len)
   if (valid_len) {
     *valid_len = len;
     if (len > 48-20-sz) {
+      _load_state();
       struct bipf_s i = { BIPF_INT, {}, {.i = seq} };
       struct bipf_s *p = bipf_dict_getref(pending_ref, &i);
       if (p != NULL)
@@ -170,6 +197,7 @@ int ReplicaClass::_get_content_len(unsigned char *pkt, int seq, int *valid_len)
 
 File ReplicaClass::_get_entry_start(int seq)
 {
+  _load_state();
   if (seq < 1 || seq > max_seq_ref->u.i)
     return (File) NULL;
   _mk_fname(0); // log
@@ -254,13 +282,14 @@ char ReplicaClass::ingest_entry_pkt(unsigned char *pkt) // True/False
   t2 = millis(); durations[0] = t2 - t1; t1 = t2;
   */
   // check dmx
+  _load_state();  
   unsigned char dmx_val[DMX_LEN];
   compute_dmx(dmx_val, fid, max_seq_ref->u.i + 1, prev_ref->u.buf);
   if (memcmp(dmx_val, pkt, DMX_LEN)) { // wrong dmx field
     Serial.println("   DMX mismatch");
     return 0;
   }
-  fishForNewLoRaPkt();
+  lora_poll();
 
   // check signature, nam still contains the packet's name
   memcpy(nam + strlen(DMX_PFX) + FID_LEN + 4 + HASH_LEN, pkt, TINYSSB_PKT_LEN);
@@ -273,7 +302,7 @@ char ReplicaClass::ingest_entry_pkt(unsigned char *pkt) // True/False
   crypto_hash_sha256(h256, nam, sizeof(nam));
   memcpy(prev_ref->u.buf, h256, HASH_LEN); // =msgID
   // t2 = millis(); durations[2] = t2 - t1; t1 = t2;
-  fishForNewLoRaPkt();
+  lora_poll();
 
   _mk_fname(0); // log
   File f = MyFS.open(fname, FILE_APPEND, false);
@@ -316,7 +345,7 @@ char ReplicaClass::ingest_entry_pkt(unsigned char *pkt) // True/False
   max_seq_ref->u.i++;
   _persist_frontier();
   // t2 = millis(); durations[4] = t2 - t1; t1 = t2;
-  fishForNewLoRaPkt();
+  lora_poll();
 
   // t2 = millis(); durations[5] = t2 - t1; t1 = t2;
   // t2 = millis(); durations[6] = t2 - t1; t1 = t2;
@@ -333,6 +362,8 @@ char ReplicaClass::ingest_entry_pkt(unsigned char *pkt) // True/False
 
 char ReplicaClass::ingest_chunk_pkt(unsigned char *pkt, int seq, int *cnr) // True/False
 {
+  _load_state();
+
   unsigned char h[crypto_hash_sha256_BYTES];
   crypto_hash_sha256(h, pkt, TINYSSB_PKT_LEN);
   struct bipf_s k = { BIPF_INT, {}, {.i = seq} };
@@ -374,6 +405,8 @@ char ReplicaClass::ingest_chunk_pkt(unsigned char *pkt, int seq, int *cnr) // Tr
 
 int ReplicaClass::get_next_seq(unsigned char *dmx) // returns seq and DMX
 {
+  _load_state();
+
   // Serial.printf(" max_seq_ref=%p prev_ref=%p\r\n", max_seq_ref, prev_ref);
   int maxs = max_seq_ref->u.i;
   // Serial.printf(" max_seq=%d\r\n", maxs);
@@ -422,6 +455,8 @@ int ReplicaClass::get_content_len(int seq, int *valid_len)
 
 int ReplicaClass::get_chunk_cnt()
 {
+  _load_state();
+
   int c = max_pos_ref->u.i - (TINYSSB_PKT_LEN + 4) * max_seq_ref->u.i;
   c /= TINYSSB_PKT_LEN;
   for (int i = 0; i < pending_ref->cnt; i++) {
@@ -433,12 +468,16 @@ int ReplicaClass::get_chunk_cnt()
 
 struct bipf_s* ReplicaClass::get_open_chains() // return a dict
 {
+  _load_state();
+
   return pending_ref;
 }
 
 
 struct bipf_s* ReplicaClass::get_next_in_chain(int seq)
 {
+  _load_state();
+
   struct bipf_s i = { BIPF_INT, {}, {.i = seq} };
   return bipf_dict_getref(pending_ref, &i);
 }
@@ -506,6 +545,8 @@ void ReplicaClass::hex_dump(int seq)
 
 unsigned char* ReplicaClass::get_chunk_pkt(int seq, int chunk_nr)
 {
+  _load_state();
+
   if (seq < 1 || seq > max_seq_ref->u.i)
     return NULL;
   // check that we persisted this chunk, is not in a pending sidechain
