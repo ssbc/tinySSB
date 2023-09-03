@@ -1,23 +1,28 @@
 // io_buf.cpp
 
+#include <Arduino.h>
 #include <string.h>
 
 #include "io_buf.h"
 
 RingBuffer::RingBuffer(short capacity, short len)
 {
-  buf = (unsigned char*) malloc(capacity * (item_len+1));
+  buf = (unsigned char*) malloc(capacity * (len+1));
   max_cnt = capacity;
   item_len = len;
   cnt = offs = 0;
 }
 
-bool RingBuffer::is_empty() { return cnt == 0; }
+bool RingBuffer::is_empty() { return cnt <= 0; }
 
 bool RingBuffer::is_full()  { return cnt >= max_cnt; }
 
+static unsigned char x[130];
+
 void RingBuffer::in(unsigned char *pkt, short len)
 {
+  if (is_full())
+    return;
   if (len > item_len)
     len = item_len;
   unsigned char *cp = (unsigned char*) buf + offs * (item_len+1);
@@ -27,14 +32,14 @@ void RingBuffer::in(unsigned char *pkt, short len)
   cnt++;
 }
 
-short RingBuffer::out(unsigned char *dst)
+unsigned char* RingBuffer::out()
 {
+  if (is_empty())
+    return NULL;
   unsigned char *cp = (unsigned char*) buf +
                  ((offs + max_cnt - cnt) % max_cnt) * (item_len+1);
-  short pkt_len = *cp;
-  memcpy(dst, cp+1, pkt_len);
   cnt--;
-  return pkt_len;
+  return cp;
 }
 
 // eof

@@ -7,9 +7,11 @@ class UIClass {
   
 public:
   UIClass();
-  void to_next_screen();
-  void buzz();
-  void loop(); // for screen animations
+  virtual ~UIClass();
+  virtual void spinner(bool show) {};
+  virtual void to_next_screen() {};
+  virtual void buzz() {};
+  virtual void loop() {}; // for screen animations
 
 private:
 };

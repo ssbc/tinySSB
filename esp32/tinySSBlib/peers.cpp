@@ -80,7 +80,7 @@ void PeersClass::incoming_req(unsigned char *pkt, int len, unsigned char *aux,
 
   Serial.printf("   =P.ping <%s> %dB", str, len);
 #if defined(HAS_LORA) && defined(USE_RADIO_LIB)
-  Serial.print(" rssi=%d snr=%g",
+  Serial.printf(" rssi=%d snr=%g",
                 str, len, (int) radio.getRSSI(), radio.getSNR());
 #endif
   Serial.printf("\r\n");
@@ -89,7 +89,7 @@ void PeersClass::incoming_req(unsigned char *pkt, int len, unsigned char *aux,
   sprintf(buf, "R %02x%02x t=%d", my_mac[4], my_mac[5], peer_clock);
 
 #if defined(HAS_LORA) && defined(USE_RADIO_LIB)
-  sprintf(buf+strlen(buf), " rssi=%d snr=%g"
+  sprintf(buf+strlen(buf), " rssi=%d snr=%g",
                                    (int) radio.getRSSI(), radio.getSNR());
 #endif
   
@@ -122,7 +122,7 @@ void PeersClass::incoming_rep(unsigned char *pkt, int len, unsigned char *aux,
 
   Serial.printf("   =P.pong <%s> %dB", str, len);
 #if defined(HAS_LORA) && defined(USE_RADIO_LIB)
-  Serial.print(" rssi=%d snr=%g", (int) radio.getRSSI(), radio.getSNR());
+  Serial.printf(" rssi=%d snr=%g", (int) radio.getRSSI(), radio.getSNR());
 #endif
   Serial.printf("\r\n");
 

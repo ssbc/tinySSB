@@ -1,6 +1,9 @@
 // app_tva.h
 
-#include "config.h"
+#if defined(TINYSSB_BOARD_TDECK)
+
+#include "../lib/tinySSBlib.h"
+#include <lvgl.h>
 
 struct post_s {
   char *txt;
@@ -10,7 +13,6 @@ struct post_s {
 
 class App_TVA_Class {
 
-#if defined(HAS_LORA)
 public:
   App_TVA_Class(lv_obj_t *flex);
 
@@ -23,9 +25,10 @@ private:
   int post_cnt;
   struct post_s *post_vect;
   lv_obj_t *flex; // our widget
-#endif
 };
 
 extern App_TVA_Class *the_TVA_app;
+
+#endif
 
 // eof

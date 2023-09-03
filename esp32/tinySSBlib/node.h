@@ -39,7 +39,7 @@ void incoming_want_request(unsigned char *buf, int len, unsigned char *aux, stru
       int fNDX = (offs + i-1) % theGOset->goset_len;
       unsigned char *fid = theGOset->get_key(fNDX);
       int seq = seq_copy[i];
-      // lora_poll();
+      io_loop();
       unsigned char *pkt = theRepo->fid2replica(fid)->get_entry_pkt(seq);
       if (pkt == NULL)
         continue;
@@ -132,7 +132,7 @@ void incoming_chnk_request(unsigned char *buf, int len, unsigned char *aux, stru
         // Serial.printf("   -- chunk nr > maxchunks (%d.%d.%d > %d)\r\n", fNDX, seq, cnr, max_chunks);
         continue;
       }
-      // lora_poll();
+      io_loop();
       unsigned char *chunk = theRepo->fid2replica(fid)->get_chunk_pkt(seq, cnr);
 
       if (chunk == NULL) { // missing content
@@ -186,7 +186,7 @@ void incoming_pkt(unsigned char *buf, int len, unsigned char *fid, struct face_s
     unsigned char dmx_val[DMX_LEN];
     int ns = r->get_next_seq(dmx_val);
     Serial.printf("   appended %d.%d", theGOset->_key_index(fid), ns-1);
-    // lora_poll();
+    io_loop();
     // int ndx = theGOset->_key_index(fid);
     theDmx->arm_dmx(dmx_val, incoming_pkt, r->fid, /*ndx,*/ ns);
 
@@ -228,7 +228,7 @@ void incoming_chunk(unsigned char *buf, int len, int blbt_ndx, struct face_s *f)
     } else 
       Serial.printf("  invalid chunk %d.%d.%d/%d or file problem?",
                     ndx, tp->seq, tp->cnr, tp->last_cnr);
-    // lora_poll();
+    io_loop();
     // io_dequeue();
     theSched->tick();
   }
@@ -289,8 +289,8 @@ void node_tick()
     }
   }
 
-  lora_poll();
-  io_dequeue();
+  io_loop();
+  // io_dequeue();
 }
 */
 

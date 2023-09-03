@@ -25,6 +25,7 @@
 #include "util.h"
 #include "config-tSSB.h"
 #include "ui.h"
+extern UIClass *theUI;
 #include "io.h"
 #include "bipf.h"
 #include "goset.h"
@@ -34,11 +35,13 @@ extern DmxClass   *theDmx;
 #include "replica.h"
 #include "repo.h"
 extern Repo2Class *theRepo;
-// #include "app_tva.h"
 #include "sched.h"
 extern SchedClass *theSched;
 #include "peers.h"
 extern PeersClass *thePeers;
+
+// #include "app_tva.h"
+
 
 // ---------------------------------------------------------------------------
 // global variables and function forward declarations

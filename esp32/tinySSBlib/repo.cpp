@@ -3,9 +3,6 @@
 // tinySSB for ESP32
 // (c) 2022-2023 <christian.tschudin@unibas.ch>
 
-#include <stdio.h>
-#include <string.h>
-
 #include "tinySSBlib.h"
 
 extern void incoming_pkt(unsigned char* buf, int len, unsigned char *fid, struct face_s *);
@@ -13,8 +10,6 @@ extern void incoming_chunk(unsigned char* buf, int len, int blbt_ndx, struct fac
 extern void incoming_want_request(unsigned char* buf, int len, unsigned char* aux, struct face_s *);
 extern void incoming_chnk_request(unsigned char* buf, int len, unsigned char* aux, struct face_s *);
 
-
-#define MyFS LittleFS
 
 // ----------------------------------------------------------------------
 
@@ -67,7 +62,7 @@ void Repo2Class::load()
       add_replica(fid);
     f.close();
     f = fdir.openNextFile(FILE_READ);
-    // lv_task_handler();
+    theUI->loop();
   }
   fdir.close();
 
@@ -150,7 +145,7 @@ void Repo2Class::mk_want_vect()
     v += (v.length() == 0 ? "[ " : " ") + String(ndx) + "." + String(ns);
     if (encoding_len > 100)
       break;
-    // lora_poll();
+    io_loop();
     // io_dequeue();
   }
   want_offs = (want_offs + i + 1) % theGOset->goset_len;

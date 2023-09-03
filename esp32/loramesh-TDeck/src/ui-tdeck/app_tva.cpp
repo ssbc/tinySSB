@@ -2,9 +2,9 @@
 
 // (c) Aug 2023, <christian.tschudin@unibas.ch>
 
-#include "tinySSBlib.h"
-
 #if defined(TINYSSB_BOARD_TDECK)
+
+#include "app_tva.h"
 
 App_TVA_Class::App_TVA_Class(lv_obj_t *flex)
 {

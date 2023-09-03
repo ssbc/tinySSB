@@ -3,9 +3,6 @@
 // tinySSB for ESP32, Lilygo T-Deck/T-Wrist version
 // (c) 2023 <christian.tschudin@unibas.ch>
 
-// collect all external libraries here
-
-
 // ---------------------------------------------------------------------------
 // hardware profile:
 
@@ -32,6 +29,14 @@
 # define HAS_BLE
 # define HAS_LORA
 # define USE_RADIO_LIB
+
+# define USING_SX1262
+# include "RadioLib.h"
+  extern SX1262 radio;
+# define RADIO_CS_PIN        9
+# define RADIO_BUSY_PIN      13
+# define RADIO_RST_PIN       17
+# define RADIO_DIO1_PIN      45
 #endif // TINYSSB_BOARD_TDECK
 
 // ---------------------------------------------------------------------------

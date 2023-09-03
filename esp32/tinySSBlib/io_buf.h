@@ -10,7 +10,8 @@ public:
   bool is_empty();
   bool is_full();
   void in(unsigned char *pkt, short len);
-  short out(unsigned char *dst);
+  // short out(unsigned char *dst);
+  unsigned char* out();
 
 private:
   unsigned char *buf; // [LORA_BUF_CNT * (LORA_MAX_LEN+1)];
