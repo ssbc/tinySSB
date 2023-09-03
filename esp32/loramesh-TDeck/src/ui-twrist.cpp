@@ -16,7 +16,7 @@
 #include <GxIO/GxIO_SPI/GxIO_SPI.h>
 #include <GxIO/GxIO.h>
 
-#include <Fonts/FreeMono9pt7b.h>
+#include <Fonts/FreeMonoBold9pt7b.h>
 
 static GxIO_Class gXio(SPI, /*CS*/ EPD_CS, /*DC=*/EPD_DC, /*RST=*/EPD_RESET);
 static GxEPD_Class gXdisplay(gXio, /*RST=*/EPD_RESET, /*BUSY=*/EPD_BUSY);
@@ -92,10 +92,17 @@ UI_TWrist_Class::UI_TWrist_Class()
 {
   gXdisplay.init();
   gXdisplay.setRotation(0);
-  gXdisplay.setFont(&FreeMono9pt7b);
+  gXdisplay.setFont(&FreeMonoBold9pt7b);
   gXdisplay.setTextColor(GxEPD_BLACK);
 
   gXdisplay.drawBitmap(scuttleshell, 200*200/8, GxEPD::bm_partial_update);
+
+  for (int i = 0; i < 2; i++) {
+    gXdisplay.setCursor(55, 80);
+    gXdisplay.println("starting");
+    gXdisplay.updateWindow(50, 65, 100, 25);
+  }
+  
   // slowly appearing logo:
   // gXdisplay.drawBitmap(scuttleshell, 200*200/8, GxEPD::bm_partial_update);
   // gXdisplay.drawBitmap(scuttleshell, 200*200/8, GxEPD::bm_partial_update);
@@ -153,6 +160,8 @@ void UI_TWrist_Class::refresh_screen(int scr)
 
   if (scr == SCREEN_SPLASH) {
     gXdisplay.drawBitmap(scuttleshell, 0, 0, 200, 200, GxEPD_WHITE);
+    gXdisplay.setCursor(145, 11);
+    gXdisplay.println(ssid+7);
   } else if (scr == SCREEN_NODE) {
     gXdisplay.fillScreen(GxEPD_WHITE);
     gXdisplay.setCursor(60, 40);
@@ -173,7 +182,7 @@ void UI_TWrist_Class::refresh_screen(int scr)
     theDisplay.setFont(ArialMT_Plain_10);
     theDisplay.drawString(0, 54, fr);
     */
-    gXdisplay.setCursor(70, 202);
+    gXdisplay.setCursor(75, 202);
     gXdisplay.println("o - -");
   } else if (scr == UI_TWrist_Class::SCREEN_REPO) {
     gXdisplay.fillScreen(GxEPD_WHITE);
@@ -209,7 +218,7 @@ void UI_TWrist_Class::refresh_screen(int scr)
     sprintf(buf, "%2d%% free", avail / (total/100));
     theDisplay.drawString(0, 44, buf);
     */
-    gXdisplay.setCursor(70, 202);
+    gXdisplay.setCursor(75, 202);
     gXdisplay.println("- o -");
   } else if (scr == UI_TWrist_Class::SCREEN_PEERS) {
     gXdisplay.fillScreen(GxEPD_WHITE);
@@ -234,7 +243,7 @@ void UI_TWrist_Class::refresh_screen(int scr)
       y += 12;
     }
     */
-    gXdisplay.setCursor(70, 202);
+    gXdisplay.setCursor(75, 202);
     gXdisplay.println("- - o");
   }
 
