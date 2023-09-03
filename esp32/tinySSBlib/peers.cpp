@@ -109,7 +109,7 @@ void PeersClass::incoming_req(unsigned char *pkt, int len, unsigned char *aux,
   // peer_save2log(str);
 
   // str[6] = '\0';
-  // theStatus->heard_peer(str+2, lora_prssi, lora_psnr);
+  // theUI->heard_peer(str+2, lora_prssi, lora_psnr);
 }
 
 
@@ -131,7 +131,7 @@ void PeersClass::incoming_rep(unsigned char *pkt, int len, unsigned char *aux,
   // peer_save2log(str);
 
   // str[6] = '\0';
-  // theStatus->heard_peer(str+2, lora_prssi, lora_psnr);
+  // theUI->heard_peer(str+2, lora_prssi, lora_psnr);
 }
 
 

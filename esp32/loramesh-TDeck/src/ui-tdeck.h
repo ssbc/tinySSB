@@ -1,5 +1,7 @@
 // ui-tdeck.h
 
+#if defined(TINYSSB_BOARD_TDECK)
+
 #ifndef _INCLUDE_UI_TDECK_H
 #define _INCLUDE_UI_TDECK_H
 
@@ -13,10 +15,10 @@ class UI_TDeck_Class: public UIClass {
 public:
   UI_TDeck_Class();
   void spinner(bool show) override;
-  void to_next_screen() override;
   void buzz() override;
   void loop() override; // for screen animations
 
+  void to_next_screen();
   void refresh();
 
   void _brightness_cb(lv_event_t *e);
@@ -37,3 +39,4 @@ private:
 };
 
 #endif // _INCLUDE_UI_TDECK_H
+#endif // TINYSSB_BOARD_TDECK

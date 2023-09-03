@@ -3,17 +3,52 @@
 #ifndef _INCLUDE_UI_H
 #define _INCLUDE_UI_H
 
+struct peer_s {
+  char id[5];
+  long when;
+  int rssi;
+  float snr;
+};
+#define MAX_PEERS 4
+
+
 class UIClass {
   
 public:
   UIClass();
   virtual ~UIClass();
   virtual void spinner(bool show) {};
-  virtual void to_next_screen() {};
   virtual void buzz() {};
-  virtual void loop() {}; // for screen animations
+  virtual void loop() {};    // for screen animations
+  virtual void refresh() {}; // force refresh (of current screen)
 
+  // general:
+  void show_node_name(char *s);
+  void show_time(char *s);
+  void show_gps(float lon, float lat, float ele);
+
+  // repo screen:
+  void show_repo_stats(int f, int e, int c, int freePercent);
+
+  // comm
+  void show_ble_peers(int n);
+  void show_wifi_peers(int n);
+  void show_lora_specs(char *profile, long fr, int bw, int sf);
+  virtual void lora_advance_wheel() {};
+
+  // peers screen:
+  void heard_peer(char *id, int rssi, float snr);
+  
 private:
+  char *node_name;
+  char *time;
+  float gps_lon, gps_lat, gps_ele; 
+  int f_cnt, e_cnt, c_cnt, percent;
+  int ble_cnt, wifi_cnt;
+  char *lora_profile;
+  long lora_fr;
+  int lora_bw, lora_sf;
+  struct peer_s peers[MAX_PEERS];
 };
 
 
