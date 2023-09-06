@@ -11,7 +11,7 @@ class UI_TWrist_Class: public UIClass {
 
   enum {
     SCREEN_SPLASH,
-    SCREEN_NODE,
+    // SCREEN_NODE,
     SCREEN_REPO,
     SCREEN_PEERS,
     SCREEN_OFF

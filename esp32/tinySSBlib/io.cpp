@@ -255,6 +255,22 @@ int lora_rcvd_pkts = 0; // absolute counter
 #endif
 
 
+void lora_init()
+{
+  Serial.println("LoRa init");
+
+  radio.setFrequency(the_lora_config->fr/1000000.0);
+  radio.setBandwidth((double)(the_lora_config->bw));
+  radio.setSpreadingFactor(the_lora_config->sf);
+  radio.setCodingRate(the_lora_config->cr);
+  radio.setSyncWord(the_lora_config->sw);
+  radio.setOutputPower(the_lora_config->tx);
+  radio.setCurrentLimit(140); // (accepted range is 45 - 140 mA), 0=disable
+  radio.setPreambleLength(8); // (accepted range is 0 - 65535)
+  radio.setCRC(false);
+  radio.setPacketReceivedAction(newLoraPacket_cb);
+}
+
 
 void lora_send(unsigned char *buf, short len)
 {
@@ -460,6 +476,7 @@ void bt_send(unsigned char *buf, short len)
 void io_init()
 {
 #if defined(HAS_LORA)
+  ble_init();
   lora_face.name = (char*) "lora";
   lora_face.has_crc = true;
   lora_face.next_delta = LORA_INTERPACKET_TIME;

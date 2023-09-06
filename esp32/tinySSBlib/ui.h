@@ -39,11 +39,10 @@ public:
   // peers screen:
   void heard_peer(char *id, int rssi, float snr);
   
-private:
   char *node_name;
   char *time;
   float gps_lon, gps_lat, gps_ele; 
-  int f_cnt, e_cnt, c_cnt, percent;
+  int f_cnt, e_cnt, c_cnt;
   int ble_cnt, wifi_cnt;
   char *lora_profile;
   long lora_fr;

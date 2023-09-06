@@ -2,11 +2,37 @@
 
 #if defined(TINYSSB_BOARD_TWRIST)
 
+#include <cstdarg>   // for va_list
+
 #include "lib/tinySSBlib.h"
 #include "ui-twrist.h"
-#include "ui-twrist/epd-scuttleshell.h"
 
 #include "const-twrist.h"
+
+// ---------------------------------------------------------------------------
+
+#include "lib/inflate.h"
+#include "ui-twrist/epd-scuttleshell_z.h"
+#include "ui-twrist/epd-crayon_z.h"
+#include "ui-twrist/epd-hieroglyph_z.h"
+#include "ui-twrist/epd-bird_z.h"
+#include "ui-twrist/epd-oakland_z.h"
+#include "ui-twrist/epd-map_z.h"
+
+int pict = 0; // cycle through the pics
+
+#define BITMAP_SIZE (200*200/8)
+unsigned char scuttleshell_bw[BITMAP_SIZE];
+unsigned char crayon_bw[BITMAP_SIZE];
+unsigned char hieroglyph_bw[BITMAP_SIZE];
+unsigned char bird_bw[BITMAP_SIZE];
+unsigned char oakland_bw[BITMAP_SIZE];
+unsigned char map_bw[BITMAP_SIZE];
+
+unsigned char* gallery[] = {
+  scuttleshell_bw, crayon_bw, hieroglyph_bw,
+  bird_bw, oakland_bw, map_bw
+};
 
 // ---------------------------------------------------------------------------
 
@@ -26,63 +52,35 @@ static GxEPD_Class gXdisplay(gXio, /*RST=*/EPD_RESET, /*BUSY=*/EPD_BUSY);
 #include <Button2.h>
 
 Button2 userButton;
-bool lora_selection; // true if lora plan selection ongoing, else do_io
-long selection_timeout;
 
 void clicked(Button2& btn) {
   Serial.println("click");
-  selection_timeout = millis() + 10000;
-
-  /*
-  if (lora_selection) { // cycle through the choices
-    int i = the_lora_config - lora_configs;
-    i = (i+1) % lora_configs_size;
-    the_lora_config = lora_configs + i;
-  } else
-  */
-  ((UI_TWrist_Class*)theUI)->to_next_screen();
+  ((UI_TWrist_Class*)theUI)->refresh();
 }
 
 void long_clicked(Button2& btn) {
   Serial.println("long_click");
-  return;
-  selection_timeout = millis() + 10000;
-
-  if (lora_selection) { // this is our choice
-    /*
-    struct bipf_s *v = bipf_mkString(the_lora_config->plan);
-    bipf_dict_set(the_config, bipf_mkString("lora_plan"), v);
-    config_save(the_config);
-
-    char s[30];
-    theDisplay.clear();
-    theDisplay.setFont(ArialMT_Plain_24);
-    sprintf(s, ">> %s", the_lora_config->plan);
-    theDisplay.drawString(0, 10, s);
-    theDisplay.setFont(ArialMT_Plain_16);
-    theDisplay.drawString(0, 46, "rebooting now");
-    theDisplay.display();
-
-    delay(3000);
-    lora_log.printf(">> reboot cmd\n");
-    lora_log.close();
-    esp_restart();
-    */
-  } else
-    lora_selection = !lora_selection;
+  pict = 0;
+  ((UI_TWrist_Class*)theUI)->to_next_screen();
 }
 
 // ---------------------------------------------------------------------------
 
 UIClass::UIClass()
 {
+  node_name = time = lora_profile = NULL;
+  gps_lon = gps_lat = gps_ele = 0.0;
+  f_cnt = e_cnt = c_cnt = 0;
+  ble_cnt = wifi_cnt = 0;
+  lora_fr = lora_bw = lora_sf = 0;
+  
   SPI.begin(SPI_SCK, -1, SPI_DIN, EPD_CS);
   pinMode(PIN_MOTOR, OUTPUT);
   pinMode(PWR_EN, OUTPUT);
 
   pinMode(PIN_KEY, INPUT_PULLUP);
   userButton.begin(PIN_KEY);
-  userButton.setLongClickTime(2000);
+  userButton.setLongClickTime(1000);
   userButton.setClickHandler(clicked);
   userButton.setLongClickDetectedHandler(long_clicked);
 }
@@ -90,22 +88,30 @@ UIClass::UIClass()
 
 UI_TWrist_Class::UI_TWrist_Class()
 {
+  wifi_cnt = 0;
+
+  // show_lora_specs("USA 902a", 902500000, 250000, 7);
+
+#define INFLATE(NM) inflate(NM##_bw, sizeof(NM##_bw),   \
+                            NM##_z, sizeof(NM##_z));
+  INFLATE(scuttleshell)
+  INFLATE(crayon)
+  INFLATE(hieroglyph)
+  INFLATE(bird)
+  INFLATE(oakland)
+  INFLATE(map)
+                                       
   gXdisplay.init();
   gXdisplay.setRotation(0);
   gXdisplay.setFont(&FreeMonoBold9pt7b);
   gXdisplay.setTextColor(GxEPD_BLACK);
 
-  gXdisplay.drawBitmap(scuttleshell, 200*200/8, GxEPD::bm_partial_update);
-
-  for (int i = 0; i < 2; i++) {
-    gXdisplay.setCursor(55, 80);
-    gXdisplay.println("starting");
-    gXdisplay.updateWindow(50, 65, 100, 25);
-  }
+  gXdisplay.drawBitmap(scuttleshell_bw, sizeof(scuttleshell_bw),
+                       GxEPD::bm_partial_update);
   
   // slowly appearing logo:
-  // gXdisplay.drawBitmap(scuttleshell, 200*200/8, GxEPD::bm_partial_update);
-  // gXdisplay.drawBitmap(scuttleshell, 200*200/8, GxEPD::bm_partial_update);
+  // gXdisplay.drawBitmap(scuttleshell_bw, 200*200/8, GxEPD::bm_partial_update);
+  // gXdisplay.drawBitmap(scuttleshell_bw, 200*200/8, GxEPD::bm_partial_update);
 
   curr_screen = SCREEN_SPLASH;
 }
@@ -115,12 +121,17 @@ void UI_TWrist_Class::buzz()
 {
   digitalWrite(PWR_EN, HIGH);
   digitalWrite(PIN_MOTOR, HIGH);
+  delay(100);
+  digitalWrite(PIN_MOTOR, LOW);
+  /*
+  digitalWrite(PIN_MOTOR, HIGH);
   delay(200);
   digitalWrite(PIN_MOTOR, LOW);
   delay(100);
   digitalWrite(PIN_MOTOR, HIGH);
   delay(200);
   digitalWrite(PIN_MOTOR, LOW);
+  */
 }
 
 
@@ -153,20 +164,73 @@ void UI_TWrist_Class::to_next_screen()
 }
 
 
+void pos_key_val(int y, char *k, char *fmt, ...)
+{
+  va_list args;
+  char buf[50];
+
+  va_start(args, fmt);
+  vsprintf(buf, fmt, args);
+  va_end(args);
+
+  gXdisplay.setCursor(0, y);
+  gXdisplay.println(k);
+
+  gXdisplay.setCursor(55, y);
+  gXdisplay.println(buf);
+}
+
 void UI_TWrist_Class::refresh_screen(int scr)
 {
   if (scr != curr_screen)
       return;
 
   if (scr == SCREEN_SPLASH) {
-    gXdisplay.drawBitmap(scuttleshell, 0, 0, 200, 200, GxEPD_WHITE);
+    gXdisplay.drawBitmap(gallery[pict], 0, 0, 200, 200, GxEPD_WHITE);
     gXdisplay.setCursor(145, 11);
     gXdisplay.println(ssid+7);
-  } else if (scr == SCREEN_NODE) {
+    pict = (pict + 1) % (sizeof(gallery) / sizeof(unsigned char*));
+/*
+  } else if (false && scr == SCREEN_NODE) {
     gXdisplay.fillScreen(GxEPD_WHITE);
-    gXdisplay.setCursor(60, 40);
+    gXdisplay.setCursor(5, 15);
     gXdisplay.println("node");
+
+    // gXdisplay.setCursor(0, 200);
+    // gXdisplay.println(">");
+
+    gXdisplay.setCursor(75, 202);
+    gXdisplay.println("o - -");
+*/
+  } else if (scr == UI_TWrist_Class::SCREEN_REPO) {
+    gXdisplay.fillScreen(GxEPD_WHITE);
+
+    gXdisplay.setCursor(0, 11);
+    gXdisplay.println("Node");
+    gXdisplay.setCursor(145, 11);
+    gXdisplay.println(ssid+7);
+    for (int i = 0; i < 200; i++)
+      gXdisplay.drawPixel(i, 16, GxEPD_BLACK);
+
     /*
+    pos_key_val(45, "LoRa", "%.2f/%d/%d",
+                lora_fr/1000000.0, lora_bw/1000, lora_sf);
+    */
+
+    pos_key_val(45, "Repo", "%dF %dE %dC", f_cnt, e_cnt, c_cnt);
+    
+    int fb = MyFS.totalBytes() -  MyFS.usedBytes();
+    pos_key_val(70, "Free", "%.1fMB (%d%%)",
+                fb / 1024.0 / 1024, fb * 100 / MyFS.totalBytes());
+
+    pos_key_val(95, "BLE", "%d", ble_cnt);
+    
+    pos_key_val(120, "WiFi", "%d", wifi_cnt);
+
+    // gXdisplay.setCursor(0, 195);
+    // gXdisplay.println("v2023-09-05 14:38+0200");
+
+    /* node
     theDisplay.setFont(ArialMT_Plain_16);
     theDisplay.drawString(0 , 0, "SSB.virt.lora.pub");
     theDisplay.setFont(ArialMT_Plain_10);
@@ -182,12 +246,6 @@ void UI_TWrist_Class::refresh_screen(int scr)
     theDisplay.setFont(ArialMT_Plain_10);
     theDisplay.drawString(0, 54, fr);
     */
-    gXdisplay.setCursor(75, 202);
-    gXdisplay.println("o - -");
-  } else if (scr == UI_TWrist_Class::SCREEN_REPO) {
-    gXdisplay.fillScreen(GxEPD_WHITE);
-    gXdisplay.setCursor(60, 40);
-    gXdisplay.println("repo");
     /*
     theDisplay.setFont(ArialMT_Plain_10);
     theDisplay.drawString(0, 3, tSSB_WIFI_SSID "-");
@@ -218,12 +276,22 @@ void UI_TWrist_Class::refresh_screen(int scr)
     sprintf(buf, "%2d%% free", avail / (total/100));
     theDisplay.drawString(0, 44, buf);
     */
-    gXdisplay.setCursor(75, 202);
-    gXdisplay.println("- o -");
+    gXdisplay.setCursor(85, 202);
+    gXdisplay.println("o -");
   } else if (scr == UI_TWrist_Class::SCREEN_PEERS) {
     gXdisplay.fillScreen(GxEPD_WHITE);
-    gXdisplay.setCursor(60, 40);
-    gXdisplay.println("peers");
+
+    gXdisplay.setCursor(5, 11);
+    gXdisplay.println("Peers");
+    gXdisplay.setCursor(145, 11);
+    gXdisplay.println(ssid+7);
+    for (int i = 0; i < 200; i++)
+      gXdisplay.drawPixel(i, 16, GxEPD_BLACK);
+
+    //gXdisplay.setCursor(0, 200);
+    // gXdisplay.println(">");
+    // gXdisplay.updateWindow(0, 190, 10, 10);
+
     /*
     theDisplay.setFont(ArialMT_Plain_10);
     theDisplay.drawString( 0, 0, "last");
@@ -243,11 +311,18 @@ void UI_TWrist_Class::refresh_screen(int scr)
       y += 12;
     }
     */
-    gXdisplay.setCursor(75, 202);
-    gXdisplay.println("- - o");
+    gXdisplay.setCursor(85, 202);
+    gXdisplay.println("- o");
   }
 
   gXdisplay.update();
+
+  /*
+  for (int y = 190; y < 200; y++)
+    for (int x = 0; x < 10; x++)
+      gXdisplay.drawPixel(x, y, GxEPD_BLACK);
+  gXdisplay.updateToWindow(0, 190, 0, 190, 10, 10);
+  */
 }
 
 
