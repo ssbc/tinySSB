@@ -7,9 +7,11 @@
 
 #include <sodium/crypto_auth.h>
 
+#ifdef HAS_LORA
+
 #define LORA_TX_POWER  10 // 20 
-#define LORA_tSSB_SYNC 0x58  // for "SB, Scuttlebutt". see https://forum.lora-developers.semtech.com/t/sx1272-and-sx1262-lora-sync-word-compatibility/988
-// #define LORA_tSSB_SYNC 0x5484  // for "SB, Scuttlebutt". see https://forum.lora-developers.semtech.com/t/sx1272-and-sx1262-lora-sync-word-compatibility/988
+#define LORA_tSSB_SYNC 0x58  // for "SB, Scuttlebutt". or 0x5484?
+// see https://forum.lora-developers.semtech.com/t/sx1272-and-sx1262-lora-sync-word-compatibility/988
 
 struct lora_config_s lora_configs[] = {
   // FIXME: these values are copying TNN values - we should step around these
@@ -21,7 +23,11 @@ struct lora_config_s lora_configs[] = {
   {"US915.b", 904600000, 125000, 7, 5, LORA_tSSB_SYNC, LORA_TX_POWER}
 };
 
-short lora_configs_size = sizeof(lora_configs) / sizeof(struct lora_config_s);
+short lora_configs_cnt = sizeof(lora_configs) / sizeof(struct lora_config_s);
+
+struct lora_config_s *the_lora_config = lora_configs;
+
+#endif
 
 // ---------------------------------------------------------------------------
 
@@ -29,7 +35,7 @@ struct bipf_s* config_load() // returns a BIPF dict with the persisted config di
 {
   File f = MyFS.open(CONFIG_FILENAME, FILE_READ, false);
 
-  if (f == NULL) { // define some defaults
+  if (f == NULL) { // not found: define some defaults
     struct bipf_s *dict = bipf_mkDict();
     
     bipf_dict_set(dict, bipf_mkString("bubbles"),
@@ -54,8 +60,18 @@ struct bipf_s* config_load() // returns a BIPF dict with the persisted config di
   struct bipf_s *dict = bipf_loads(buf, len);
   free(buf);
 
-  bipf_dict_set(dict, bipf_mkString("lora_plan"),
-                bipf_mkString("AU915.b"));
+#ifdef HAS_LORA
+  the_lora_config = lora_configs;
+  struct bipf_s k = { BIPF_STRING, 9, {.str = "lora_plan"} };
+  struct bipf_s *lora_ref = bipf_dict_getref(dict, &k);
+  if (lora_ref != NULL && lora_ref->typ == BIPF_STRING) {
+    for (int i = 0; i < lora_configs_cnt; i++)
+      if (!strncmp(lora_configs[i].plan, lora_ref->u.str, lora_ref->cnt)) {
+        the_lora_config = lora_configs + i;
+        break;
+      }
+  }
+#endif
 
   return dict;
 }

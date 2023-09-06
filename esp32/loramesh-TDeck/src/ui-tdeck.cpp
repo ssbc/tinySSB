@@ -326,8 +326,6 @@ UIClass::UIClass()
   setupLvgl();
 }
 
-UIClass::~UIClass() {};
-
 void UI_TDeck_Class::spinner(bool show)
 {
   if (show)

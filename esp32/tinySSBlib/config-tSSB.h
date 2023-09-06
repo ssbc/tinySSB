@@ -10,6 +10,8 @@ void           config_save(struct bipf_s *dict); // persist the BIPF dict
 
 // ---------------------------------------------------------------------------
 
+#if defined(HAS_LORA)
+
 struct lora_config_s {
   char plan[8];        // name of frequency plan, ASCIIZ
   unsigned long  fr;   // in Hz
@@ -21,6 +23,9 @@ struct lora_config_s {
 };
 
 extern struct lora_config_s lora_configs[];
-extern short lora_configs_size;
+extern short lora_configs_cnt;
+extern struct lora_config_s *the_lora_config;
+
+#endif // HAS_LORA
 
 #endif // _INCLUDE_CONFIG_TSSB_H
