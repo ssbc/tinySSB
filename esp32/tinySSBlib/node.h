@@ -93,7 +93,7 @@ void incoming_chnk_request(unsigned char *buf, int len, unsigned char *aux, stru
   while (credit > 0 && found_something) {
     found_something = 0;
     slpptr = lptr->u.list;
-    for (int i = 0; i < lptr->cnt; i++, slpptr++) {
+    for (int i = 0; i < lptr->cnt && credit > 0; i++, slpptr++) {
       if ((*slpptr)->typ != BIPF_LIST || (*slpptr)->cnt < 3) {
         err_cnt++;
         continue;

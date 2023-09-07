@@ -3,7 +3,8 @@
 #define PEERS_INTERVAL 20000 // how often to sent pings, in msec
 
 #define LORA_LOG // enable macro for logging received pkts
-#define LORA_LOG_FILENAME  "/lora_log.txt"
+#define LORA_LOG_FILENAME    "/lora_log.txt"
+#define PEERS_DATA_FILENAME  "/peers_log.txt"
 
 #define FID_LEN         32
 #define HASH_LEN        20

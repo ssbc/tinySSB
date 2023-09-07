@@ -18,14 +18,18 @@
 #define NR_OF_FACES               (sizeof(faces) / sizeof(void*))
 
 #if defined(HAS_LORA)
+# define LORA_MAX_LEN 127
   struct face_s lora_face;
 #endif
+
 #if defined(HAS_UDP)
   struct face_s udp_face;
 #endif
+
 #if defined(HAS_BT)
   struct face_s bt_face;
 #endif
+
 #if defined(HAS_BLE)
   struct face_s ble_face;
 #endif
@@ -214,16 +218,7 @@ void ble_send_stats(unsigned char *str, short len)
 
 // ---------------------------------------------------------------------------
 
-#if defined(HAS_LORA)
-
-#if defined(USE_RADIO_LIB)
-# if defined(TINYSSB_BOARD_TDECK)
-   SX1262 radio = new Module(RADIO_CS_PIN, RADIO_DIO1_PIN,
-                             RADIO_RST_PIN, RADIO_BUSY_PIN);
-# endif
-#else
-# include <LoRa.h>
-#endif
+#ifdef HAS_LORA
 
 int lora_send_ok;
 
@@ -259,16 +254,39 @@ void lora_init()
 {
   Serial.println("LoRa init");
 
-  radio.setFrequency(the_lora_config->fr/1000000.0);
-  radio.setBandwidth((double)(the_lora_config->bw));
-  radio.setSpreadingFactor(the_lora_config->sf);
-  radio.setCodingRate(the_lora_config->cr);
-  radio.setSyncWord(the_lora_config->sw);
-  radio.setOutputPower(the_lora_config->tx);
-  radio.setCurrentLimit(140); // (accepted range is 45 - 140 mA), 0=disable
-  radio.setPreambleLength(8); // (accepted range is 0 - 65535)
-  radio.setCRC(false);
+#ifdef USE_RADIO_LIB
+  int rc = radio.begin(the_lora_config->fr/1000000.0);
+  Serial.printf("lora setFr rc=%d\r\n");
+  rc = radio.setBandwidth((double)(the_lora_config->bw));
+  Serial.printf("lora setBw rc=%d\r\n");
+  rc = radio.setSpreadingFactor(the_lora_config->sf);
+  Serial.printf("lora setSf rc=%d\r\n");
+  rc = radio.setCodingRate(the_lora_config->cr);
+  Serial.printf("lora setCr rc=%d\r\n");
+  rc = radio.setSyncWord(the_lora_config->sw);
+  Serial.printf("lora setSw rc=%d\r\n");
+  rc = radio.setOutputPower(the_lora_config->tx);
+  Serial.printf("lora setPr rc=%d\r\n");
+  rc = radio.setCurrentLimit(140); // (accepted range is 45 - 140 mA), 0=disable
+  Serial.printf("lora setCR rc=%d\r\n");
+  rc = radio.setPreambleLength(8); // (accepted range is 0 - 65535)
+  Serial.printf("lora setPL rc=%d\r\n");
+  rc = radio.setCRC(false);
+  Serial.printf("lora I rc=%d\r\n");
   radio.setPacketReceivedAction(newLoraPacket_cb);
+#endif
+#ifdef USE_LORA_LIB
+  LoRa.setTxPower(the_lora_config->tx);
+  LoRa.setSignalBandwidth(the_lora_config->bw);
+  LoRa.setSpreadingFactor(the_lora_config->sf);
+  LoRa.setCodingRate4(the_lora_config->cr);
+  LoRa.setPreambleLength(8);
+  LoRa.setSyncWord(the_lora_config->sw);
+  // LoRa.onReceive(newLoRaPkt);
+  Serial.printf("LoRa configured for fr=%d, bw=%d, sf=%d\r\n",
+                the_lora_config->fr, the_lora_config->bw, the_lora_config->sf);
+  LoRa.receive();
+#endif
 }
 
 
@@ -300,9 +318,8 @@ void lora_send(unsigned char *buf, short len)
 
   lora_transmitting = false;
   radio.startReceive();
-
-#else
-
+#endif
+#ifdef USE_LORA_LIB
   if (LoRa.beginPacket()) {
     lora_pkt_cnt++;
     lora_sent_pkts++;
@@ -310,8 +327,8 @@ void lora_send(unsigned char *buf, short len)
     LoRa.write(buf, len);
     LoRa.write((unsigned char*) &crc, sizeof(crc));
     if (LoRa.endPacket()) {
-      Serial.printf("   LoRa sent %3dB %s..",
-                  len + sizeof(crc), to_hex(buf,7,0)); // + to_hex(buf + len - 6, 6));
+      Serial.printf("l< %dB %s..",
+                    len + sizeof(crc), to_hex(buf,7,0));
       Serial.printf("%s @%d\r\n", to_hex(buf + len - 6, 6, 0), millis());
       lora_send_ok = 1;
     } else
@@ -320,14 +337,13 @@ void lora_send(unsigned char *buf, short len)
       lora_send_ok = 0;
   } else
     Serial.println("   LoRa send failed");
-
-#endif // USE_RADIO_LIB
+#endif // USE_LORA_LIB
 }
 
 
 void lora_loop()
 {
-#if defined(USE_RADIO_LIB)
+#ifdef USE_RADIO_LIB
   lora_fetching = true;
   if (new_lora_pkt) {
     // Serial.println("   lora_poll: new pkt");
@@ -339,6 +355,7 @@ void lora_loop()
       size_t len = radio.getPacketLength();
       if (len <= 0)
         break;
+      theUI->lora_advance_wheel();
       if (len > MAX_PKT_LEN)
         len = MAX_PKT_LEN;
       // Serial.printf("   lora_poll: len=%d\r\n", len);
@@ -359,57 +376,31 @@ void lora_loop()
   }
 
   lora_fetching = false;
-#else // LoRa lib
-    while (-1) {
-    int sz = LoRa.parsePacket();
-    if (sz <= 0)
-      return; // lora_buf.cnt;
-    lora_pkt_cnt++;
-    lora_rcvd_pkts++;
-    if (lora_buf.cnt >= LORA_BUF_CNT) {
-      Serial.printf("   ohh %d, rcvd too many LoRa pkts, cnt=%d\r\n",
-                    sz, lora_buf.cnt);
-      while (sz-- > 0)
-        LoRa.read();
-      continue;
+#endif
+#ifdef USE_LORA_LIB
+    while (1) {
+      int sz = LoRa.parsePacket();
+      if (sz <= 0)
+        return; // lora_buf.cnt;
+      lora_pkt_cnt++;
+      lora_rcvd_pkts++;
+      theUI->lora_advance_wheel();
+      if (lora_face.in_buf->is_full()) {
+        Serial.printf("   ohh %d, rcvd too many LoRa pkts, cnt=%d\r\n",
+                      sz, lora_face.in_buf->get_len());
+        while (sz-- > 0)
+          LoRa.read();
+        continue;
     }
     if (sz > LORA_MAX_LEN)
       sz = LORA_MAX_LEN;
-    unsigned char *pkt = (unsigned char*) lora_buf.buf + lora_buf.offs * (LORA_MAX_LEN+1);
-    unsigned char *ptr = pkt;
-    *ptr++ = sz;
-    while (sz-- > 0)
+    unsigned char buf[LORA_MAX_LEN];
+    unsigned char *ptr = buf;
+    for (int i = 0; i < sz; i++)
       *ptr++ = LoRa.read();
-    lora_buf.offs = (lora_buf.offs + 1) % LORA_BUF_CNT;
-    lora_buf.cnt++;
-    Serial.printf("   rcvd %dB on lora, %s.., now %d pkts in buf\r\n", *pkt, to_hex(pkt+1, 7), lora_buf.cnt);
+    lora_face.in_buf->in(buf, sz);
+    // Serial.printf("l> %dB %s..\r\n", sz, to_hex(buf, 8));
   }
-  /*
-  while (-1) {
-    int sz = LoRa.parsePacket();
-    if (sz <= 0)
-      return lora_buf.cnt;
-    lora_pkt_cnt++;
-    lora_rcvd_pkts++;
-    if (lora_buf.cnt >= LORA_BUF_CNT) {
-      Serial.printf("   ohh %d, rcvd too many LoRa pkts, cnt=%d\r\n",
-                    sz, lora_buf.cnt);
-      while (sz-- > 0)
-        LoRa.read();
-      continue;
-    }
-    if (sz > LORA_MAX_LEN)
-      sz = LORA_MAX_LEN;
-    unsigned char *pkt = (unsigned char*) lora_buf.buf + lora_buf.offs * (LORA_MAX_LEN+1);
-    unsigned char *ptr = pkt;
-    *ptr++ = sz;
-    while (sz-- > 0)
-      *ptr++ = LoRa.read();
-    lora_buf.offs = (lora_buf.offs + 1) % LORA_BUF_CNT;
-    lora_buf.cnt++;
-    Serial.printf("   rcvd %dB on lora, %s.., now %d pkts in buf\r\n", *pkt, to_hex(pkt+1, 7), lora_buf.cnt);
-  }
-  */
 #endif
 }
 
@@ -476,7 +467,7 @@ void bt_send(unsigned char *buf, short len)
 void io_init()
 {
 #if defined(HAS_LORA)
-  ble_init();
+  lora_init();
   lora_face.name = (char*) "lora";
   lora_face.has_crc = true;
   lora_face.next_delta = LORA_INTERPACKET_TIME;

@@ -21,10 +21,10 @@ public:
                     struct face_s *face);
   // void save2log(char *s)
 
-private:
-  int peer_clock;
   unsigned char peer_dmx_req[7];
   unsigned char peer_dmx_rep[7];
+private:
+  int peer_clock;
 
   unsigned long peer_next;
   unsigned long peer_refresh;

@@ -1,5 +1,7 @@
 // const-tdeck.h
 
+#ifdef TINYSSB_BOARD_TDECK
+
 /**
  * @file      utilities.h
  * @author    Lewis He (lewishe@outlook.com)
@@ -9,8 +11,6 @@
  *
  */
 #pragma once
-
-
 
 //! The board peripheral power control pin needs to be set to HIGH when using the peripheral
 #define BOARD_POWERON       10
@@ -55,5 +55,7 @@
 #define BOARD_BOOT_PIN      0
 
 #define BOARD_BL_PIN        42
+
+#endif
 
 // eof

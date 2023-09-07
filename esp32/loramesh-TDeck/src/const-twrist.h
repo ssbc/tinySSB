@@ -1,5 +1,7 @@
 // const-twrist.h
 
+#ifdef TINYSSB_BOARD_TWRIST
+
 #define PIN_MOTOR 4
 #define PIN_KEY GPIO_NUM_35
 #define PWR_EN 5
@@ -12,5 +14,7 @@
 #define SRAM_CS -1
 #define EPD_RESET 17
 #define EPD_BUSY 16
+
+#endif
 
 // eof

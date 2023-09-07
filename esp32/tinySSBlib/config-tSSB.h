@@ -5,6 +5,8 @@
 
 #define CONFIG_FILENAME "/config.bipf"
 
+extern char ssid[];
+
 struct bipf_s* config_load(); // returns a BIPF dict with the persisted config dict
 void           config_save(struct bipf_s *dict); // persist the BIPF dict
 

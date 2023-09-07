@@ -40,9 +40,6 @@ PeersClass::PeersClass()
   Serial.printf("   DMX for PEEQ is %s\r\n", to_hex(peer_dmx_req, 7, 0));
   Serial.printf("   DMX for PEER is %s\r\n", to_hex(peer_dmx_rep, 7, 0));
 
-  // peer_log = MyFS.open(PEERS_FILENAME, FILE_APPEND);
-  // peer_log.printf("\r\nrestart %s\r\n", to_hex(my_mac,6,1));
-
   peer_clock = 0;
 }
 
@@ -57,7 +54,7 @@ void PeersClass::probe_for_peers_beacon(unsigned char **pkt,
   char buf[100];
   sprintf(buf, "Q %02x%02x t=%d", my_mac[4], my_mac[5], peer_clock++);
 
-#if defined(ARDUINO_TBEAM_USE_RADIO_SX1262)
+#ifdef USE_GPS
   if (gps.location.isValid())
     sprintf(buf+strlen(buf), " gps=%.8g,%.8g,%g", gps.location.lat(),
             gps.location.lng(), gps.altitude.meters());
@@ -75,25 +72,27 @@ void PeersClass::incoming_req(unsigned char *pkt, int len, unsigned char *aux,
 {
   // send a reply (pong)
   char str[100];
-  memcpy((unsigned char*) str, pkt+7, len-7);
-  str[len-7] = '\0';
 
+  memcpy((unsigned char*) str, pkt+7, len-7); // extract payload
+  str[len-7] = '\0';
   Serial.printf("   =P.ping <%s> %dB", str, len);
-#if defined(HAS_LORA) && defined(USE_RADIO_LIB)
-  Serial.printf(" rssi=%d snr=%g",
-                str, len, (int) radio.getRSSI(), radio.getSNR());
-#endif
-  Serial.printf("\r\n");
 
   char buf[100];
   sprintf(buf, "R %02x%02x t=%d", my_mac[4], my_mac[5], peer_clock);
-
-#if defined(HAS_LORA) && defined(USE_RADIO_LIB)
-  sprintf(buf+strlen(buf), " rssi=%d snr=%g",
-                                   (int) radio.getRSSI(), radio.getSNR());
-#endif
   
-#if defined(ARDUINO_TBEAM_USE_RADIO_SX1262)
+#ifdef HAS_LORA
+  int rssi, snr;
+# ifdef USE_RADIO_LIB
+  rssi = (int) radio.getRSSI(), snr = radio.getSNR();
+# else
+  rssi = LoRa.packetRssi(), snr = LoRa.packetSnr();
+# endif
+  Serial.printf(" rssi=%d snr=%g", rssi, snr);
+  sprintf(buf+strlen(buf), " rssi=%d snr=%g", rssi, snr);
+#endif
+  Serial.printf("\r\n");
+  
+#ifdef USE_GPS
   if (gps.location.isValid())
     sprintf(buf+strlen(buf), " gps=%.8g,%.8g,%g", gps.location.lat(),
             gps.location.lng(), gps.altitude.meters());
@@ -103,13 +102,13 @@ void PeersClass::incoming_req(unsigned char *pkt, int len, unsigned char *aux,
 
   theSched->schedule_asap((unsigned char*) buf, strlen(buf),
                           peer_dmx_rep, face);
+  // we log the received request via our reply 'R' that we send back
+  peers_log_wr(buf);
 
-  // sprintf(str+strlen(str), " / rssi=%d snr=%g",
-  //        (int) radio.getRSSI(), radio.getSNR());
-  // peer_save2log(str);
-
-  // str[6] = '\0';
-  // theUI->heard_peer(str+2, lora_prssi, lora_psnr);
+#ifdef HAS_LORA
+  str[6] = '\0';
+  theUI->heard_peer(str+2, rssi, snr);
+#endif
 }
 
 
@@ -117,21 +116,41 @@ void PeersClass::incoming_rep(unsigned char *pkt, int len, unsigned char *aux,
                               struct face_s *face)
 {
   char str[100];
+
   memcpy((unsigned char*) str, pkt+7, len-7);
   str[len-7] = '\0';
-
   Serial.printf("   =P.pong <%s> %dB", str, len);
-#if defined(HAS_LORA) && defined(USE_RADIO_LIB)
-  Serial.printf(" rssi=%d snr=%g", (int) radio.getRSSI(), radio.getSNR());
+
+  char buf[100];
+  sprintf(buf, "A %02x%02x t=%d", my_mac[4], my_mac[5], peer_clock);
+  
+#ifdef HAS_LORA
+  int rssi, snr;
+# ifdef USE_RADIO_LIB
+  rssi = (int) radio.getRSSI(), snr = radio.getSNR();
+# else
+  rssi = LoRa.packetRssi(), snr = LoRa.packetSnr();
+# endif
+  Serial.printf(" rssi=%d snr=%g", rssi, snr);
+  sprintf(buf+strlen(buf), " rssi=%d snr=%g", rssi, snr);
 #endif
   Serial.printf("\r\n");
 
-  // sprintf(str+strlen(str), " / rssi=%d snr=%g",
-  //        (int) radio.getRSSI(), radio.getSNR());
-  // peer_save2log(str);
+#ifdef USE_GPS
+  if (gps.location.isValid())
+    sprintf(buf+strlen(buf), " gps=%.8g,%.8g,%g", gps.location.lat(),
+            gps.location.lng(), gps.altitude.meters());
+#endif
 
-  // str[6] = '\0';
-  // theUI->heard_peer(str+2, lora_prssi, lora_psnr);
+  // append what we received, in brackets
+  sprintf(buf+strlen(buf), " [%s]", str);
+  // we log the received reply as 'A'
+  peers_log_wr(buf);
+
+#ifdef HAS_LORA
+  str[6] = '\0';
+  theUI->heard_peer(str+2, rssi, snr);
+#endif
 }
 
 

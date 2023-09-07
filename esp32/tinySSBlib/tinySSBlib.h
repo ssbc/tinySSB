@@ -23,11 +23,12 @@
 
 // files which have a corresponding *.cpp:
 #include "util.h"
+#include "bipf.h"
 #include "config-tSSB.h"
+extern struct bipf_s *the_config;
 #include "ui.h"
 extern UIClass *theUI;
 #include "io.h"
-#include "bipf.h"
 #include "goset.h"
 extern GOsetClass *theGOset;
 #include "dmx.h"
@@ -50,6 +51,19 @@ extern unsigned char my_mac[6];
 #if defined(HAS_UDP) || defined(HAS_BT) || defined(HAS_BLE)
 extern char ssid[];
 #endif
+
+#ifdef HAS_GPS
+# include <TinyGPS++.h>
+  extern TinyGPSPlus gps;
+  extern HardwareSerial GPS;
+#endif
+
+extern void cmd_rx(String cmd);
+extern File lora_log;
+extern File peers_log;
+
+extern void lora_log_wr(char *s);
+extern void peers_log_wr(char *s);
 
 extern void incoming_pkt(unsigned char* buf, int len, unsigned char *fid, struct face_s *);
 extern void incoming_chunk(unsigned char* buf, int len, int blbt_ndx, struct face_s *);

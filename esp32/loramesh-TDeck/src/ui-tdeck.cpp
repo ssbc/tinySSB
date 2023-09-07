@@ -5,6 +5,9 @@
 #include "ui-tdeck.h"
 #include "const-tdeck.h"
 
+#include "lib/cmd.h"
+
+
 #include <SPI.h>
 #include <TFT_eSPI.h>
 // #include "es7210.h"
@@ -20,6 +23,8 @@ TFT_eSPI    tft;
 using namespace ace_button;
 AceButton   button;
 bool        clicked = false;
+
+// ---------------------------------------------------------------------------
 
 TouchLib *touch = NULL;
 uint8_t   touchAddress = GT911_SLAVE_ADDRESS2;

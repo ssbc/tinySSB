@@ -1,8 +1,14 @@
 // loramesh_TDeck.h
 
 #include "src/lib/tinySSBlib.h"
+
+#include "src/ui-tbeam.h"
 #include "src/ui-tdeck.h"
 #include "src/ui-twrist.h"
+
+#include "src/const-tbeam.h"
+#include "src/const-tdeck.h"
+#include "src/const-twrist.h"
 
 #if !defined(UTC_OFFSET)
 # define UTC_OFFSET ""
@@ -17,9 +23,17 @@
 struct bipf_s *the_config;
 
 unsigned char my_mac[6];
-#if defined(HAS_UDP) || defined(HAS_BT) || defined(HAS_BLE)
-  char ssid[sizeof(tSSB_WIFI_SSID) + 6];
+char ssid[sizeof(tSSB_WIFI_SSID) + 6];
+
+#ifdef USE_RADIO_LIB
+# if defined(TINYSSB_BOARD_TBEAM) || defined(TINYSSB_BOARD_TDECK)
+   SX1262 radio = new Module(RADIO_CS_PIN, RADIO_DIO1_PIN,
+                             RADIO_RST_PIN, RADIO_BUSY_PIN);
 #endif
+#endif
+
+File lora_log;
+File peers_log;
 
 DmxClass   *theDmx;
 UIClass    *theUI;
@@ -50,6 +64,28 @@ void probe_for_peers_beacon(unsigned char **pkt,
 
 // ---------------------------------------------------------------------------
 
+char* _ts()
+{
+  static char buf[40];
+
+#ifdef HAS_GPS
+  if (gps.date.isValid()) {
+    sprintf(buf, "-- t=%04d-%02d-%02dT%02d:%02d:%02dZ",
+            gps.date.year(), gps.date.month(), gps.date.day(),
+            gps.time.hour(), gps.time.minute(), gps.time.second());
+    return buf;
+  }
+#endif
+  long now = millis();
+  sprintf(buf, "-- t=%d.%03d", now/1000, now%1000);
+  return buf;
+}
+
+void lora_log_wr(char *s)  {  lora_log.printf("%s %s\r\n", _ts(), s); }
+void peers_log_wr(char *s) { peers_log.printf("%s %s\r\n", _ts(), s); }
+
+// ---------------------------------------------------------------------------
+
 void setup()
 {
   Serial.begin(115200);
@@ -66,10 +102,10 @@ void setup()
   // https://docs.espressif.com/projects/esp-idf/en/release-v3.0/api-reference/system/base_mac_address.html
 #endif
   
-#if defined(HAS_UDP) || defined(HAS_BT) || defined(HAS_BLE)
+  // #if defined(HAS_UDP) || defined(HAS_BT) || defined(HAS_BLE)
   sprintf(ssid, "%s-%s", tSSB_WIFI_SSID, to_hex(my_mac+4, 2));
   Serial.printf("** this is node %s\r\n\r\n", ssid);
-#endif
+  // #endif
   
   if (!MyFS.begin(true)) {
     Serial.println("LittleFS Mount Failed, partition was reformatted");
@@ -82,24 +118,27 @@ void setup()
                 MyFS.totalBytes(), MyFS.usedBytes());
 
   the_config = config_load();
-  /*
+
+#ifdef TINYSSB_BOARD_TDECK
   struct bipf_s k = { BIPF_STRING, 9, {.str = "lora_plan"} };
   struct bipf_s *v = bipf_dict_getref(the_config, &k);
 
   if (v != NULL && v->typ == BIPF_STRING &&
-                                    strncmp("US902.5", v->u.str, v->cnt)) {
+                                           strncmp("US915.b", v->u.str, v->cnt)) {
     bipf_dict_set(the_config, bipf_mkString("lora_plan"),
-                  bipf_mkString("US902.5"));
+                  bipf_mkString("US915.b"));
     config_save(the_config);
   }
-  */
+#endif
 
   // FIXME: we should not print the mgmt signing key to the console ?
   Serial.printf("tinySSB config is %s\r\n",
                 bipf2String(the_config, "\r\n", 1).c_str());
   Serial.println();
 
-#if defined(TINYSSB_BOARD_TDECK)  
+#ifdef TINYSSB_BOARD_TBEAM
+  theUI    = new UI_TBeam_Class();
+#elif defined(TINYSSB_BOARD_TDECK)
   theUI    = new UI_TDeck_Class();
 #elif defined(TINYSSB_BOARD_TWRIST)
   theUI    = new UI_TWrist_Class();
@@ -107,6 +146,25 @@ void setup()
   // theUI->show_node_name(ssid);
   theUI->spinner(true);
 
+#ifdef USE_LORA_LIB
+  SPI.begin(SCK,MISO,MOSI,SS);
+  LoRa.setPins(SS,RST,DI0);  
+  if (!LoRa.begin(the_lora_config->fr)) {
+    char *msg = "Starting LoRa failed!";
+    Serial.println(msg);
+    ((UI_TBeam_Class*)theUI)->show_error_msg(msg);
+    while (1);
+  }
+#endif
+
+  // ((UI_TBeam_Class*)theUI)->show_error_msg("test1");
+  // ((UI_TBeam_Class*)theUI)->show_error_msg("test2");
+
+  lora_log = MyFS.open(LORA_LOG_FILENAME, FILE_APPEND);
+  lora_log_wr("-- starting");
+  peers_log = MyFS.open(PEERS_DATA_FILENAME, FILE_APPEND);
+  peers_log_wr("-- starting");
+  
   io_init(); // network interfaces
 
   theDmx   = new DmxClass();
@@ -149,6 +207,9 @@ void loop()
   theSched->tick(); // send pending packets
 
   theUI->loop();
+
+  if (Serial.available())
+    cmd_rx(Serial.readString());
 
   delay(5);
 }

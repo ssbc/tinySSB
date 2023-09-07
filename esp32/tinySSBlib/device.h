@@ -16,11 +16,19 @@
 
 // ---------------------------------------------------------------------------
 
-#if defined(TINYSSB_BOARD_TBOARD)
+#if defined(TINYSSB_BOARD_TBEAM)
 # define DEVICE_MAKE "Lilygo T-Beam"
 # define HAS_BLE
+# define HAS_GPS
 # define HAS_LORA
-#endif // TINYSSB_BOARD_TBOARD
+# define HAS_OLED
+
+// # define USE_RADIO_LIB // try out both (RadioLib and LoRa)
+// # define USING_SX1262
+
+# define USE_LORA_LIB
+
+#endif // TINYSSB_BOARD_TBEAM
 
 // ---------------------------------------------------------------------------
 
@@ -28,15 +36,9 @@
 # define DEVICE_MAKE "Lilygo T-Deck"
 # define HAS_BLE
 # define HAS_LORA
-# define USE_RADIO_LIB
 
+# define USE_RADIO_LIB
 # define USING_SX1262
-# include "RadioLib.h"
-  extern SX1262 radio;
-# define RADIO_CS_PIN        9
-# define RADIO_BUSY_PIN      13
-# define RADIO_RST_PIN       17
-# define RADIO_DIO1_PIN      45
 #endif // TINYSSB_BOARD_TDECK
 
 // ---------------------------------------------------------------------------
@@ -48,6 +50,15 @@
 
 
 // FS -----------------------------------------------------------------
+
+#ifdef USE_RADIO_LIB
+# include "RadioLib.h"
+  extern SX1262 radio;
+#endif
+
+#ifdef USE_LORA_LIB
+# include "LoRa.h"
+#endif
 
 // #include <SD.h>
 #include <LittleFS.h>

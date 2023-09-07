@@ -5,24 +5,56 @@
 
 // --------------------------------------------------------------------------
 
+void listDir(fs::FS &fs, const char *dirname, uint8_t levels)
+{
+  Serial.printf("Listing directory: %s\r\n", dirname);
+
+  File root = fs.open(dirname);
+  if (!root) {
+    Serial.println("- failed to open directory");
+    return;
+  }
+  if (!root.isDirectory()) {
+    Serial.println(" - not a directory");
+    return;
+  }
+
+  File file = root.openNextFile();
+  int  cnt = 0;
+  while (file) {
+    cnt++;
+    if (file.isDirectory()) {
+      Serial.printf("  DIR : %s\r\n", file.name());
+      if (levels)
+        listDir(fs, file.path(), levels -1);
+    } else
+      Serial.printf("  FILE: %s\tSIZE: %d\r\n", file.name(), file.size());
+    file = root.openNextFile();
+  }
+  if (cnt == 0)
+    Serial.printf("  EMPTY\r\n");
+}
+
+// --------------------------------------------------------------------------
+
 void cmd_rx(String cmd) {
   cmd.toLowerCase();
   cmd.trim();
   Serial.printf("CMD %s\r\n\n", cmd.c_str());
   switch(cmd[0]) {
+
     case '?':
       Serial.println("  ?        help");
       Serial.println("  d        dump GoSET, DMXT and CHKT");
       Serial.println("  f        list file system");
       Serial.println("  i        pretty print the confIg values");
-#if defined(LORA_LOG)
-      Serial.println("  h        list heatmap file");
       Serial.println("  l        list log file");
-      Serial.println("  m        empty log file");
-#endif
+      Serial.println("  m        empty log and peers file");
+      Serial.println("  p        list file with peers data");
       Serial.println("  r        reset this repo to blank");
       Serial.println("  x        reboot");
       break;
+
     case 'd': // dump
       // goset_dump(theGOset);
       Serial.println("Installed feeds:");
@@ -41,8 +73,12 @@ void cmd_rx(String cmd) {
             Serial.printf("  %d.%d\r\n", ndx, theDmx->dmxt[i].seq);
         } else {
           char *d = "?";
+          if (!memcmp(dmx_val, thePeers->peer_dmx_rep, DMX_LEN))
+            d = "<PEER>";
+          if (!memcmp(dmx_val, thePeers->peer_dmx_req, DMX_LEN))
+            d = "<PEEQ>";
           if (!memcmp(dmx_val, theDmx->goset_dmx, DMX_LEN))
-            d = "<GOset>";
+            d = "<GOST>";
           else if (!memcmp(dmx_val, theDmx->want_dmx, DMX_LEN))
             d = "<WANT>";
           else if (!memcmp(dmx_val, theDmx->chnk_dmx, DMX_LEN))
@@ -63,28 +99,21 @@ void cmd_rx(String cmd) {
         Serial.printf("\r\n");
       }
       break;
+
     case 'f': // Directory dump
       Serial.printf("File system: %d total bytes, %d used\r\n",
                     MyFS.totalBytes(), MyFS.usedBytes());
       listDir(MyFS, "/", 2); // FEED_DIR, 2);
       break;
+
     case 'i': { // config values
       // FIXME: we should not print the mgmt signing key to the console ?
       String s = bipf2String(the_config, "\r\n", 0);
       Serial.printf("Configuration values:\r\n%s\r\n", s.c_str());
       break;
     }
-#if 0 && defined(LORA_LOG)
-  case 'h': // list heatmap file
-      hm_log.close();
-      hm_log = MyFS.open(HEATMAP_FILENAME, FILE_READ);
-      while (hm_log.available()) {
-        Serial.write(hm_log.read());
-      }
-      hm_log.close();
-      hm_log = MyFS.open(HEATMAP_FILENAME, FILE_APPEND);
-      break;
-  case 'l': // list Log file
+
+    case 'l': // list Log file
       lora_log.close();
       lora_log = MyFS.open(LORA_LOG_FILENAME, FILE_READ);
       while (lora_log.available()) {
@@ -93,15 +122,29 @@ void cmd_rx(String cmd) {
       lora_log.close();
       lora_log = MyFS.open(LORA_LOG_FILENAME, FILE_APPEND);
       break;
-  case 'm': // empty Log file
+
+    case 'm': // empty Log file
       lora_log.close();
       lora_log = MyFS.open(LORA_LOG_FILENAME, FILE_WRITE);
+      peers_log.close();
+      peers_log = MyFS.open(PEERS_DATA_FILENAME, FILE_WRITE);
       break;
-#endif
+
+    case 'p': // list peer data
+      peers_log.close();
+      peers_log = MyFS.open(PEERS_DATA_FILENAME, FILE_READ);
+      while (peers_log.available()) {
+        Serial.write(peers_log.read());
+      }
+      peers_log.close();
+      peers_log = MyFS.open(PEERS_DATA_FILENAME, FILE_APPEND);
+      break;
+
     case 'r': // reset
       theRepo->reset(NULL); // does not return
       Serial.println("reset done");
       break;
+
     case 'x': // reboot
       Serial.printf(">> reboot cmd\r\n");
       /*
@@ -110,6 +153,7 @@ void cmd_rx(String cmd) {
       */
       esp_restart();
       break;
+
     default:
       Serial.println("unknown command");
       break;
