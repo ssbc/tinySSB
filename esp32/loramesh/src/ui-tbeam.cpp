@@ -2,7 +2,8 @@
 
 #ifdef TINYSSB_BOARD_TBEAM
 
-#include <cstdarg>   // for va_list
+#include <ctype.h>   // for toupper()
+#include <cstdarg>   // for va_list()
 
 #include "ui-tbeam.h"
 
@@ -40,8 +41,9 @@ Button2 userButton;
 char lora_selection; // true if lora plan selection ongoing, else do_io
 long selection_timeout;
 
-void clicked(Button2& btn) {
-  Serial.println("click");
+void clicked(Button2& btn)
+{
+  // Serial.println("click");
   selection_timeout = millis() + 10000;
 
   if (lora_selection) { // cycle through the choices
@@ -56,8 +58,9 @@ void clicked(Button2& btn) {
   }
 }
 
-void long_clicked(Button2& btn) {
-  Serial.println("long_click");
+void long_clicked(Button2& btn)
+{
+  // Serial.println("long_click");
   selection_timeout = millis() + 10000;
 
   if (lora_selection) { // this is our choice
@@ -91,16 +94,8 @@ void long_clicked(Button2& btn) {
 
 // ---------------------------------------------------------------------------
 
-UIClass::UIClass()
+void hw_init()
 {
-  node_name = time = lora_profile = NULL;
-  gps_lon = gps_lat = gps_ele = 0.0;
-  f_cnt = e_cnt = c_cnt = 0;
-  ble_cnt = wifi_cnt = 0;
-  lora_fr = lora_bw = lora_sf = 0;
-
-  memset(peers, 0, sizeof(peers));
-
   // pinMode(BUTTON_PIN, INPUT);
   userButton.begin(BUTTON_PIN);
   userButton.setLongClickTime(1000);
@@ -142,6 +137,22 @@ UIClass::UIClass()
     GPS.begin(9600, SERIAL_8N1, 34, 12);   //17-TX 18-RX
 #endif
   }
+
+}
+
+// ---------------------------------------------------------------------------
+
+UIClass::UIClass()
+{
+  node_name = time = lora_profile = NULL;
+  gps_lon = gps_lat = gps_ele = 0.0;
+  f_cnt = e_cnt = c_cnt = 0;
+  ble_cnt = wifi_cnt = 0;
+  lora_fr = lora_bw = lora_sf = 0;
+
+  memset(peers, 0, sizeof(peers));
+
+  hw_init();
 
   theDisplay.init();
   theDisplay.flipScreenVertically();
@@ -210,6 +221,19 @@ void UI_TBeam_Class::loop()
     }
 #endif
   }
+
+  if (curr_screen == SCREEN_PEERS) {
+    static long next;
+    if (millis() > next) {
+      refresh_screen(curr_screen);
+      next = millis() + 900;
+    }
+  }
+
+#ifdef HAS_GPS
+  while (GPS.available())
+    gps.encode(GPS.read());
+#endif
 }
 
 
@@ -324,17 +348,26 @@ void UI_TBeam_Class::refresh_screen(int scr)
     theDisplay.setFont(ArialMT_Plain_10);
     theDisplay.drawString( 0, 0, "last");
     theDisplay.drawString(35, 0, "peer");
-    theDisplay.drawString(65, 0, "rssi");
-    theDisplay.drawString(95, 0, "snr");
+    theDisplay.drawString(75, 0, "rssi");
+    theDisplay.drawString(105, 0, "snr");
     int y = 14;
     long now = millis();
     for (int i = 0; i < MAX_PEERS; i++) {
       if (peers[i].id[0] == '\0')
         continue;
-      theDisplay.drawString( 0, y, String((peers[i].when - now)/1000));
-      theDisplay.drawString(35, y, peers[i].id);
-      theDisplay.drawString(65, y, String(peers[i].rssi));
-      theDisplay.drawString(95, y, String(peers[i].snr));
+      long since = (peers[i].when - now) / 1000;
+      if (since >= 300) { // remove stale peers
+        peers[i].id[0] = '\0';
+        continue;
+      }
+      theDisplay.drawString( 0, y, String(since));
+      char buf[10];
+      strcpy(buf, peers[i].id); // uppercase is more readable
+      for (int j=0; j < strlen(buf); j++) buf[j] = toupper(buf[j]);
+      theDisplay.drawString(35, y, buf);
+      theDisplay.drawString(75, y, String(peers[i].rssi));
+      sprintf(buf, "%.f1", peers[i].snr);
+      theDisplay.drawString(105, y, buf);
       y += 12;
     }
   }

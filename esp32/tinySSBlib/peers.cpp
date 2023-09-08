@@ -54,7 +54,7 @@ void PeersClass::probe_for_peers_beacon(unsigned char **pkt,
   char buf[100];
   sprintf(buf, "Q %02x%02x t=%d", my_mac[4], my_mac[5], peer_clock++);
 
-#ifdef USE_GPS
+#ifdef HAS_GPS
   if (gps.location.isValid())
     sprintf(buf+strlen(buf), " gps=%.8g,%.8g,%g", gps.location.lat(),
             gps.location.lng(), gps.altitude.meters());
@@ -77,22 +77,23 @@ void PeersClass::incoming_req(unsigned char *pkt, int len, unsigned char *aux,
   str[len-7] = '\0';
   Serial.printf("   =P.ping <%s> %dB", str, len);
 
-  char buf[100];
+  char buf[200];
   sprintf(buf, "R %02x%02x t=%d", my_mac[4], my_mac[5], peer_clock);
   
 #ifdef HAS_LORA
-  int rssi, snr;
+  int rssi;
+  double snr;
 # ifdef USE_RADIO_LIB
   rssi = (int) radio.getRSSI(), snr = radio.getSNR();
 # else
   rssi = LoRa.packetRssi(), snr = LoRa.packetSnr();
 # endif
-  Serial.printf(" rssi=%d snr=%g", rssi, snr);
-  sprintf(buf+strlen(buf), " rssi=%d snr=%g", rssi, snr);
+  Serial.printf(" rssi=%ddBm snr=%.1f", rssi, snr);
+  sprintf(buf+strlen(buf), " rssi=%ddBm snr=%.1f", rssi, snr);
 #endif
   Serial.printf("\r\n");
   
-#ifdef USE_GPS
+#ifdef HAS_GPS
   if (gps.location.isValid())
     sprintf(buf+strlen(buf), " gps=%.8g,%.8g,%g", gps.location.lat(),
             gps.location.lng(), gps.altitude.meters());
@@ -100,6 +101,8 @@ void PeersClass::incoming_req(unsigned char *pkt, int len, unsigned char *aux,
   // append what we received, in brackets
   sprintf(buf+strlen(buf), " [%s]", str);
 
+  if (strlen(buf) >= 113)
+    buf[113] = '\0';
   theSched->schedule_asap((unsigned char*) buf, strlen(buf),
                           peer_dmx_rep, face);
   // we log the received request via our reply 'R' that we send back
@@ -121,22 +124,23 @@ void PeersClass::incoming_rep(unsigned char *pkt, int len, unsigned char *aux,
   str[len-7] = '\0';
   Serial.printf("   =P.pong <%s> %dB", str, len);
 
-  char buf[100];
+  char buf[250];
   sprintf(buf, "A %02x%02x t=%d", my_mac[4], my_mac[5], peer_clock);
   
 #ifdef HAS_LORA
-  int rssi, snr;
+  int rssi;
+  double snr;
 # ifdef USE_RADIO_LIB
   rssi = (int) radio.getRSSI(), snr = radio.getSNR();
 # else
   rssi = LoRa.packetRssi(), snr = LoRa.packetSnr();
 # endif
-  Serial.printf(" rssi=%d snr=%g", rssi, snr);
-  sprintf(buf+strlen(buf), " rssi=%d snr=%g", rssi, snr);
+  Serial.printf(" rssi=%ddBm snr=%.1f", rssi, snr);
+  sprintf(buf+strlen(buf), " rssi=%ddBm snr=%.1f", rssi, snr);
 #endif
   Serial.printf("\r\n");
 
-#ifdef USE_GPS
+#ifdef HAS_GPS
   if (gps.location.isValid())
     sprintf(buf+strlen(buf), " gps=%.8g,%.8g,%g", gps.location.lat(),
             gps.location.lng(), gps.altitude.meters());

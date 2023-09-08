@@ -37,7 +37,7 @@ void UIClass::heard_peer(char *id, int rssi, float snr)
   int i, oldest_i = -1;
 
   for (i = 0; i < MAX_PEERS; i++) {
-    if (!strcmp(peers[i].id, id) || peers[i].id[0] == '\0')
+    if (peers[i].id[0] == '\0' || !strcmp(peers[i].id, id))
       break;
     if (oldest == 0 || oldest < peers[i].when) {
       oldest = peers[i].when;
@@ -53,6 +53,8 @@ void UIClass::heard_peer(char *id, int rssi, float snr)
   peers[i].when = millis();
   peers[i].rssi = rssi;
   peers[i].snr = snr;
+
+  // refresh(); --> let the device-specific UI loop handle this
 }
 
 // eof

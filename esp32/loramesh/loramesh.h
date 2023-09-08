@@ -74,7 +74,7 @@ char* _ts()
   static char buf[40];
 
 #ifdef HAS_GPS
-  if (gps.date.isValid()) {
+  if (gps.date.isValid() && gps.date.year() != 2000) {
     sprintf(buf, "%04d-%02d-%02dT%02d:%02d:%02dZ",
             gps.date.year(), gps.date.month(), gps.date.day(),
             gps.time.hour(), gps.time.minute(), gps.time.second());
@@ -90,7 +90,7 @@ void _wr(File f, char *fmt, va_list ap)
 {
   char buf[250];
   vsprintf(buf, fmt, ap);
-  f.printf("t=%s %s\r\n", _ts(), buf);
+  f.printf("%s %s\r\n", _ts(), buf);
 }
 
 void lora_log_wr(char *fmt, ...)
