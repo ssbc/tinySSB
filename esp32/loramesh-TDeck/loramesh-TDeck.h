@@ -67,7 +67,9 @@ File lora_log;
 File peers_log;
 
 long next_lora_log;
-#define LORA_LOG_INTERVAL  (10*1000)
+long next_serial_ts;
+#define LORA_LOG_INTERVAL  (5*60*1000) // every 5 minutes
+#define SERIAL_TS_INTERVAL (15*1000)   // every 15 sec
 
 char* _ts()
 {
@@ -110,12 +112,17 @@ void time_stamp()
                 theRepo->rplca_cnt, theRepo->entry_cnt, theRepo->chunk_cnt,
                 theDmx->dmxt_cnt, theDmx->chkt_cnt, ESP.getFreeHeap()
                 /* ,lora_sent_pkts, lora_rcvd_pkts, lora_pps */);
-    Serial.printf("-- %s F=%d E=%d C=%d |dmxt|=%d |chkt|=%d |heap|=%d\r\n", _ts(),
-        theRepo->rplca_cnt, theRepo->entry_cnt, theRepo->chunk_cnt,
-        theDmx->dmxt_cnt, theDmx->chkt_cnt, ESP.getFreeHeap()
-        /* ,lora_sent_pkts, lora_rcvd_pkts, lora_pps */);
-
     next_lora_log = millis() + LORA_LOG_INTERVAL;
+  }
+  
+  if (next_serial_ts < millis()) {
+    Serial.printf("-- %s F=%d E=%d C=%d |dmxt|=%d |chkt|=%d |heap|=%d\r\n",
+                  _ts(),
+                  theRepo->rplca_cnt, theRepo->entry_cnt, theRepo->chunk_cnt,
+                  theDmx->dmxt_cnt, theDmx->chkt_cnt, ESP.getFreeHeap()
+                  /* ,lora_sent_pkts, lora_rcvd_pkts, lora_pps */);
+
+    next_serial_ts = millis() + SERIAL_TS_INTERVAL;
   }
 }
 
