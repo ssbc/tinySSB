@@ -4,7 +4,7 @@
 // 2022-2023 <christian.tschudin@unibas.ch>
 
 
-#if !defined(_INCLUDE_BIPF_H)
+#ifndef _INCLUDE_BIPF_H
 #define _INCLUDE_BIPF_H
 
 struct bipf_s {

@@ -5,9 +5,6 @@
 
 // Grow-Only Set
 
-#include <lwip/def.h>
-#include <string.h>
-
 #include "tinySSBlib.h"
 
 

@@ -5,8 +5,10 @@
 
 // persistency for a single feed, using "2FPF" (two files per feed)
 
-#if !defined(_INCLUDE_REPLICA_H)
+#ifndef _INCLUDE_REPLICA_H
 #define _INCLUDE_REPLICA_H
+
+#include "tinySSBlib.h"
 
 
 #define PFX "tinyssb-v0"

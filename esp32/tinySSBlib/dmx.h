@@ -3,8 +3,11 @@
 // tinySSB for ESP32
 // (c) 2022-2023 <christian.tschudin@unibas.ch>
 
-#if !defined(_INCLUDE_DMX_H)
+#ifndef _INCLUDE_DMX_H
 #define _INCLUDE_DMX_H
+
+#include "tinySSBlib.h"
+
 
 #define DMXT_SIZE   (6+GOSET_MAX_KEYS) // we need place for want (1 per feed),
                                        // plus misc protocols (GOset, mgmt, WANT, CHNK)

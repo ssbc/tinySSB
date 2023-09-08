@@ -3,8 +3,11 @@
 // tinySSB for ESP32
 // (c) 2023 <christian.tschudin@unibas.ch>
 
-#if !defined(_INCLUDE_REPO2_H)
+#ifndef _INCLUDE_REPO2_H
 #define _INCLUDE_REPO2_H
+
+#include "tinySSBlib.h"
+
 
 class Repo2Class {
 

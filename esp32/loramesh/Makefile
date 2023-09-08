@@ -4,7 +4,7 @@
 
 # make [BOARD=..] [SERIAL=/dev/tty..] {firmware} {flush}
 
-#    known boards are: TBeam, TDeck, heltec
+#    known boards are: TBeam, TDeck, TWrist, heltec
 #    serial device: we have some heuristics for setting it automatically
 
 

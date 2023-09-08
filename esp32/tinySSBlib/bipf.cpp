@@ -495,6 +495,8 @@ struct bipf_s* str2bipf(char *s) // returns addr of a static (!) BIPF obj
   return &e;
 }
 
+#ifdef __cplusplus
+
 String bipf2String(struct bipf_s *bptr, char *nl, int lev)
 {
   String v, indent, r = nl;
@@ -557,5 +559,7 @@ String bipf2String(struct bipf_s *bptr, char *nl, int lev)
   }
   return "?";
 }
+
+#endif // __cplusplus
 
 // eof

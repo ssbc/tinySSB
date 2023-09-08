@@ -3,6 +3,9 @@
 #if !defined(_INCLUDE_CONFIG_TSSB_H)
 #define _INCLUDE_CONFIG_TSSB_H
 
+#include "tinySSBlib.h"
+
+
 #define CONFIG_FILENAME "/config.bipf"
 
 extern char ssid[];

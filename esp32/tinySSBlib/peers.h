@@ -5,8 +5,7 @@
 #ifndef _INCLUDE_PEERS_H
 #define _INCLUDE_PEERS_H
 
-#include "config.h"
-
+#include "tinySSBlib.h"
 
 class PeersClass {
   

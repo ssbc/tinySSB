@@ -1,6 +1,4 @@
-// loramesh_TDeck.h
-
-#include <cstdarg>   // for va_list
+// loramesh.h
 
 #include "src/lib/tinySSBlib.h"
 
@@ -108,7 +106,7 @@ void peers_log_wr(char *fmt, ...)
 void time_stamp()
 {
   if (next_lora_log < millis()) {
-    lora_log_wr("F=%d E=%d C=%d |dmxt|=%d |chkt|=%d |freeHeap|=%d",
+    lora_log_wr("F=%d E=%d C=%d |dmxt|=%d |chkt|=%d |heap|=%d",
                 theRepo->rplca_cnt, theRepo->entry_cnt, theRepo->chunk_cnt,
                 theDmx->dmxt_cnt, theDmx->chkt_cnt, ESP.getFreeHeap()
                 /* ,lora_sent_pkts, lora_rcvd_pkts, lora_pps */);

@@ -4,7 +4,6 @@
 
 #include <cstdarg>   // for va_list
 
-#include "lib/tinySSBlib.h"
 #include "ui-tbeam.h"
 
 #include <axp20x.h>

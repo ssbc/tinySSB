@@ -5,8 +5,11 @@
 
 // Grow-Only Set
 
-#if !defined(_INCLUDE_GOSET_H)
+#ifndef _INCLUDE_GOSET_H
 #define _INCLUDE_GOSET_H
+
+#include "tinySSBlib.h"
+
 
 #define GOSET_KEY_LEN FID_LEN // 32
 #define GOSET_MAX_KEYS      MAX_FEEDS

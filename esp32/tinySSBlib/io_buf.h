@@ -3,6 +3,9 @@
 #ifndef _INCLUDE_RING_BUFFER
 #define _INCLUDE_RING_BUFFER
 
+#include "tinySSBlib.h"
+
+
 class RingBuffer { // FIFO
 
 public:

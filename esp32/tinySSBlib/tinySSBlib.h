@@ -5,12 +5,14 @@
 
 // collects main configuration details in this header file
 
-#if !defined(_INCLUDE_TINYSSBLIB_H)
+#ifndef _INCLUDE_TINYSSBLIB_H
 #define _INCLUDE_TINYSSBLIB_H
 
 // ---------------------------------------------------------------------------
 
-#include <Arduino.h>
+#ifdef ARDUINO
+# include <Arduino.h>
+#endif
 
 #include <string.h>
 #include <lwip/def.h> // htonl
@@ -50,12 +52,6 @@ extern PeersClass *thePeers;
 extern unsigned char my_mac[6];
 #if defined(HAS_UDP) || defined(HAS_BT) || defined(HAS_BLE)
 extern char ssid[];
-#endif
-
-#ifdef HAS_GPS
-# include <TinyGPS++.h>
-  extern TinyGPSPlus gps;
-  extern HardwareSerial GPS;
 #endif
 
 extern void cmd_rx(String cmd);

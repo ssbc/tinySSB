@@ -1,9 +1,7 @@
 // io_buf.cpp
 
-#include <Arduino.h>
-#include <string.h>
+#include "tinySSBlib.h"
 
-#include "io_buf.h"
 
 RingBuffer::RingBuffer(short capacity, short len)
 {

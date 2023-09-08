@@ -49,6 +49,7 @@
 #endif // TINYSSB_BOARD_TWRIST
 
 
+
 // FS -----------------------------------------------------------------
 
 #ifdef USE_RADIO_LIB
@@ -63,5 +64,15 @@
 // #include <SD.h>
 #include <LittleFS.h>
 #define MyFS LittleFS
+
+
+// GPS ----------------------------------------------------------------
+
+#ifdef HAS_GPS
+# include <TinyGPS++.h>
+  extern TinyGPSPlus gps;
+  extern HardwareSerial GPS;
+#endif
+
 
 // eof
