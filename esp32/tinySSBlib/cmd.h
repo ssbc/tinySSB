@@ -88,9 +88,9 @@ void cmd_rx(String cmd) {
           Serial.printf("  %s\r\n", d);
         }
       }
-      Serial.printf("CHUNK table: (%d entries)\r\n", theDmx->blbt_cnt);
-      for (int i = 0; i < theDmx->blbt_cnt; i++) {
-        struct blb_s *bp = theDmx->blbt + i;
+      Serial.printf("CHUNK table: (%d entries)\r\n", theDmx->chkt_cnt);
+      for (int i = 0; i < theDmx->chkt_cnt; i++) {
+        struct blb_s *bp = theDmx->chkt + i;
         Serial.printf("  %s ", to_hex(bp->h, HASH_LEN, 0));
         for (struct chain_s *tp = bp->front; tp; tp = tp->next) {
           int ndx = theGOset->_key_index(tp->fid);

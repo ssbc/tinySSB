@@ -108,11 +108,11 @@ void time_stamp()
   if (next_lora_log < millis()) {
     lora_log_wr("F=%d E=%d C=%d |dmxt|=%d |chkt|=%d |freeHeap|=%d",
                 theRepo->rplca_cnt, theRepo->entry_cnt, theRepo->chunk_cnt,
-                theDmx->dmxt_cnt, theDmx->blbt_cnt, ESP.getFreeHeap()
+                theDmx->dmxt_cnt, theDmx->chkt_cnt, ESP.getFreeHeap()
                 /* ,lora_sent_pkts, lora_rcvd_pkts, lora_pps */);
     Serial.printf("-- %s F=%d E=%d C=%d |dmxt|=%d |chkt|=%d |heap|=%d\r\n", _ts(),
         theRepo->rplca_cnt, theRepo->entry_cnt, theRepo->chunk_cnt,
-        theDmx->dmxt_cnt, theDmx->blbt_cnt, ESP.getFreeHeap()
+        theDmx->dmxt_cnt, theDmx->chkt_cnt, ESP.getFreeHeap()
         /* ,lora_sent_pkts, lora_rcvd_pkts, lora_pps */);
 
     next_lora_log = millis() + LORA_LOG_INTERVAL;

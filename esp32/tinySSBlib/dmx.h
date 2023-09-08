@@ -3,14 +3,12 @@
 // tinySSB for ESP32
 // (c) 2022-2023 <christian.tschudin@unibas.ch>
 
-// FIXME: in the code, rename blob to chunk (blb_s, blbt,  etc)
-
 #if !defined(_INCLUDE_DMX_H)
 #define _INCLUDE_DMX_H
 
 #define DMXT_SIZE   (6+GOSET_MAX_KEYS) // we need place for want (1 per feed),
                                        // plus misc protocols (GOset, mgmt, WANT, CHNK)
-#define BLBT_SIZE   300                // this size is a guess, too small
+#define CHKT_SIZE   300                // this size is a guess, too small
 #define DMX_PFX     "tinyssb-v0"
 
 struct dmx_s {
@@ -43,8 +41,8 @@ class DmxClass {
  public:
   struct dmx_s dmxt[DMXT_SIZE];
   int dmxt_cnt;
-  struct blb_s blbt[BLBT_SIZE];
-  int blbt_cnt;
+  struct blb_s chkt[CHKT_SIZE];
+  int chkt_cnt;
 
   unsigned char goset_dmx[DMX_LEN];
   unsigned char want_dmx[DMX_LEN];
@@ -52,7 +50,7 @@ class DmxClass {
   unsigned char mgmt_dmx[DMX_LEN];
 
   int _dmxt_index(unsigned char *dmx);
-  int _blbt_index(unsigned char *h);
+  int _chkt_index(unsigned char *h);
   void arm_dmx(unsigned char *dmx,
                void (*fct)(unsigned char*, int, unsigned char*,
                            struct face_s*)=NULL,

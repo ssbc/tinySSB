@@ -3,8 +3,6 @@
 // tinySSB for ESP32
 // (c) 2022-2023 <christian.tschudin@unibas.ch>
 
-// #include <lwip/def.h> // htonl()
-
 
 unsigned int node_next_vector; // time when one of the two next vectors should be sent
 
@@ -206,7 +204,7 @@ void incoming_pkt(unsigned char *buf, int len, unsigned char *fid, struct face_s
   packet_proc_cnt++;
 }
 
-void incoming_chunk(unsigned char *buf, int len, int blbt_ndx, struct face_s *f)
+void incoming_chunk(unsigned char *buf, int len, int chkt_ndx, struct face_s *f)
 {
   // Serial.println("   incoming chunk");
   if (len != TINYSSB_PKT_LEN)
@@ -214,7 +212,7 @@ void incoming_chunk(unsigned char *buf, int len, int blbt_ndx, struct face_s *f)
   unsigned long now = millis();
 
   char is_valid = 0;
-  struct blb_s *bp = theDmx->blbt + blbt_ndx;
+  struct blb_s *bp = theDmx->chkt + chkt_ndx;
   for (struct chain_s *tp = bp->front; tp; tp = tp->next) {
     int ndx = theGOset->_key_index(tp->fid);
     int next_cnr;
@@ -260,11 +258,11 @@ void node_tick()
 #if defined(AXP_DEBUG)
   Serial.printf("%1.04gV ", axp.getBattVoltage()/1000);
 #endif
-  //  Serial.printf("|dmxt|=%d |blbt|=%d |feeds|=%d |entries|=%d |chunks|=%d |freeHeap|=%d pps=%1.2f\r\n",
-  //                theDmx->dmxt_cnt, theDmx->blbt_cnt, theRepo->feed_cnt, theRepo->entry_cnt, theRepo->chunk_cnt, ESP.getFreeHeap(), lora_pps);
-  Serial.printf("%dF%dE%dC |dmxt|=%d |blbt|=%d |freeHeap|=%d lora_sent=%d lora_rcvd=%d pps=%1.2f\r\n",
+  //  Serial.printf("|dmxt|=%d |chkt|=%d |feeds|=%d |entries|=%d |chunks|=%d |freeHeap|=%d pps=%1.2f\r\n",
+  //                theDmx->dmxt_cnt, theDmx->chkt_cnt, theRepo->feed_cnt, theRepo->entry_cnt, theRepo->chunk_cnt, ESP.getFreeHeap(), lora_pps);
+  Serial.printf("%dF%dE%dC |dmxt|=%d |chkt|=%d |freeHeap|=%d lora_sent=%d lora_rcvd=%d pps=%1.2f\r\n",
                 theRepo->rplca_cnt, theRepo->entry_cnt, theRepo->chunk_cnt,
-                theDmx->dmxt_cnt, theDmx->blbt_cnt, ESP.getFreeHeap(),
+                theDmx->dmxt_cnt, theDmx->chkt_cnt, ESP.getFreeHeap(),
                 lora_sent_pkts, lora_rcvd_pkts, lora_pps);
   if (packet_proc_time != 0 && chunk_proc_time != 0) {
     Serial.printf("   t/packet=%6.2g t/chunk=%6.2g (msec)\r\n",

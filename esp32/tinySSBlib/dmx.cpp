@@ -3,8 +3,6 @@
 // tinySSB for ESP32
 // (c) 2022-2023 <christian.tschudin@unibas.ch>
 
-// FIXME: in the code, rename blob to chunk (blb_s, blbt,  etc)
-
 #include <stdio.h>
 #include <string.h>
 
@@ -26,10 +24,10 @@ int DmxClass::_dmxt_index(unsigned char *dmx)
   return -1;
 }
 
-int DmxClass::_blbt_index(unsigned char *h)
+int DmxClass::_chkt_index(unsigned char *h)
 {
-  for (int i = 0; i < this->blbt_cnt; i++) {
-    if (!memcmp(h, this->blbt[i].h, HASH_LEN))
+  for (int i = 0; i < this->chkt_cnt; i++) {
+    if (!memcmp(h, this->chkt[i].h, HASH_LEN))
       return i;
   }
   return -1;
@@ -66,8 +64,8 @@ void DmxClass::arm_blb(unsigned char *h,
              void (*fct)(unsigned char*, int, int, struct face_s*),
                        unsigned char *fid, int seq, int cnr, int last)
 {
-  int ndx = _blbt_index(h);
-  struct blb_s *bptr = ndx < 0 ? NULL : blbt + ndx;
+  int ndx = _chkt_index(h);
+  struct blb_s *bptr = ndx < 0 ? NULL : chkt + ndx;
   if (fct == NULL) {
     // Serial.printf("arm_blb REMOVE\r\n");
     if (bptr != NULL) {
@@ -76,14 +74,14 @@ void DmxClass::arm_blb(unsigned char *h,
         free(bptr->front);
         bptr->front = tp;
       }
-      memmove(bptr, bptr+1, (blbt_cnt - ndx - 1) * sizeof(struct blb_s));
-      blbt_cnt--;
+      memmove(bptr, bptr+1, (chkt_cnt - ndx - 1) * sizeof(struct blb_s));
+      chkt_cnt--;
     }
     return;
   }
   if (bptr == NULL) {
-    ndx = this->blbt_cnt++;
-    bptr = blbt + ndx;
+    ndx = this->chkt_cnt++;
+    bptr = chkt + ndx;
     memset(bptr, 0, sizeof(struct blb_s));
   }
 
@@ -91,16 +89,16 @@ void DmxClass::arm_blb(unsigned char *h,
   // FIXME: could simply below because we always remove the whole chain
   // and we never add the same tuple twice
   if (ndx < 0 && fct != NULL) {
-    if (blbt_cnt >= BLBT_SIZE) {
-      Serial.println("arm_dmx: blbt is full");
+    if (chkt_cnt >= CHKT_SIZE) {
+      Serial.println("arm_dmx: chkt is full");
       return; // full
     }
-    ndx = this->blbt_cnt++;
-    memset(blbt+ndx, 0, sizeof(struct blb_s));
+    ndx = this->chkt_cnt++;
+    memset(chkt+ndx, 0, sizeof(struct blb_s));
   }
   if (ndx < 0)
     return;
-  struct blb_s *bptr = blbt + ndx;
+  struct blb_s *bptr = chkt + ndx;
   struct chain_s *t = bptr->front, **tp = &(bptr->front);
   while (t) { // remove (fid,seq,cnr) tuples from the linked list
     Serial.printf(" wloop %p\r\n", t);
@@ -117,11 +115,11 @@ void DmxClass::arm_blb(unsigned char *h,
   if (fct == NULL) {
     if (bptr->front == NULL) { // remove if linked list empty
       Serial.printf(" remove if empty\r\n");
-      memmove(blbt+ndx, blbt+ndx+1,
-              (blbt_cnt - ndx - 1) * sizeof(struct blb_s));
-      blbt_cnt--;
+      memmove(chkt+ndx, chkt+ndx+1,
+              (chkt_cnt - ndx - 1) * sizeof(struct blb_s));
+      chkt_cnt--;
     } else
-      Serial.printf(" remove from blbt: front not empty\r\n");
+      Serial.printf(" remove from chkt: front not empty\r\n");
     return;
   }
   */
@@ -135,45 +133,45 @@ void DmxClass::arm_blb(unsigned char *h,
   tp->next = bptr->front;
   bptr->front = tp;
   /*
-  int ndx = this->_blbt_index(h);
+  int ndx = this->_chkt_index(h);
   // Serial.printf(" _ arm_blb ndx=%d %s\r\n", ndx, to_hex(h, HASH_LEN));
   if (ndx >= 0) { // this entry will be either erased or newly written to
-    // Serial.printf("   %p\r\n", this->blbt[ndx].fid);
-    // free(this->blbt[ndx].fid);
-    // int fNDX = theGOset->_key_index(this->blbt[ndx].fid);
+    // Serial.printf("   %p\r\n", this->chkt[ndx].fid);
+    // free(this->chkt[ndx].fid);
+    // int fNDX = theGOset->_key_index(this->chkt[ndx].fid);
     // Serial.printf(" _ squashing old CHKTAB entry %d %s %d.%d.%d\r\n",
     //               ndx, to_hex(h, HASH_LEN), fNDX,
-    //               this->blbt[ndx].seq, this->blbt[ndx].bnr);
+    //               this->chkt[ndx].seq, this->chkt[ndx].bnr);
   }
   if (fct == NULL) { // del
     if (ndx >= 0) {
-      // Serial.printf("   ->%p\r\n", this->blbt[ndx].fid);
-      memmove(this->blbt+ndx, this->blbt+ndx+1,
-              (this->blbt_cnt - ndx - 1) * sizeof(struct blb_s));
-      // int fNDX = theGOset->_key_index(this->blbt[ndx].fid);
+      // Serial.printf("   ->%p\r\n", this->chkt[ndx].fid);
+      memmove(this->chkt+ndx, this->chkt+ndx+1,
+              (this->chkt_cnt - ndx - 1) * sizeof(struct blb_s));
+      // int fNDX = theGOset->_key_index(this->chkt[ndx].fid);
       // Serial.printf(" _ del CHKTAB entry %d %s %d.%d.%d\r\n", ndx, to_hex(h, HASH_LEN), fNDX,
-      //               this->blbt[ndx].seq, this->blbt[ndx].bnr);
-      this->blbt_cnt--;
+      //               this->chkt[ndx].seq, this->chkt[ndx].bnr);
+      this->chkt_cnt--;
     }
     return;
   }
   if (ndx == -1) {
-    if (this->blbt_cnt >= BLBT_SIZE) {
-      Serial.println("adm_dmx: blbt is full");
+    if (this->chkt_cnt >= CHKT_SIZE) {
+      Serial.println("adm_dmx: chkt is full");
       return; // full
     }
-    ndx = this->blbt_cnt++;
+    ndx = this->chkt_cnt++;
   }
   // int fNDX = theGOset->_key_index(fid);
   // Serial.printf(" _ new CHKTAB entry @%d %s %d.%d.%d/%d\r\n", ndx,
   //               to_hex(h, HASH_LEN), fNDX, seq, bnr, last);
-  memcpy(this->blbt[ndx].h, h, HASH_LEN);
-  this->blbt[ndx].fct = fct;
-  this->blbt[ndx].fid = fid; // (unsigned char*) malloc(FID_LEN);
-  // memcpy(this->blbt[ndx].fid, fid, FID_LEN);
-  this->blbt[ndx].seq = seq;
-  this->blbt[ndx].bnr = bnr;
-  this->blbt[ndx].last_bnr = last;
+  memcpy(this->chkt[ndx].h, h, HASH_LEN);
+  this->chkt[ndx].fct = fct;
+  this->chkt[ndx].fid = fid; // (unsigned char*) malloc(FID_LEN);
+  // memcpy(this->chkt[ndx].fid, fid, FID_LEN);
+  this->chkt[ndx].seq = seq;
+  this->chkt[ndx].bnr = bnr;
+  this->chkt[ndx].last_bnr = last;
   */
 }
 
@@ -202,9 +200,9 @@ int DmxClass::on_rx(unsigned char *buf, int len, unsigned char *h, struct face_s
     // return 0;  // try also the hash path (colliding DMX values so both handler must be served)
     rc = 0;
   }
-  ndx = this->_blbt_index(h);
+  ndx = this->_chkt_index(h);
   if (ndx >= 0) {
-    this->blbt[ndx].fct(buf, len, ndx, f);
+    this->chkt[ndx].fct(buf, len, ndx, f);
     rc = 0;
   }
 
