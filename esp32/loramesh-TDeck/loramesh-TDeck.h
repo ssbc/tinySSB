@@ -1,5 +1,7 @@
 // loramesh_TDeck.h
 
+#include <cstdarg>   // for va_list
+
 #include "src/lib/tinySSBlib.h"
 
 #include "src/ui-tbeam.h"
@@ -32,9 +34,6 @@ char ssid[sizeof(tSSB_WIFI_SSID) + 6];
 #endif
 #endif
 
-File lora_log;
-File peers_log;
-
 DmxClass   *theDmx;
 UIClass    *theUI;
 Repo2Class *theRepo;
@@ -64,25 +63,61 @@ void probe_for_peers_beacon(unsigned char **pkt,
 
 // ---------------------------------------------------------------------------
 
+File lora_log;
+File peers_log;
+
+long next_lora_log;
+#define LORA_LOG_INTERVAL  (10*1000)
+
 char* _ts()
 {
   static char buf[40];
 
 #ifdef HAS_GPS
   if (gps.date.isValid()) {
-    sprintf(buf, "-- t=%04d-%02d-%02dT%02d:%02d:%02dZ",
+    sprintf(buf, "%04d-%02d-%02dT%02d:%02d:%02dZ",
             gps.date.year(), gps.date.month(), gps.date.day(),
             gps.time.hour(), gps.time.minute(), gps.time.second());
     return buf;
   }
 #endif
   long now = millis();
-  sprintf(buf, "-- t=%d.%03d", now/1000, now%1000);
+  sprintf(buf, "%d.%03d", now/1000, now%1000);
   return buf;
 }
 
-void lora_log_wr(char *s)  {  lora_log.printf("%s %s\r\n", _ts(), s); }
-void peers_log_wr(char *s) { peers_log.printf("%s %s\r\n", _ts(), s); }
+void _wr(File f, char *fmt, va_list ap)
+{
+  char buf[250];
+  vsprintf(buf, fmt, ap);
+  f.printf("t=%s %s\r\n", _ts(), buf);
+}
+
+void lora_log_wr(char *fmt, ...)
+{
+  va_list args; va_start(args, fmt); _wr(lora_log, fmt, args); va_end(args);
+}
+
+void peers_log_wr(char *fmt, ...)
+{
+  va_list args; va_start(args, fmt); _wr(peers_log, fmt, args); va_end(args);
+}
+
+void time_stamp()
+{
+  if (next_lora_log < millis()) {
+    lora_log_wr("F=%d E=%d C=%d |dmxt|=%d |chkt|=%d |freeHeap|=%d",
+                theRepo->rplca_cnt, theRepo->entry_cnt, theRepo->chunk_cnt,
+                theDmx->dmxt_cnt, theDmx->blbt_cnt, ESP.getFreeHeap()
+                /* ,lora_sent_pkts, lora_rcvd_pkts, lora_pps */);
+    Serial.printf("-- %s F=%d E=%d C=%d |dmxt|=%d |chkt|=%d |heap|=%d\r\n", _ts(),
+        theRepo->rplca_cnt, theRepo->entry_cnt, theRepo->chunk_cnt,
+        theDmx->dmxt_cnt, theDmx->blbt_cnt, ESP.getFreeHeap()
+        /* ,lora_sent_pkts, lora_rcvd_pkts, lora_pps */);
+
+    next_lora_log = millis() + LORA_LOG_INTERVAL;
+  }
+}
 
 // ---------------------------------------------------------------------------
 
@@ -161,9 +196,9 @@ void setup()
   // ((UI_TBeam_Class*)theUI)->show_error_msg("test2");
 
   lora_log = MyFS.open(LORA_LOG_FILENAME, FILE_APPEND);
-  lora_log_wr("-- starting");
+  lora_log_wr("** starting");
   peers_log = MyFS.open(PEERS_DATA_FILENAME, FILE_APPEND);
-  peers_log_wr("-- starting");
+  peers_log_wr("** starting");
   
   io_init(); // network interfaces
 
@@ -211,6 +246,7 @@ void loop()
   if (Serial.available())
     cmd_rx(Serial.readString());
 
+  time_stamp();
   delay(5);
 }
 

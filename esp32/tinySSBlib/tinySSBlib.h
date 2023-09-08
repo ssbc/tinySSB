@@ -62,8 +62,8 @@ extern void cmd_rx(String cmd);
 extern File lora_log;
 extern File peers_log;
 
-extern void lora_log_wr(char *s);
-extern void peers_log_wr(char *s);
+extern void lora_log_wr(char *fmt, ...);
+extern void peers_log_wr(char *fmt, ...);
 
 extern void incoming_pkt(unsigned char* buf, int len, unsigned char *fid, struct face_s *);
 extern void incoming_chunk(unsigned char* buf, int len, int blbt_ndx, struct face_s *);

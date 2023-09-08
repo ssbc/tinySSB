@@ -8,9 +8,9 @@
 #if !defined(_INCLUDE_DMX_H)
 #define _INCLUDE_DMX_H
 
-#define DMXT_SIZE   (4+GOSET_MAX_KEYS) // we need place for want (1 per feed),
+#define DMXT_SIZE   (6+GOSET_MAX_KEYS) // we need place for want (1 per feed),
                                        // plus misc protocols (GOset, mgmt, WANT, CHNK)
-#define BLBT_SIZE   100                // this size is a guess
+#define BLBT_SIZE   300                // this size is a guess, too small
 #define DMX_PFX     "tinyssb-v0"
 
 struct dmx_s {
