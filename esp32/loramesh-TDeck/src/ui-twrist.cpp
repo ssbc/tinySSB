@@ -9,6 +9,8 @@
 
 #include "const-twrist.h"
 
+void cmd_rx(String s) {}
+
 // ---------------------------------------------------------------------------
 
 #include "lib/inflate.h"
@@ -20,6 +22,8 @@
 #include "ui-twrist/epd-map_z.h"
 
 int pict = 0; // cycle through the pics
+#define CYCLE_TIME (2*60*1000) // once every 2 minutes
+long next_cycle;
 
 #define BITMAP_SIZE (200*200/8)
 unsigned char scuttleshell_bw[BITMAP_SIZE];
@@ -114,6 +118,7 @@ UI_TWrist_Class::UI_TWrist_Class()
   // gXdisplay.drawBitmap(scuttleshell_bw, 200*200/8, GxEPD::bm_partial_update);
 
   curr_screen = SCREEN_SPLASH;
+  next_cycle = millis() + CYCLE_TIME;
 }
 
 
@@ -138,6 +143,9 @@ void UI_TWrist_Class::buzz()
 void UI_TWrist_Class::loop()
 {
   userButton.loop();
+
+  if (curr_screen == SCREEN_SPLASH && next_cycle !=0 && next_cycle < millis())
+    refresh_screen(curr_screen);
 }
 
 
@@ -151,16 +159,6 @@ void UI_TWrist_Class::to_next_screen()
 {
   curr_screen = (curr_screen + 1) % SCREEN_OFF;
   refresh_screen(curr_screen);
-  /*
-  gXdisplay.setFont(&FreeMonoBold9pt7b);
-  gXdisplay.setTextColor(GxEPD_WHITE);
-  gXdisplay.setCursor(60, 40);
-  gXdisplay.println("hello1");
-  gXdisplay.setTextColor(GxEPD_BLACK);
-  gXdisplay.setCursor(60, 60);
-  gXdisplay.println("hello2");
-  gXdisplay.update();
-  */
 }
 
 
@@ -190,6 +188,7 @@ void UI_TWrist_Class::refresh_screen(int scr)
     gXdisplay.setCursor(145, 11);
     gXdisplay.println(ssid+7);
     pict = (pict + 1) % (sizeof(gallery) / sizeof(unsigned char*));
+    next_cycle = millis() + CYCLE_TIME;
 /*
   } else if (false && scr == SCREEN_NODE) {
     gXdisplay.fillScreen(GxEPD_WHITE);
@@ -227,55 +226,6 @@ void UI_TWrist_Class::refresh_screen(int scr)
     
     pos_key_val(120, "WiFi", "%d", wifi_cnt);
 
-    // gXdisplay.setCursor(0, 195);
-    // gXdisplay.println("v2023-09-05 14:38+0200");
-
-    /* node
-    theDisplay.setFont(ArialMT_Plain_16);
-    theDisplay.drawString(0 , 0, "SSB.virt.lora.pub");
-    theDisplay.setFont(ArialMT_Plain_10);
-    theDisplay.drawString(0 , 17, __DATE__ " " __TIME__ UTC_OFFSET);
-
-    int f = the_lora_config->fr / 10000;
-    char fr[30];
-    sprintf(fr, "%d.%02d MHz", f/100, f%100);
-    theDisplay.setFont(ArialMT_Plain_24);
-    theDisplay.drawString(0, 30, fr);
-    sprintf(fr, "%s    SF%d BW%d", the_lora_config->plan,
-      the_lora_config->sf, (int)(the_lora_config->bw/1000));
-    theDisplay.setFont(ArialMT_Plain_10);
-    theDisplay.drawString(0, 54, fr);
-    */
-    /*
-    theDisplay.setFont(ArialMT_Plain_10);
-    theDisplay.drawString(0, 3, tSSB_WIFI_SSID "-");
-    theDisplay.setFont(ArialMT_Plain_16);
-    theDisplay.drawString(42, 0, my_ssid+8);
-    theDisplay.setFont(ArialMT_Plain_10);
-
-     if (r_time)
-      theDisplay.drawString(0, 18, r_time);
-
-    char stat_line[30];
-    char gps_synced = 0;
-# if !defined(NO_GPS)
-    gps_synced = gps.location.isValid() ? 1 : 0;
-#endif
-    sprintf(stat_line, "W:%d E:%d G:%d L:%s",
-            r_wifi_peers, r_ble_peers, r_gps_valid, wheel[r_lora_wheel % 4]);
-    theDisplay.drawString(0, 30, stat_line);
-
-    theDisplay.setFont(ArialMT_Plain_16);
-    right_aligned(repo->rplca_cnt, 'F', 0); 
-    right_aligned(repo->entry_cnt, 'E', 22); 
-    right_aligned(repo->chunk_cnt, 'C', 44); 
-
-    int total = MyFS.totalBytes();
-    int avail = total - MyFS.usedBytes();
-    char buf[10];
-    sprintf(buf, "%2d%% free", avail / (total/100));
-    theDisplay.drawString(0, 44, buf);
-    */
     gXdisplay.setCursor(85, 202);
     gXdisplay.println("o -");
   } else if (scr == UI_TWrist_Class::SCREEN_PEERS) {
@@ -288,29 +238,6 @@ void UI_TWrist_Class::refresh_screen(int scr)
     for (int i = 0; i < 200; i++)
       gXdisplay.drawPixel(i, 16, GxEPD_BLACK);
 
-    //gXdisplay.setCursor(0, 200);
-    // gXdisplay.println(">");
-    // gXdisplay.updateWindow(0, 190, 10, 10);
-
-    /*
-    theDisplay.setFont(ArialMT_Plain_10);
-    theDisplay.drawString( 0, 0, "last");
-    theDisplay.drawString(35, 0, "peer");
-    theDisplay.drawString(65, 0, "rssi");
-    theDisplay.drawString(95, 0, "snr");
-    int y = 14;
-    // theDisplay.setFont(ArialMT_Plain_10);
-    long now = millis();
-    for (int i = 0; i < MAX_PEERS; i++) {
-      if (peers[i].id[0] == '\0')
-        continue;
-      theDisplay.drawString( 0, y, String((peers[i].when - now)/1000));
-      theDisplay.drawString(35, y, peers[i].id);
-      theDisplay.drawString(65, y, String(peers[i].rssi));
-      theDisplay.drawString(95, y, String(peers[i].snr));
-      y += 12;
-    }
-    */
     gXdisplay.setCursor(85, 202);
     gXdisplay.println("- o");
   }
