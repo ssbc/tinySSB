@@ -4,7 +4,7 @@
 
 # make [BOARD=..] [SERIAL=/dev/tty..] {firmware} {flush}
 
-#    known boards are: TBeam, TDeck, TWrist, heltec
+#    known boards are: TBeam, TDeck, TWrist, T5gray, heltec
 #    serial device: we have some heuristics for setting it automatically
 
 
@@ -61,6 +61,17 @@ ifeq ($(BOARD),heltec)
   MAX_UPLOAD=1572864 # 1.5MB
   FLASH_SIZE=8MB
   FLASH_OFFS=0x1000
+
+else ifeq ($(BOARD),T5gray)
+  BAUD=460800
+  CHIP=esp32
+  FQBN=esp32:esp32:esp32
+  PARTITIONS_CSV=partitions-t5gray.csv
+  MAX_UPLOAD=1572864 # 1.5MB
+  FLASH_SIZE=4MB
+  FLASH_OFFS=0x1000
+  FLAGS_BOARD=-DTINYSSB_BOARD_T5GRAY -DESP32 -DCORE_DEBUG_LEVEL=0 -DARDUINO_RUNNING_CORE=1 -DARDUINO_EVENT_RUNNING_CORE=1 -DARDUINO_USB_CDC_ON_BOOT=0
+
 else ifeq ($(BOARD),TBeam)
   CHIP=esp32
   FQBN=esp32:esp32:t-beam
@@ -69,6 +80,7 @@ else ifeq ($(BOARD),TBeam)
   FLASH_SIZE=4MB
   FLASH_OFFS=0x1000
   FLAGS_BOARD=-DTINYSSB_BOARD_TBEAM -DESP32 -DCORE_DEBUG_LEVEL=0 -DARDUINO=10607 -DARDUINO_TBEAM_USE_RADIO_SX1262 -DARDUINO_ARCH_ESP32 -DARDUINO_BOARD=TBEAM_USE_RADIO_SX1262 -DARDUINO_VARIANT=tbeam -DARDUINO_USB_CDC_ON_BOOT=0
+
 else ifeq ($(BOARD),TDeck)
   CHIP=esp32s3
   FQBN=esp32:esp32:esp32s3:PSRAM=opi,FlashSize=16M,CDCOnBoot=cdc
@@ -77,6 +89,7 @@ else ifeq ($(BOARD),TDeck)
   FLASH_SIZE=16MB
   FLASH_OFFS=0x0
   FLAGS_BOARD=-DTINYSSB_BOARD_TDECK -DESP32 -DCORE_DEBUG_LEVEL=0 -DARDUINO_RUNNING_CORE=1 -DARDUINO_EVENT_RUNNING_CORE=1 -DBOARD_HAS_PSRAM -DARDUINO_USB_MODE=1 -DARDUINO_USB_CDC_ON_BOOT=1 -DARDUINO_USB_MSC_ON_BOOT=0 -DARDUINO_USB_DFU_ON_BOOT=0
+
 else ifeq ($(BOARD),TWrist)
   BAUD=460800
   CHIP=esp32
@@ -86,6 +99,7 @@ else ifeq ($(BOARD),TWrist)
   FLASH_SIZE=4MB
   FLASH_OFFS=0x1000
   FLAGS_BOARD=-DTINYSSB_BOARD_TWRIST -DESP32 -DCORE_DEBUG_LEVEL=0 -DARDUINO_RUNNING_CORE=1 -DARDUINO_EVENT_RUNNING_CORE=1 -DARDUINO_USB_CDC_ON_BOOT=0
+
 else
   $(info ">> unknown board $(BOARD)")
   stop
@@ -94,6 +108,8 @@ endif
 ifndef SERIAL
   ifeq ($(BOARD),heltec) # heltec LORA32
     SERIAL = $(shell ls /dev/tty.usbserial-????)
+  else ifeq ($(BOARD),T5gray)
+    SERIAL = $(shell ls /dev/tty.usbserial-???????????)
   else ifeq ($(BOARD),TDeck)
     SERIAL = $(shell ls /dev/tty.usbmodem*)
   else ifeq ($(BOARD),TWrist)

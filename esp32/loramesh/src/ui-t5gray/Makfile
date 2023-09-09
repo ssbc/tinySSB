@@ -1,0 +1,7 @@
+# Makefile
+
+all:
+        ./imgDeflate.py -i scuttleshell.png -n scuttleshell -o scuttleshell_z.h 
+        ./imgDeflate.py -i mushroom.jpg -n mushroom -o mushroom_z.h
+
+# eof

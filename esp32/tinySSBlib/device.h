@@ -16,7 +16,17 @@
 
 // ---------------------------------------------------------------------------
 
-#if defined(TINYSSB_BOARD_TBEAM)
+#ifdef TINYSSB_BOARD_T5GRAY
+// https://www.lilygo.cc/products/t5-2-13inch-e-paper
+# define DEVICE_MAKE "Lilygo T5-Grayscale"
+# define HAS_BLE
+
+#endif // TINYSSB_BOARD_T5GRAY
+
+// ---------------------------------------------------------------------------
+
+#ifdef TINYSSB_BOARD_TBEAM
+// https://www.lilygo.cc/products/t-beam-v1-1-esp32-lora-module
 # define DEVICE_MAKE "Lilygo T-Beam"
 # define HAS_BLE
 # define HAS_GPS
@@ -32,7 +42,8 @@
 
 // ---------------------------------------------------------------------------
 
-#if defined(TINYSSB_BOARD_TDECK)
+#ifdef TINYSSB_BOARD_TDECK
+// https://www.lilygo.cc/products/t-deck
 # define DEVICE_MAKE "Lilygo T-Deck"
 # define HAS_BLE
 # define HAS_LORA
@@ -43,10 +54,13 @@
 
 // ---------------------------------------------------------------------------
 
-#if defined(TINYSSB_BOARD_TWRIST)
+#ifdef TINYSSB_BOARD_TWRIST
+// https://www.lilygo.cc/products/t-wrist-e-paper-1-54-inch-display
 # define DEVICE_MAKE "Lilygo T-Wrist"
 # define HAS_BLE
+
 #endif // TINYSSB_BOARD_TWRIST
+
 
 
 

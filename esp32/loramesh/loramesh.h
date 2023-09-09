@@ -2,6 +2,7 @@
 
 #include "src/lib/tinySSBlib.h"
 
+#include "src/ui-t5gray.h"
 #include "src/ui-tbeam.h"
 #include "src/ui-tdeck.h"
 #include "src/ui-twrist.h"
@@ -176,7 +177,9 @@ void setup()
                 bipf2String(the_config, "\r\n", 1).c_str());
   Serial.println();
 
-#ifdef TINYSSB_BOARD_TBEAM
+#if defined(TINYSSB_BOARD_T5GRAY)
+  theUI    = new UI_T5gray_Class();
+#elif defined(TINYSSB_BOARD_TBEAM)
   theUI    = new UI_TBeam_Class();
 #elif defined(TINYSSB_BOARD_TDECK)
   theUI    = new UI_TDeck_Class();
