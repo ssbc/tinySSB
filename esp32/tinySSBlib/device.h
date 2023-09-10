@@ -101,7 +101,6 @@
 #ifdef HAS_GPS
 # include <TinyGPS++.h>
   extern TinyGPSPlus gps;
-  extern HardwareSerial GPS;
 #endif
 
 

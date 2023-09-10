@@ -2,8 +2,10 @@
 
 #if defined(TINYSSB_BOARD_TDECK)
 
+#include "lib/tinySSBlib.h"
+
+#include "hardware.h"
 #include "ui-tdeck.h"
-#include "const-tdeck.h"
 
 #include "lib/cmd.h"
 

@@ -5,33 +5,23 @@
 #include <ctype.h>   // for toupper()
 #include <cstdarg>   // for va_list()
 
+#include "hardware.h"
 #include "ui-tbeam.h"
-
-#include <axp20x.h>
-#include <Wire.h>
-AXP20X_Class axp;
-
-#ifdef HAS_GPS
-TinyGPSPlus gps;
-HardwareSerial GPS(1);
-#endif
-
-#ifdef HAS_OLED
-# include <SSD1306.h> // display
-SSD1306 theDisplay(0x3c, 21, 22); // lilygo t-beam
-#endif
 
 #include "lib/cmd.h"
 
 // ---------------------------------------------------------------------------
 
-// #include "lib/inflate.h"
-
-#define BITMAP_SIZE (200*200/8)
-
-// ---------------------------------------------------------------------------
+#ifdef HAS_GPS
+  extern HardwareSerial GPS;
+#endif
 
 // Display
+
+#ifdef HAS_OLED
+# include <SSD1306.h> // display
+SSD1306 theDisplay(0x3c, 21, 22); // lilygo t-beam
+#endif
 
 // ---------------------------------------------------------------------------
 
@@ -94,54 +84,6 @@ void long_clicked(Button2& btn)
 
 // ---------------------------------------------------------------------------
 
-void hw_init()
-{
-  // pinMode(BUTTON_PIN, INPUT);
-  userButton.begin(BUTTON_PIN);
-  userButton.setLongClickTime(1000);
-  userButton.setClickHandler(clicked);
-  userButton.setLongClickDetectedHandler(long_clicked);
-
-  pinMode(16,OUTPUT);
-  digitalWrite(16, LOW);    // set GPIO16 low to reset OLED
-  delay(50); 
-  digitalWrite(16, HIGH); // while OLED is running, must set GPIO16 in high、
-  /*
-  OLED_toggle();
-  */
-
-  Wire.begin(21, 22);
-  if (axp.begin(Wire, AXP192_SLAVE_ADDRESS)) {
-    Serial.println("AXP192 Begin FAIL");
-  } else {
-    // Serial.println("AXP192 Begin PASS");
-#ifdef HAS_LORA
-    axp.setPowerOutPut(AXP192_LDO2, AXP202_ON);
-#else
-    axp.setPowerOutPut(AXP192_LDO2, AXP202_OFF);
-#endif
-#ifdef HAS_GPS
-    axp.setPowerOutPut(AXP192_LDO3, AXP202_ON);
-#else
-    axp.setPowerOutPut(AXP192_LDO3, AXP202_OFF);
-#endif
-    axp.setPowerOutPut(AXP192_DCDC2, AXP202_ON);
-    axp.setPowerOutPut(AXP192_EXTEN, AXP202_ON);
-#ifdef HAS_OLED
-    axp.setPowerOutPut(AXP192_DCDC1, AXP202_ON); // OLED
-#else
-    axp.setPowerOutPut(AXP192_DCDC1, AXP202_OFF); // no OLED
-#endif
-
-#ifdef HAS_GPS
-    GPS.begin(9600, SERIAL_8N1, 34, 12);   //17-TX 18-RX
-#endif
-  }
-
-}
-
-// ---------------------------------------------------------------------------
-
 UIClass::UIClass()
 {
   node_name = time = lora_profile = NULL;
@@ -152,7 +94,11 @@ UIClass::UIClass()
 
   memset(peers, 0, sizeof(peers));
 
-  hw_init();
+  // pinMode(BUTTON_PIN, INPUT);
+  userButton.begin(BUTTON_PIN);
+  userButton.setLongClickTime(1000);
+  userButton.setClickHandler(clicked);
+  userButton.setLongClickDetectedHandler(long_clicked);
 
   theDisplay.init();
   theDisplay.flipScreenVertically();

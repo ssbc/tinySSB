@@ -8,10 +8,7 @@
 #include "src/ui-tdeck.h"
 #include "src/ui-twrist.h"
 
-#include "src/const-heltec.h"
-#include "src/const-tbeam.h"
-#include "src/const-tdeck.h"
-#include "src/const-twrist.h"
+#include "src/hardware.h"
 
 #if !defined(UTC_OFFSET)
 # define UTC_OFFSET ""
@@ -149,7 +146,9 @@ void setup()
   sprintf(ssid, "%s-%s", tSSB_WIFI_SSID, to_hex(my_mac+4, 2));
   Serial.printf("** this is node %s\r\n\r\n", ssid);
   // #endif
-  
+
+  hw_init();
+
   if (!MyFS.begin(true)) {
     Serial.println("LittleFS Mount Failed, partition was reformatted");
     // return;
@@ -205,6 +204,7 @@ void setup()
       delay(2000);
     }
   }
+  // LoRa.setTxPower(the_lora_config->tx, RF_PACONFIG_PASELECT_PABOOST);
 #endif
 
   // ((UI_TBeam_Class*)theUI)->show_error_msg("test1");
@@ -250,12 +250,13 @@ void setup()
 
   theUI->spinner(false);
   theUI->buzz();
-  theUI->refresh();
 
   char *msg = "end of setup\n";
   theUI->show_boot_msg(msg);
   Serial.println(msg);
   delay(1000);
+
+  theUI->refresh();
 }
 
 

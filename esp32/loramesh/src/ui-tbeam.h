@@ -4,8 +4,6 @@
 #define _INCLUDE_UI_TBEAM_H
 
 #include "lib/tinySSBlib.h"
-#include "const-tbeam.h"
-
 
 class UI_TBeam_Class: public UIClass {
 

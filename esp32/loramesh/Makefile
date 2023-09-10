@@ -4,7 +4,7 @@
 
 # make [BOARD=..] [SERIAL=/dev/tty..] {firmware} {flush}
 
-#    known boards are: TBeam, TDeck, TWrist, T5gray, Heltec
+#    known boards are: Heltec, T5gray, TBeam, TDeck, TWrist
 #    serial device: we have some heuristics for setting it automatically
 
 
@@ -41,9 +41,8 @@ endif
 ESPTOOL=$(shell find $(ARDUINO_ESP_DIR)/tools -name "esptool$(ESPTOOL_EXT)";)
 BOOTAPP0PATH=$(shell find $(ARDUINO_ESP_DIR)/hardware -name "boot_app0.bin";)
 
-ifdef BOARD
-else
-  $(info ">> please specify a BOARD")
+ifndef BOARD
+  $(info ">> please specify a BOARD (Heltec, T5gray, TBeam, TDeck, TWrist)")
   stop
 endif
 
@@ -140,12 +139,12 @@ monitor:
 
 firmware:
 	rm -f partitions.csv
-	ln -s src/$(PARTITIONS_CSV) partitions.csv
+	ln -s assets/$(PARTITIONS_CSV) partitions.csv
 	mkdir -p build
 	$(ARDUINO_CLI) compile -v \
 		--build-path ./build \
 		--fqbn $(FQBN) $(MAIN) \
-		--build-property build.partitions=$(PARTITIONS_CSV) \
+		--build-property build.partitions=assets/$(PARTITIONS_CSV) \
 		--build-property upload.maximum_size=$(MAX_UPLOAD) \
 		$(EXTRA_CPP_FLAGS) \
 		&& \

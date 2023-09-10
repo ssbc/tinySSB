@@ -5,9 +5,9 @@
 #include <cstdarg>   // for va_list
 
 #include "lib/tinySSBlib.h"
-#include "ui-twrist.h"
 
-#include "const-twrist.h"
+#include "hardware.h"
+#include "ui-twrist.h"
 
 void cmd_rx(String s) {}
 

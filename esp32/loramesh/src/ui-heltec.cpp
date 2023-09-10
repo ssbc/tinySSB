@@ -5,8 +5,8 @@
 #include <ctype.h>   // for toupper()
 #include <cstdarg>   // for va_list()
 
+#include "hardware.h"
 #include "ui-heltec.h"
-#include "const-heltec.h"
 
 
 // user button
@@ -94,25 +94,6 @@ void long_clicked(Button2& btn)
 
 // ---------------------------------------------------------------------------
 
-void hw_init()
-{
-  pinMode(RST_OLED, OUTPUT);
-  digitalWrite(RST_OLED, LOW);
-  delay(50);
-  digitalWrite(RST_OLED, HIGH);
-
-  display = new SSD1306Wire(0x3c, SDA_OLED, SCL_OLED, GEOMETRY_128_64);
-
-  // LoRa.setTxPower(the_lora_config->tx, RF_PACONFIG_PASELECT_PABOOST);
-
-  // pinMode(BUTTON_PIN, INPUT);
-  userButton.begin(BUTTON_PIN);
-  userButton.setLongClickTime(1000);
-  userButton.setClickHandler(clicked);
-  userButton.setLongClickDetectedHandler(long_clicked);
-  
-}
-
 // ---------------------------------------------------------------------------
 
 UIClass::UIClass()
@@ -125,7 +106,19 @@ UIClass::UIClass()
 
   memset(peers, 0, sizeof(peers));
 
-  hw_init();
+  // pinMode(BUTTON_PIN, INPUT);
+  userButton.begin(BUTTON_PIN);
+  userButton.setLongClickTime(1000);
+  userButton.setClickHandler(clicked);
+  userButton.setLongClickDetectedHandler(long_clicked);
+
+  // OLED display
+  pinMode(RST_OLED, OUTPUT);
+  digitalWrite(RST_OLED, LOW);
+  delay(50);
+  digitalWrite(RST_OLED, HIGH);
+
+  display = new SSD1306Wire(0x3c, SDA_OLED, SCL_OLED, GEOMETRY_128_64);
 
   theDisplay.init();
   theDisplay.flipScreenVertically();

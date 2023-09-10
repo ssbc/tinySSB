@@ -5,9 +5,9 @@
 #include <cstdarg>   // for va_list
 
 #include "lib/tinySSBlib.h"
-#include "ui-t5gray.h"
 
-#include "const-t5gray.h"
+#include "hardware.h"
+#include "ui-t5gray.h"
 
 void cmd_rx(String s) {}
 
