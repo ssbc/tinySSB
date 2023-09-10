@@ -362,22 +362,22 @@ static void four_button_cb(lv_event_t *e)
   ((UI_TDeck_Class*)theUI)->_four_button_cb(e);
 }
 
-LV_IMG_DECLARE(splash);
-LV_IMG_DECLARE(tremola);
+#include "../assets/tdeck/splash.h"
+#include "../assets/tdeck/tremola.h"
 
-LV_IMG_DECLARE(chat);
-LV_IMG_DECLARE(chat_checked);
-LV_IMG_DECLARE(contacts);
-LV_IMG_DECLARE(contacts_checked);
-LV_IMG_DECLARE(haze0);
-LV_IMG_DECLARE(haze1);
-LV_IMG_DECLARE(haze2);
-LV_IMG_DECLARE(menu);
-LV_IMG_DECLARE(return_btn);
-LV_IMG_DECLARE(signal_btn);
-LV_IMG_DECLARE(signal_btn_checked);
-LV_IMG_DECLARE(tab_left);
-LV_IMG_DECLARE(tab_right);
+#include "../assets/tdeck/chat.h"
+#include "../assets/tdeck/chat_checked.h"
+#include "../assets/tdeck/contacts.h"
+#include "../assets/tdeck/contacts_checked.h"
+#include "../assets/tdeck/haze0.h"
+#include "../assets/tdeck/haze1.h"
+#include "../assets/tdeck/haze2.h"
+#include "../assets/tdeck/menu.h"
+#include "../assets/tdeck/return_btn.h"
+#include "../assets/tdeck/signal_btn.h"
+#include "../assets/tdeck/signal_btn_checked.h"
+#include "../assets/tdeck/tab_left.h"
+#include "../assets/tdeck/tab_right.h"
 
 
 void UI_TDeck_Class::refresh()
