@@ -26,7 +26,7 @@ public:
 
   void to_next_screen();
   void refresh_screen(int n);
-  void show_error_msg(char *s);
+  void show_boot_msg(char *s);
 
   char curr_screen;
 private:

@@ -401,15 +401,30 @@ void printPower(uint16_t x, uint16_t y)
 }
 */
 
-int err_cnt;
-
-void UI_TBeam_Class::show_error_msg(char *s)
+void UI_TBeam_Class::show_boot_msg(char *s)
 {
 #ifdef HAS_OLED
-  theDisplay.setFont(ArialMT_Plain_16);
-  theDisplay.drawString(0, 20 + err_cnt * 16, "> " + String(s));
+#define MAX_BOOT_MSGS 4
+  static char* boot_msgs[MAX_BOOT_MSGS];
+  static short cnt;
+  static short n = 1;
+
+  if (cnt == MAX_BOOT_MSGS) {
+    theDisplay.clear();
+    theDisplay.setFont(ArialMT_Plain_16);
+    theDisplay.drawString(0, 0, "starting");
+    memmove(boot_msgs, boot_msgs+1, 3*sizeof(char*));
+    cnt--;
+    n++;
+    theDisplay.setFont(ArialMT_Plain_10);
+    for (int i = 0; i < cnt; i++)
+      theDisplay.drawString(0, 18 + i * 12, String(n+i) + "> " + String(boot_msgs[i]));
+  }
+  boot_msgs[cnt] = s;
+  theDisplay.setFont(ArialMT_Plain_10);
+  theDisplay.drawString(0, 18 + cnt * 12, String(n+cnt) + "> " + String(s));
   theDisplay.display();
-  err_cnt++;
+  cnt++;
 #endif
 }
 

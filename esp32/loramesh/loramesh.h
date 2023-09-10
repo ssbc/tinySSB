@@ -194,11 +194,12 @@ void setup()
   theUI->spinner(true);
 
 #ifdef USE_LORA_LIB
+  theUI->show_boot_msg("LoRa init");
   SPI.begin(SCK,MISO,MOSI,SS);
   LoRa.setPins(SS,RST,DI0);  
   if (!LoRa.begin(the_lora_config->fr)) {
-    char *msg = "Starting LoRa failed!";
-    theUI->show_error_msg(msg);
+    char *msg = "  LoRa init failed!";
+    theUI->show_boot_msg(msg);
     while (1) {
       Serial.println(msg);
       delay(2000);
@@ -209,11 +210,13 @@ void setup()
   // ((UI_TBeam_Class*)theUI)->show_error_msg("test1");
   // ((UI_TBeam_Class*)theUI)->show_error_msg("test2");
 
+  theUI->show_boot_msg("setup log files");
   lora_log = MyFS.open(LORA_LOG_FILENAME, FILE_APPEND);
   lora_log_wr("** starting");
   peers_log = MyFS.open(PEERS_DATA_FILENAME, FILE_APPEND);
   peers_log_wr("** starting");
   
+  theUI->show_boot_msg("init BLE, WIFI");
   io_init(); // network interfaces
 
   theDmx   = new DmxClass();
@@ -232,6 +235,7 @@ void setup()
     Serial.printf("   DMX for GOST is %s\r\n", to_hex(theDmx->goset_dmx, 7, 0));
   }
 
+  theUI->show_boot_msg("load feed data ...");
   theRepo->load();
   Serial.printf("\r\n   Repo: %d feeds, %d entries, %d chunks\r\n",
                 theRepo->rplca_cnt, theRepo->entry_cnt, theRepo->chunk_cnt);
@@ -239,13 +243,19 @@ void setup()
   //                      theRepo->entry_cnt, theRepo->chunk_cnt, 1);
   
   // listDir(MyFS, "/", 2); // FEED_DIR, 2);
+  theUI->show_boot_msg("load app data ...");
   // the_TVA_app = new App_TVA_Class(posts);
   // the_TVA_app->restream();
 
-  Serial.println("end of setup\n");
+
   theUI->spinner(false);
   theUI->buzz();
   theUI->refresh();
+
+  char *msg = "end of setup\n";
+  theUI->show_boot_msg(msg);
+  Serial.println(msg);
+  delay(1000);
 }
 
 
