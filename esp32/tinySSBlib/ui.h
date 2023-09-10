@@ -21,6 +21,7 @@ public:
   virtual void buzz() {};
   virtual void loop() {};    // for screen animations
   virtual void refresh() {}; // force refresh (of current screen)
+  virtual void show_error_msg(char *msg) {};
 
   // general:
   void show_node_name(char *s);

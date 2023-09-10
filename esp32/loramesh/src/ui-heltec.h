@@ -1,17 +1,16 @@
-// ui-tbeam.h
+// ui-heltec.h
 
-#ifndef _INCLUDE_UI_TBEAM_H
-#define _INCLUDE_UI_TBEAM_H
+#ifndef _INCLUDE_UI_HELTEC_H
+#define _INCLUDE_UI_HELTEC_H
 
 #include "lib/tinySSBlib.h"
-#include "const-tbeam.h"
 
-
-class UI_TBeam_Class: public UIClass {
+class UI_Heltec_Class: public UIClass {
 
   using UIClass::UIClass;
 
 public:
+
   enum {
     SCREEN_SPLASH,
     SCREEN_NODE,
@@ -19,8 +18,8 @@ public:
     SCREEN_LORA,
     SCREEN_OFF
   };
-
-  UI_TBeam_Class();
+  
+  UI_Heltec_Class();
   void loop() override; // for screen animations
   void refresh() override;
 
@@ -38,4 +37,4 @@ private:
   char *wheel;
 };
 
-#endif // _INCLUDE_UI_TBEAM_H
+#endif // _INCLUDE_UI_HELTEC_H

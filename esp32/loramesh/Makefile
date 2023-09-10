@@ -4,18 +4,18 @@
 
 # make [BOARD=..] [SERIAL=/dev/tty..] {firmware} {flush}
 
-#    known boards are: TBeam, TDeck, TWrist, T5gray, heltec
+#    known boards are: TBeam, TDeck, TWrist, T5gray, Heltec
 #    serial device: we have some heuristics for setting it automatically
 
 
 # ** examples:
 
-# make BOARD=heltec firmware     --> creates 'build/firmware-heltec.bin'
-# make BOARD=heltec flash
+# make BOARD=Heltec firmware     --> creates 'build/firmware-Heltec.bin'
+# make BOARD=Heltec flash
 
 #    these two phases can be combined:
 
-# make BOARD=heltec firmware flash
+# make BOARD=Heltec firmware flash
 
 
 # ** special flag for old TBeam:
@@ -54,13 +54,14 @@ FLASH_BIN=firmware-$(BOARD).bin
 
 FLAGS_ALL=-DUTC_OFFSET=\"$(shell date +%z)\"
 
-ifeq ($(BOARD),heltec)
+ifeq ($(BOARD),Heltec)
   CHIP=esp32
   FQBN=esp32:esp32:heltec_wifi_lora_32_V2
   PARTITIONS_CSV=partitions-heltec.csv
   MAX_UPLOAD=1572864 # 1.5MB
   FLASH_SIZE=8MB
   FLASH_OFFS=0x1000
+  FLAGS_BOARD=-DTINYSSB_BOARD_HELTEC
 
 else ifeq ($(BOARD),T5gray)
   BAUD=460800
@@ -106,7 +107,7 @@ else
 endif
 
 ifndef SERIAL
-  ifeq ($(BOARD),heltec) # heltec LORA32
+  ifeq ($(BOARD),Heltec) # heltec LORA32
     SERIAL = $(shell ls /dev/tty.usbserial-????)
   else ifeq ($(BOARD),T5gray)
     SERIAL = $(shell ls /dev/tty.usbserial-???????????)

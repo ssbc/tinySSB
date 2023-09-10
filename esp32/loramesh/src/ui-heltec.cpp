@@ -1,37 +1,37 @@
-// ui-tbeam.cpp
+// ui-heltec.cpp
 
-#ifdef TINYSSB_BOARD_TBEAM
+#ifdef TINYSSB_BOARD_HELTEC
 
 #include <ctype.h>   // for toupper()
 #include <cstdarg>   // for va_list()
 
-#include "ui-tbeam.h"
+#include "ui-heltec.h"
+#include "const-heltec.h"
 
-#include <axp20x.h>
-#include <Wire.h>
-AXP20X_Class axp;
 
-#ifdef HAS_GPS
-TinyGPSPlus gps;
-HardwareSerial GPS(1);
-#endif
-
-#ifdef HAS_OLED
-# include <SSD1306.h> // display
-SSD1306 theDisplay(0x3c, 21, 22); // lilygo t-beam
-#endif
+// user button
+#define BUTTON_PIN KEY_BUILTIN  // for heltec?
 
 #include "lib/cmd.h"
 
 // ---------------------------------------------------------------------------
 
-// #include "lib/inflate.h"
-
-#define BITMAP_SIZE (200*200/8)
-
-// ---------------------------------------------------------------------------
-
 // Display
+
+/*
+enum OLEDDISPLAY_ANGLE { // taken from OLEDDisplay.h
+  ANGLE_0_DEGREE = 0,
+  ANGLE_90_DEGREE,
+  ANGLE_180_DEGREE,
+  ANGLE_270_DEGREE,
+};
+
+#include "ui-heltec/oled/SSD1306Wire.h"
+*/
+#include <SSD1306Wire.h>
+SSD1306Wire *display;
+
+#define theDisplay (*display)
 
 // ---------------------------------------------------------------------------
 
@@ -54,7 +54,7 @@ void clicked(Button2& btn)
     theUI->refresh();
 #endif
   } else {
-    ((UI_TBeam_Class*)theUI)->to_next_screen();
+    ((UI_Heltec_Class*)theUI)->to_next_screen();
   }
 }
 
@@ -84,8 +84,8 @@ void long_clicked(Button2& btn)
     // lora_log.close();
     esp_restart();
   } else {
-    UI_TBeam_Class *u = (UI_TBeam_Class*) theUI;
-    if ( u->curr_screen == UI_TBeam_Class::SCREEN_LORA) {
+    UI_Heltec_Class *u = (UI_Heltec_Class*) theUI;
+    if ( u->curr_screen == UI_Heltec_Class::SCREEN_LORA) {
       lora_selection = 1 - lora_selection;
       u->refresh_screen(u->curr_screen);
     }
@@ -96,48 +96,21 @@ void long_clicked(Button2& btn)
 
 void hw_init()
 {
+  pinMode(RST_OLED, OUTPUT);
+  digitalWrite(RST_OLED, LOW);
+  delay(50);
+  digitalWrite(RST_OLED, HIGH);
+
+  display = new SSD1306Wire(0x3c, SDA_OLED, SCL_OLED, GEOMETRY_128_64);
+
+  // LoRa.setTxPower(the_lora_config->tx, RF_PACONFIG_PASELECT_PABOOST);
+
   // pinMode(BUTTON_PIN, INPUT);
   userButton.begin(BUTTON_PIN);
   userButton.setLongClickTime(1000);
   userButton.setClickHandler(clicked);
   userButton.setLongClickDetectedHandler(long_clicked);
-
-  pinMode(16,OUTPUT);
-  digitalWrite(16, LOW);    // set GPIO16 low to reset OLED
-  delay(50); 
-  digitalWrite(16, HIGH); // while OLED is running, must set GPIO16 in high、
-  /*
-  OLED_toggle();
-  */
-
-  Wire.begin(21, 22);
-  if (axp.begin(Wire, AXP192_SLAVE_ADDRESS)) {
-    Serial.println("AXP192 Begin FAIL");
-  } else {
-    // Serial.println("AXP192 Begin PASS");
-#ifdef HAS_LORA
-    axp.setPowerOutPut(AXP192_LDO2, AXP202_ON);
-#else
-    axp.setPowerOutPut(AXP192_LDO2, AXP202_OFF);
-#endif
-#ifdef HAS_GPS
-    axp.setPowerOutPut(AXP192_LDO3, AXP202_ON);
-#else
-    axp.setPowerOutPut(AXP192_LDO3, AXP202_OFF);
-#endif
-    axp.setPowerOutPut(AXP192_DCDC2, AXP202_ON);
-    axp.setPowerOutPut(AXP192_EXTEN, AXP202_ON);
-#ifdef HAS_OLED
-    axp.setPowerOutPut(AXP192_DCDC1, AXP202_ON); // OLED
-#else
-    axp.setPowerOutPut(AXP192_DCDC1, AXP202_OFF); // no OLED
-#endif
-
-#ifdef HAS_GPS
-    GPS.begin(9600, SERIAL_8N1, 34, 12);   //17-TX 18-RX
-#endif
-  }
-
+  
 }
 
 // ---------------------------------------------------------------------------
@@ -165,13 +138,13 @@ UIClass::UIClass()
 }
 
 
-UI_TBeam_Class::UI_TBeam_Class()
+UI_Heltec_Class::UI_Heltec_Class()
 {
 
 #define INFLATE(NM) inflate(NM##_bw, sizeof(NM##_bw),   \
                             NM##_z, sizeof(NM##_z));
   // INFLATE(scuttleshell)
-  curr_screen = UI_TBeam_Class::SCREEN_SPLASH;
+  curr_screen = UI_Heltec_Class::SCREEN_SPLASH;
 
   wheel = "\\|/-";
   lora_wheel = 0;
@@ -194,7 +167,7 @@ void draw_lora_plan()
 }
 
 
-void UI_TBeam_Class::loop()
+void UI_Heltec_Class::loop()
 {
   userButton.loop();
 
@@ -222,7 +195,7 @@ void UI_TBeam_Class::loop()
 #endif
   }
 
-  if (curr_screen == UI_TBeam_Class::SCREEN_PEERS) {
+  if (curr_screen == UI_Heltec_Class::SCREEN_PEERS) {
     static long next;
     if (millis() > next) {
       refresh_screen(curr_screen);
@@ -237,15 +210,15 @@ void UI_TBeam_Class::loop()
 }
 
 
-void UI_TBeam_Class::refresh()
+void UI_Heltec_Class::refresh()
 {
   refresh_screen(curr_screen);
 }
 
 
-void UI_TBeam_Class::to_next_screen()
+void UI_Heltec_Class::to_next_screen()
 {
-  curr_screen = (curr_screen + 1) % UI_TBeam_Class::SCREEN_OFF;
+  curr_screen = (curr_screen + 1) % UI_Heltec_Class::SCREEN_OFF;
   refresh_screen(curr_screen);
 }
 
@@ -278,14 +251,14 @@ static void right_aligned(int cnt, char c, int y)
 }
 
 
-void UI_TBeam_Class::refresh_screen(int scr)
+void UI_Heltec_Class::refresh_screen(int scr)
 {
   if (scr != curr_screen)
       return;
 
   theDisplay.clear();
   theDisplay.setFont(ArialMT_Plain_16);
-  if (scr == UI_TBeam_Class::SCREEN_SPLASH) {
+  if (scr == UI_Heltec_Class::SCREEN_SPLASH) {
     // gXdisplay.drawBitmap(gallery[pict], 0, 0, 200, 200, GxEPD_WHITE);
     // gXdisplay.setCursor(145, 11);
     // gXdisplay.println(ssid+7);
@@ -309,7 +282,7 @@ void UI_TBeam_Class::refresh_screen(int scr)
     theDisplay.setFont(ArialMT_Plain_10);
     theDisplay.drawString(0, 54, fr);
 #endif
-  } else if (scr == UI_TBeam_Class::SCREEN_NODE) {
+  } else if (scr == UI_Heltec_Class::SCREEN_NODE) {
     theDisplay.setFont(ArialMT_Plain_10);
     theDisplay.drawString(0, 3, tSSB_WIFI_SSID "-");
     theDisplay.setFont(ArialMT_Plain_16);
@@ -338,13 +311,13 @@ void UI_TBeam_Class::refresh_screen(int scr)
     char buf[10];
     sprintf(buf, "%2d%% free", avail / (total/100));
     theDisplay.drawString(0, 44, buf);
-  } else if (scr == UI_TBeam_Class::SCREEN_LORA) {
+  } else if (scr == UI_Heltec_Class::SCREEN_LORA) {
 #ifdef HAS_LORA
     draw_lora_plan();
 #else
     theDisplay.drawString(2, 20, "lora screen");
 #endif
-  } else if (scr == UI_TBeam_Class::SCREEN_PEERS) {
+  } else if (scr == UI_Heltec_Class::SCREEN_PEERS) {
     theDisplay.setFont(ArialMT_Plain_10);
     theDisplay.drawString( 0, 0, "last");
     theDisplay.drawString(35, 0, "peer");
@@ -356,7 +329,7 @@ void UI_TBeam_Class::refresh_screen(int scr)
       if (peers[i].id[0] == '\0')
         continue;
       long since = (now - peers[i].when) / 1000;
-      if (since >= 300) { // remove stale peers after 5 min
+      if (since >= 300) { // remove stale peers
         peers[i].id[0] = '\0';
         continue;
       }
@@ -403,7 +376,7 @@ void printPower(uint16_t x, uint16_t y)
 
 int err_cnt;
 
-void UI_TBeam_Class::show_error_msg(char *s)
+void UI_Heltec_Class::show_error_msg(char *s)
 {
 #ifdef HAS_OLED
   theDisplay.setFont(ArialMT_Plain_16);
@@ -413,6 +386,6 @@ void UI_TBeam_Class::show_error_msg(char *s)
 #endif
 }
 
-#endif // TINYSSB_BOARD_TBEAM
+#endif // TINYSSB_BOARD_HELTEC
 
 // eof

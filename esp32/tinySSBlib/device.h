@@ -16,6 +16,22 @@
 
 // ---------------------------------------------------------------------------
 
+#ifdef TINYSSB_BOARD_HELTEC
+// https://heltec.org/project/wifi-lora-32/
+# define DEVICE_MAKE "Heltec LoRa32 v2"
+# define HAS_BLE
+# define HAS_LORA
+# define HAS_OLED
+
+// # define USE_RADIO_LIB // try out both (RadioLib and LoRa)
+// # define USING_SX1262
+
+# define USE_LORA_LIB
+
+#endif // TINYSSB_BOARD_HELTEC
+
+// ---------------------------------------------------------------------------
+
 #ifdef TINYSSB_BOARD_T5GRAY
 // https://www.lilygo.cc/products/t5-2-13inch-e-paper
 # define DEVICE_MAKE "Lilygo T5-Grayscale"

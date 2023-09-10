@@ -2,11 +2,13 @@
 
 #include "src/lib/tinySSBlib.h"
 
+#include "src/ui-heltec.h"
 #include "src/ui-t5gray.h"
 #include "src/ui-tbeam.h"
 #include "src/ui-tdeck.h"
 #include "src/ui-twrist.h"
 
+#include "src/const-heltec.h"
 #include "src/const-tbeam.h"
 #include "src/const-tdeck.h"
 #include "src/const-twrist.h"
@@ -177,7 +179,9 @@ void setup()
                 bipf2String(the_config, "\r\n", 1).c_str());
   Serial.println();
 
-#if defined(TINYSSB_BOARD_T5GRAY)
+#if defined(TINYSSB_BOARD_HELTEC)
+  theUI    = new UI_Heltec_Class();
+#elif defined(TINYSSB_BOARD_T5GRAY)
   theUI    = new UI_T5gray_Class();
 #elif defined(TINYSSB_BOARD_TBEAM)
   theUI    = new UI_TBeam_Class();
@@ -194,9 +198,11 @@ void setup()
   LoRa.setPins(SS,RST,DI0);  
   if (!LoRa.begin(the_lora_config->fr)) {
     char *msg = "Starting LoRa failed!";
-    Serial.println(msg);
-    ((UI_TBeam_Class*)theUI)->show_error_msg(msg);
-    while (1);
+    theUI->show_error_msg(msg);
+    while (1) {
+      Serial.println(msg);
+      delay(2000);
+    }
   }
 #endif
 
