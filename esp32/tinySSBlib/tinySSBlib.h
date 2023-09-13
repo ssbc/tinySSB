@@ -61,7 +61,8 @@ extern File peers_log;
 extern void lora_log_wr(char *fmt, ...);
 extern void peers_log_wr(char *fmt, ...);
 
-extern void incoming_pkt(unsigned char* buf, int len, unsigned char *fid, struct face_s *);
+// in node.h:
+extern void incoming_entry(unsigned char* buf, int len, unsigned char *fid, struct face_s *);
 extern void incoming_chunk(unsigned char* buf, int len, int chkt_ndx, struct face_s *);
 extern void incoming_want_request(unsigned char* buf, int len, unsigned char* aux, struct face_s *);
 extern void incoming_chnk_request(unsigned char* buf, int len, unsigned char* aux, struct face_s *);

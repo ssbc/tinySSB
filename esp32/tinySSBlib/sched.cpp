@@ -11,10 +11,10 @@ SchedClass::SchedClass(probe_fct_t g, probe_fct_t p,
   memset(slots, 0, sizeof(slots));
   memset(packets, 0, sizeof(packets));
   next_slot_millis = millis();
-  slots[0]           = -1; // g
-  slots[(int)(9*SCHED_PPS)] = -2; // p
-  slots[(int)(3*SCHED_PPS)] = -3; // v
-  slots[(int)(6*SCHED_PPS)] = -4; // c
+  slots[0]           = -1; // GOset, start immediately
+  slots[(int)(10*SCHED_PPS)] = -2; // peers, start after 10 sec
+  slots[(int)(3*SCHED_PPS)] = -3; // want vect, start after 3 sec
+  slots[(int)(6*SCHED_PPS)] = -4; // chnk vect, start after 6 sec
 }
 
 
@@ -22,12 +22,25 @@ void SchedClass::tick()
 {
   if (millis() < next_slot_millis)
     return;
-  next_slot_millis += 1000 / (SCHED_PPS);
+  next_slot_millis = millis() + 1000 / (SCHED_PPS) + esp_random() % 300;
+  /*
+  double d = thePeers->get_peer_density();
+  if (d > 2.5) {
+    if (esp_random() & 1) // 50%
+      next_slot_millis += 2 * 1000 / (SCHED_PPS);
+    else if (d > 1.5) {
+      if (esp_random() & 1) // 50%
+        next_slot_millis += 1000 / (SCHED_PPS);
+    }
+  }
+  */
   int ndx = slots[curr_slot];
   slots[curr_slot] = 0;
   curr_slot = (curr_slot + 1) % (int)(SCHED_SEC * SCHED_PPS);
-  if (ndx == 0)
+  if (ndx == 0) { // idle
+    theRepo->loop();
     return;
+  }
   if (ndx > 0) { // pkt slot
     ndx--;
     io_send(packets[ndx], lengths[ndx], faces[ndx]);
@@ -82,6 +95,7 @@ void SchedClass::schedule_asap(unsigned char *pkt, unsigned short len,
     if (packets[i] == NULL)
       j = i;
     else if (lengths[i] == len && !memcmp(packets[i], pkt, len)) { // dup
+    Serial.println("packet is a dup, not adding to the out queue");
       free(pkt);
       return;
     }

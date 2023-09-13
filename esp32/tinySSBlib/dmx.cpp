@@ -60,119 +60,60 @@ void DmxClass::arm_dmx(unsigned char *dmx,
   this->dmxt[fndx].seq = seq;
 }
 
-void DmxClass::arm_blb(unsigned char *h,
+void DmxClass::arm_hsh(unsigned char *h,
              void (*fct)(unsigned char*, int, int, struct face_s*),
-                       unsigned char *fid, int seq, int cnr, int last)
+                       unsigned char *fid, int snr, int cnr, int is_last)
 {
   int ndx = _chkt_index(h);
-  struct blb_s *bptr = ndx < 0 ? NULL : chkt + ndx;
-  if (fct == NULL) {
-    // Serial.printf("arm_blb REMOVE\r\n");
-    if (bptr != NULL) {
-      while (bptr->front) {
+  struct hsh_s *bptr = ndx < 0 ? NULL : chkt + ndx;
+  if (fct == NULL) { // remove the entry
+    // Serial.printf("arm_hsh REMOVE\r\n");
+    if (bptr != NULL) { // if it exists
+      while (bptr->front) { // remove chain
         struct chain_s *tp = bptr->front->next;
         free(bptr->front);
         bptr->front = tp;
       }
-      memmove(bptr, bptr+1, (chkt_cnt - ndx - 1) * sizeof(struct blb_s));
+      // compact table
+      memmove(bptr, bptr+1, (chkt_cnt - ndx - 1) * sizeof(struct hsh_s));
       chkt_cnt--;
     }
     return;
   }
   if (bptr == NULL) {
+    if (this->chkt_cnt == CHKT_SIZE) { // remove first (=oldest) entry
+      // Serial.printf("  shrink chunk table\r\n");
+      bptr = chkt;
+      while (bptr->front) { // remove chain
+        struct chain_s *tp = bptr->front->next;
+        free(bptr->front);
+        bptr->front = tp;
+      }
+      // compact table
+      memmove(bptr, bptr+1, (chkt_cnt - 1) * sizeof(struct hsh_s));
+      chkt_cnt--;
+    }
     ndx = this->chkt_cnt++;
     bptr = chkt + ndx;
-    memset(bptr, 0, sizeof(struct blb_s));
+    // memset(bptr, 0, sizeof(struct hsh_s));
+    memcpy(bptr->h, h, HASH_LEN);
+    bptr->fct = fct;
+    bptr->front = NULL;
   }
-
-  /*
-  // FIXME: could simply below because we always remove the whole chain
-  // and we never add the same tuple twice
-  if (ndx < 0 && fct != NULL) {
-    if (chkt_cnt >= CHKT_SIZE) {
-      Serial.println("arm_dmx: chkt is full");
-      return; // full
-    }
-    ndx = this->chkt_cnt++;
-    memset(chkt+ndx, 0, sizeof(struct blb_s));
+  // check whether we already have armed for this fid/snr/cnr combo
+  struct chain_s *tp = bptr->front;
+  while (tp) {
+    if (tp->seq == snr && tp->cnr == cnr && !memcmp(tp->fid, fid, FID_LEN))
+      return;
+    tp = tp->next;
   }
-  if (ndx < 0)
-    return;
-  struct blb_s *bptr = chkt + ndx;
-  struct chain_s *t = bptr->front, **tp = &(bptr->front);
-  while (t) { // remove (fid,seq,cnr) tuples from the linked list
-    Serial.printf(" wloop %p\r\n", t);
-    if (fct == NULL ||
-        (!memcmp(t->fid, fid, FID_LEN) && t->seq == seq && t->cnr == cnr) ) {
-      *tp = t->next;
-      free(t);
-      t = *tp;
-    } else {
-      tp = &(t->next);
-      t = t->next;
-    }
-  }
-  if (fct == NULL) {
-    if (bptr->front == NULL) { // remove if linked list empty
-      Serial.printf(" remove if empty\r\n");
-      memmove(chkt+ndx, chkt+ndx+1,
-              (chkt_cnt - ndx - 1) * sizeof(struct blb_s));
-      chkt_cnt--;
-    } else
-      Serial.printf(" remove from chkt: front not empty\r\n");
-    return;
-  }
-  */
-  memcpy(bptr->h, h, HASH_LEN);
-  bptr->fct = fct;
-  struct chain_s *tp = (struct chain_s*) malloc(sizeof(struct chain_s));
+  tp = (struct chain_s*) malloc(sizeof(struct chain_s));
   tp->fid = fid; // (unsigned char*) malloc(FID_LEN);
-  tp->seq = seq;
+  tp->seq = snr;
   tp->cnr = cnr;
-  tp->last_cnr = last;
+  tp->last_cnr = is_last;
   tp->next = bptr->front;
   bptr->front = tp;
-  /*
-  int ndx = this->_chkt_index(h);
-  // Serial.printf(" _ arm_blb ndx=%d %s\r\n", ndx, to_hex(h, HASH_LEN));
-  if (ndx >= 0) { // this entry will be either erased or newly written to
-    // Serial.printf("   %p\r\n", this->chkt[ndx].fid);
-    // free(this->chkt[ndx].fid);
-    // int fNDX = theGOset->_key_index(this->chkt[ndx].fid);
-    // Serial.printf(" _ squashing old CHKTAB entry %d %s %d.%d.%d\r\n",
-    //               ndx, to_hex(h, HASH_LEN), fNDX,
-    //               this->chkt[ndx].seq, this->chkt[ndx].bnr);
-  }
-  if (fct == NULL) { // del
-    if (ndx >= 0) {
-      // Serial.printf("   ->%p\r\n", this->chkt[ndx].fid);
-      memmove(this->chkt+ndx, this->chkt+ndx+1,
-              (this->chkt_cnt - ndx - 1) * sizeof(struct blb_s));
-      // int fNDX = theGOset->_key_index(this->chkt[ndx].fid);
-      // Serial.printf(" _ del CHKTAB entry %d %s %d.%d.%d\r\n", ndx, to_hex(h, HASH_LEN), fNDX,
-      //               this->chkt[ndx].seq, this->chkt[ndx].bnr);
-      this->chkt_cnt--;
-    }
-    return;
-  }
-  if (ndx == -1) {
-    if (this->chkt_cnt >= CHKT_SIZE) {
-      Serial.println("adm_dmx: chkt is full");
-      return; // full
-    }
-    ndx = this->chkt_cnt++;
-  }
-  // int fNDX = theGOset->_key_index(fid);
-  // Serial.printf(" _ new CHKTAB entry @%d %s %d.%d.%d/%d\r\n", ndx,
-  //               to_hex(h, HASH_LEN), fNDX, seq, bnr, last);
-  memcpy(this->chkt[ndx].h, h, HASH_LEN);
-  this->chkt[ndx].fct = fct;
-  this->chkt[ndx].fid = fid; // (unsigned char*) malloc(FID_LEN);
-  // memcpy(this->chkt[ndx].fid, fid, FID_LEN);
-  this->chkt[ndx].seq = seq;
-  this->chkt[ndx].bnr = bnr;
-  this->chkt[ndx].last_bnr = last;
-  */
 }
 
 void DmxClass::compute_dmx(unsigned char *dst, unsigned char *buf, int len)

@@ -41,6 +41,9 @@ PeersClass::PeersClass()
   Serial.printf("   DMX for PEER is %s\r\n", to_hex(peer_dmx_rep, 7, 0));
 
   peer_clock = 0;
+
+  memset(heard_peers, 0, sizeof(heard_peers));
+  avg_peer_density = 0;
 }
 
 
@@ -49,6 +52,22 @@ void PeersClass::probe_for_peers_beacon(unsigned char **pkt,
                                         unsigned short *reprobe_in_millis)
 {
   Serial.println("   prepare PEER beacon");
+
+  long now = millis();
+  int cnt = 0;
+  for (int i = 0; i < MAX_HEARD_PEERS; i++) {
+    struct peer_s *p = heard_peers + i;
+    if (p->id[0] == '\0')
+      break;
+    long since = (now - p->when) / 1000;
+    if (since >= 180) { // remove stale peers after 3 min
+      memmove(heard_peers + i, heard_peers + i + 1,
+              (MAX_HEARD_PEERS-i-1) * sizeof(struct peer_s));
+      heard_peers[MAX_HEARD_PEERS-1].id[0] = '\0';
+    } else
+      cnt++;
+  }
+  avg_peer_density = 0.3 * avg_peer_density + 0.7 * cnt;
 
   // send a request (ping)
   char buf[100];
@@ -110,7 +129,7 @@ void PeersClass::incoming_req(unsigned char *pkt, int len, unsigned char *aux,
 
 #ifdef HAS_LORA
   str[6] = '\0';
-  theUI->heard_peer(str+2, rssi, snr);
+  _update_peer(str+2, rssi, snr);
 #endif
 }
 
@@ -153,10 +172,41 @@ void PeersClass::incoming_rep(unsigned char *pkt, int len, unsigned char *aux,
 
 #ifdef HAS_LORA
   str[6] = '\0';
-  theUI->heard_peer(str+2, rssi, snr);
+  _update_peer(str+2, rssi, snr);
 #endif
 }
 
+
+void PeersClass::_update_peer(char *id, int rssi, float snr)
+{
+  long oldest = 0;
+  int i, oldest_i = -1;
+
+  for (i = 0; i < MAX_HEARD_PEERS; i++) {
+    if (heard_peers[i].id[0] == '\0' || !strcmp(heard_peers[i].id, id))
+      break;
+    if (oldest == 0 || oldest < heard_peers[i].when) {
+      oldest = heard_peers[i].when;
+      oldest_i = i;
+    }
+  }
+  if (i >= MAX_HEARD_PEERS) {
+    if (oldest_i == -1) // this should not happen
+      return;
+    i = oldest_i;
+  }
+  strcpy(heard_peers[i].id, id);
+  heard_peers[i].when = millis();
+  heard_peers[i].rssi = rssi;
+  heard_peers[i].snr = snr;
+
+  theUI->heard_peer(id, rssi, snr);
+}
+
+double PeersClass::get_peer_density()
+{
+  return avg_peer_density;
+}
 
 
 /*

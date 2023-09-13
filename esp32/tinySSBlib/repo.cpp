@@ -5,12 +5,6 @@
 
 #include "tinySSBlib.h"
 
-extern void incoming_pkt(unsigned char* buf, int len, unsigned char *fid, struct face_s *);
-extern void incoming_chunk(unsigned char* buf, int len, int chkt_ndx, struct face_s *);
-extern void incoming_want_request(unsigned char* buf, int len, unsigned char* aux, struct face_s *);
-extern void incoming_chnk_request(unsigned char* buf, int len, unsigned char* aux, struct face_s *);
-
-
 // ----------------------------------------------------------------------
 
 void Repo2Class::clean(char *path)
@@ -72,6 +66,27 @@ void Repo2Class::load()
   theGOset->populate(NULL); // triggers sorting, and setting the want_dmx
 }
 
+
+void Repo2Class::loop()
+{
+  static int done_chunk_counting = false;
+
+  if (!done_chunk_counting) {
+    int i;
+    for (i = 0; i < rplca_cnt; i++)
+      if (replicas[i]->chunk_cnt < 0) {
+        int cnt = replicas[i]->load_chunk_cnt();
+        chunk_cnt += cnt;
+        // should re-sum all feed chunk counts
+        theUI->refresh();
+        break;
+      }
+    if (i >= rplca_cnt)
+      done_chunk_counting = true;
+  }
+}
+
+
 void Repo2Class::add_replica(unsigned char *fid)
 {
   ReplicaClass *r = new ReplicaClass(FEED_DIR, fid);
@@ -81,10 +96,11 @@ void Repo2Class::add_replica(unsigned char *fid)
   // arm DMXT
   unsigned char dmx_val[DMX_LEN];
   int ns = r->get_next_seq(dmx_val);
-  theDmx->arm_dmx(dmx_val, incoming_pkt, r->fid, /*ndx,*/ ns);
+  theDmx->arm_dmx(dmx_val, incoming_entry, r->fid, /*ndx,*/ ns);
   // Serial.printf("   armed %s for %d.%d\r\n", to_hex(dmx_val, 7),
   //               ndx, f->next_seq);
 
+  /*
   // arm CHKT
   struct bipf_s *p = r->get_open_chains();
   if (p != NULL && p->cnt > 0) {
@@ -92,13 +108,16 @@ void Repo2Class::add_replica(unsigned char *fid)
       int seq = p->u.dict[2*j]->u.i;
       int cnr = p->u.dict[2*j+1]->u.list[0]->u.i;
       unsigned char *hptr = p->u.dict[2*j+1]->u.list[2]->u.buf;
-      theDmx->arm_blb(hptr, incoming_chunk, r->fid, seq, cnr,
+      theDmx->arm_hsh(hptr, incoming_chunk, r->fid, seq, cnr,
                    cnr + p->u.dict[2*j+1]->u.list[1]->u.i);
     }
   }
-  
+  */
+
   entry_cnt += ns - 1;
-  chunk_cnt += r->get_chunk_cnt();
+  // chunk_cnt += r->get_chunk_cnt(); //delayed until chnk_vect time
+
+  theUI->refresh();
 
   if (theGOset->goset_len > 0) {
     want_offs = esp_random() % theGOset->goset_len;
@@ -166,50 +185,51 @@ void Repo2Class::mk_want_vect()
 
 void Repo2Class::mk_chnk_vect()
 {
-  if (chnk_is_valid)
-    return;
-  
-  String v = "";
-  struct bipf_s *lptr = bipf_mkList();
-  int encoding_len = bipf_encodingLength(lptr);
-
-  int i;
-  for (i = 0; i < theGOset->goset_len; i++) {
-    unsigned int ndx = (chnk_offs + i) % theGOset->goset_len;
-    unsigned char *fid = theGOset->get_key(ndx);
-    ReplicaClass *r = theRepo->fid2replica(fid);
-    struct bipf_s *p = r->get_open_chains();
-    if (p == NULL || p->cnt == 0)
-      continue;
-    for (int j = 0; j < p->cnt; j++) {
-      struct bipf_s *c = bipf_mkList();
-      int seq = p->u.dict[2*j]->u.i;
-      int cnr = p->u.dict[2*j+1]->u.list[0]->u.i;
-      bipf_list_append(c, bipf_mkInt(ndx));
-      bipf_list_append(c, bipf_mkInt(seq));
-      bipf_list_append(c, bipf_mkInt(cnr));
-      encoding_len += bipf_encodingLength(c);
-      bipf_list_append(lptr, c);
-      v += (v.length() == 0 ? "[ " : " ") + String(ndx) + "." + String(seq) + '.' + String(cnr);
-      if (encoding_len > 100)
-        break;
-    }
-    if (encoding_len > 100)
-      break;
-  }
-  chnk_offs = (chnk_offs+i+1) % theGOset->goset_len;
-
-  free(chnk_vect);
-  if (lptr->cnt > 0) {
-    chnk_len = bipf_encodingLength(lptr);
-    chnk_vect = (unsigned char*) malloc(chnk_len);
-    bipf_encode(chnk_vect, lptr);
-    Serial.printf("   new C=%s ] %dB\r\n", v.c_str(), chnk_len);
-  } else
+  if (theGOset->goset_len == 0)
     chnk_len = 0;
+  else {
+    static int ndx = esp_random() % theGOset->goset_len;
+    int old_ndx = ndx;
+    int cnt = 0;
+    String v = "";
+    struct bipf_s *lptr = bipf_mkList();
+    int encoding_len = bipf_encodingLength(lptr);
 
-  bipf_free(lptr);
-  chnk_is_valid = 1;
+    do {
+      struct chunk_needed_s table[4];
+      ndx = (ndx+1) % theGOset->goset_len;
+      ReplicaClass *r = fid2replica(theGOset->get_key(ndx));
+      io_loop();
+      int n = r->get_open_sidechains(4, table);
+      for (int i = 0; i < n; i++) {
+        // Serial.printf("  h=%s s=%d c=%d\r\n",
+        //               to_hex(table[i].hash, HASH_LEN),
+        //               table[i].snr, table[i].cnr);
+        struct bipf_s *c = bipf_mkList();
+        bipf_list_append(c, bipf_mkInt(ndx));
+        bipf_list_append(c, bipf_mkInt(table[i].snr));
+        bipf_list_append(c, bipf_mkInt(table[i].cnr));
+        encoding_len += bipf_encodingLength(c);
+        bipf_list_append(lptr, c);
+        theDmx->arm_hsh(table[i].hash, incoming_chunk,
+                        theGOset->get_key(ndx), table[i].snr, table[i].cnr, 0);
+        v += (v.length() == 0 ? "[ " : " ") + String(ndx) + "."
+                           + String(table[i].snr) + '.' + String(table[i].cnr);
+        if (encoding_len > 100)
+          break;
+      }
+    } while (encoding_len <= 100 && old_ndx != ndx);
+    free(chnk_vect);
+    chnk_vect = NULL;
+    if (lptr->cnt > 0) {
+      chnk_len = bipf_encodingLength(lptr);
+      chnk_vect = (unsigned char*) malloc(chnk_len);
+      bipf_encode(chnk_vect, lptr);
+      Serial.printf("   new C=%s ] %dB\r\n", v.c_str(), chnk_len);
+    } else
+      chnk_len = 0;
+    bipf_free(lptr);
+  }
 }
 
 

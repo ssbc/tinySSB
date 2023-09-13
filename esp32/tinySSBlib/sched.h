@@ -6,7 +6,7 @@
 #include "tinySSBlib.h"
 
 
-#define SCHED_PPS    3   // packets per second (more precise: slots per sec)
+#define SCHED_PPS  1.5   // packets per second (more precise: slots per sec)
 #define SCHED_SEC   60   // length of future
 #define SCHED_MAX   10   // max number of scheduled packets
 

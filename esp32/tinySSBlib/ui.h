@@ -3,14 +3,6 @@
 #ifndef _INCLUDE_UI_H
 #define _INCLUDE_UI_H
 
-struct peer_s {
-  char id[5];
-  long when;
-  int rssi;
-  float snr;
-};
-#define MAX_PEERS 4
-
 
 class UIClass {
   
@@ -38,7 +30,7 @@ public:
   virtual void lora_advance_wheel() {};
 
   // peers screen:
-  void heard_peer(char *id, int rssi, float snr);
+  virtual void heard_peer(char *id, int rssi, float snr) {};
   
   char *node_name;
   char *time;
@@ -48,7 +40,6 @@ public:
   char *lora_profile;
   long lora_fr;
   int lora_bw, lora_sf;
-  struct peer_s peers[MAX_PEERS];
 };
 
 

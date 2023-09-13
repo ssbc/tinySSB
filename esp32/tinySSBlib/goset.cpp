@@ -93,6 +93,11 @@ void GOsetClass::_add_pending(unsigned char *claim)
 
 // ----------------------------------------------------------------------------
 
+bool GOsetClass::in_sync()
+{
+  return largest_claim_span == 0 || largest_claim_span == goset_len;
+}
+
 void GOsetClass::dump()
 {
   Serial.printf("GOset: %d keys\r\n", this->goset_len);
@@ -389,7 +394,7 @@ void GOsetClass::probe_for_goset_vect(unsigned char **pkt,
   }
   if (pending_c_cnt <= 0 || goset_len == 0)
     return;
-  Serial.println("   G: there are pending claims");
+  // Serial.println("   G: there are pending claims");
 
   // work on pending requests, start by sorting them
   // sort pending entries, smallest first

@@ -43,10 +43,11 @@ struct zap_s {
 
 class GOsetClass {
  public:
-  int goset_len; // number of set elements
+  int goset_len = 0; // number of set elements
   unsigned char goset_state[GOSET_KEY_LEN];
-  int pending_c_cnt, pending_n_cnt;
+  int pending_c_cnt = 0, pending_n_cnt = 0;
 
+  bool in_sync();
   void dump();
   void add(unsigned char *key);
   void populate(unsigned char *key); // just insert, or sort when key is NULL
@@ -61,13 +62,13 @@ class GOsetClass {
                             unsigned short *reprobe_in_millis);
   
  private:
-  unsigned long last_round;
+  unsigned long last_round = 0;
   unsigned char goset_keys[GOSET_KEY_LEN * GOSET_MAX_KEYS];
-  int largest_claim_span;
+  int largest_claim_span = 0;
   struct claim_s pending_claims[MAX_PENDING];
   struct novelty_s pending_novelty[MAX_PENDING];
   int novelty_credit;
-  unsigned long next_round; // FIXME: handle, or test, wraparound
+  unsigned long next_round = 0; // FIXME: handle, or test, wraparound
   struct zap_s zap;
   unsigned long zap_state;
   unsigned long zap_next;

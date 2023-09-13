@@ -1,6 +1,6 @@
 // const.h
 
-#define PEERS_INTERVAL 20000 // how often to sent pings, in msec
+#define PEERS_INTERVAL 25000 // how often to sent pings, in msec
 
 #define LORA_LOG // enable macro for logging received pkts
 #define LORA_LOG_FILENAME    "/lora_log.txt"

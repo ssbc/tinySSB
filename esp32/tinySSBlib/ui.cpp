@@ -31,30 +31,4 @@ void UIClass::show_lora_specs(char *profile, long fr, int bw, int sf)
   lora_fr = fr, lora_bw = bw, lora_sf = sf;
 }
 
-void UIClass::heard_peer(char *id, int rssi, float snr)
-{
-  long oldest = 0;
-  int i, oldest_i = -1;
-
-  for (i = 0; i < MAX_PEERS; i++) {
-    if (peers[i].id[0] == '\0' || !strcmp(peers[i].id, id))
-      break;
-    if (oldest == 0 || oldest < peers[i].when) {
-      oldest = peers[i].when;
-      oldest_i = i;
-    }
-  }
-  if (i >= MAX_PEERS) {
-    if (oldest_i == -1) // this should not happen
-      return;
-    i = oldest_i;
-  }
-  strcpy(peers[i].id, id);
-  peers[i].when = millis();
-  peers[i].rssi = rssi;
-  peers[i].snr = snr;
-
-  // refresh(); --> let the device-specific UI loop handle this
-}
-
 // eof

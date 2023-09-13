@@ -128,6 +128,8 @@ void time_stamp()
 
 void setup()
 {
+  char *msg;
+
   Serial.begin(115200);
   delay(10);
 
@@ -149,16 +151,34 @@ void setup()
 
   hw_init();
 
+#if defined(TINYSSB_BOARD_HELTEC)
+  theUI    = new UI_Heltec_Class();
+#elif defined(TINYSSB_BOARD_T5GRAY)
+  theUI    = new UI_T5gray_Class();
+#elif defined(TINYSSB_BOARD_TBEAM)
+  theUI    = new UI_TBeam_Class();
+#elif defined(TINYSSB_BOARD_TDECK)
+  theUI    = new UI_TDeck_Class();
+#elif defined(TINYSSB_BOARD_TWRIST)
+  theUI    = new UI_TWrist_Class();
+#endif
+  // theUI->show_node_name(ssid);
+  theUI->spinner(true);
+
   if (!MyFS.begin(true)) {
-    Serial.println("LittleFS Mount Failed, partition was reformatted");
+    msg = "LittleFS Mount Failed, partition was reformatted";
+    theUI->show_boot_msg(msg);
+    Serial.println(msg);
     // return;
-  }
+  } else
+    theUI->show_boot_msg("mounted LittleFS");
   // MyFS.format(); // uncomment and run once after a change in partition size
 
   MyFS.mkdir(FEED_DIR);
   Serial.printf("LittleFS: %d total bytes, %d used\r\n",
                 MyFS.totalBytes(), MyFS.usedBytes());
 
+  theUI->show_boot_msg("load config");
   the_config = config_load();
 
 #ifdef TINYSSB_BOARD_TDECK
@@ -178,26 +198,19 @@ void setup()
                 bipf2String(the_config, "\r\n", 1).c_str());
   Serial.println();
 
-#if defined(TINYSSB_BOARD_HELTEC)
-  theUI    = new UI_Heltec_Class();
-#elif defined(TINYSSB_BOARD_T5GRAY)
-  theUI    = new UI_T5gray_Class();
-#elif defined(TINYSSB_BOARD_TBEAM)
-  theUI    = new UI_TBeam_Class();
-#elif defined(TINYSSB_BOARD_TDECK)
-  theUI    = new UI_TDeck_Class();
-#elif defined(TINYSSB_BOARD_TWRIST)
-  theUI    = new UI_TWrist_Class();
-#endif
-  // theUI->show_node_name(ssid);
-  theUI->spinner(true);
-
+  theUI->show_boot_msg("setup log files");
+  msg = "** starting";
+  lora_log = MyFS.open(LORA_LOG_FILENAME, FILE_APPEND);
+  lora_log_wr(msg);
+  peers_log = MyFS.open(PEERS_DATA_FILENAME, FILE_APPEND);
+  peers_log_wr(msg);
+  
 #ifdef USE_LORA_LIB
-  theUI->show_boot_msg("LoRa init");
+  theUI->show_boot_msg("init LoRa");
   SPI.begin(SCK,MISO,MOSI,SS);
   LoRa.setPins(SS,RST,DI0);  
   if (!LoRa.begin(the_lora_config->fr)) {
-    char *msg = "  LoRa init failed!";
+    msg = "  LoRa init failed!";
     theUI->show_boot_msg(msg);
     while (1) {
       Serial.println(msg);
@@ -207,15 +220,6 @@ void setup()
   // LoRa.setTxPower(the_lora_config->tx, RF_PACONFIG_PASELECT_PABOOST);
 #endif
 
-  // ((UI_TBeam_Class*)theUI)->show_error_msg("test1");
-  // ((UI_TBeam_Class*)theUI)->show_error_msg("test2");
-
-  theUI->show_boot_msg("setup log files");
-  lora_log = MyFS.open(LORA_LOG_FILENAME, FILE_APPEND);
-  lora_log_wr("** starting");
-  peers_log = MyFS.open(PEERS_DATA_FILENAME, FILE_APPEND);
-  peers_log_wr("** starting");
-  
   theUI->show_boot_msg("init BLE, WIFI");
   io_init(); // network interfaces
 
@@ -251,7 +255,7 @@ void setup()
   theUI->spinner(false);
   theUI->buzz();
 
-  char *msg = "end of setup\n";
+  msg = "end of setup\n";
   theUI->show_boot_msg(msg);
   Serial.println(msg);
   delay(1000);

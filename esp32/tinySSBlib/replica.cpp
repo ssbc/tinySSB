@@ -6,14 +6,33 @@
 // persistency for a single feed, using "2FPF" (two files per feed)
 
 /*
-  feeds are stored as two files:
-    'log.bin'      the log, with side chain expanded right after a log entry
-    'frt.bin'      feed state, in BIPF
+  feeds are stored as one file, 'log.bin'
 
-    'tmp.bin'      same as above, before being renamed to frt.bin
+  a) the internal file structure is:
 
-    for nodes with apps:
-    'mid.bin'      sequence of 20B message IDs (back to back)
+  [ [log_entry_block]* <4B-pendscc> <4B-maxseq> ]
+
+  b) each log_entry_block has the structure:
+
+   [ log_pkt chk_pkt chk_pkt ... <20B-MID> <4B-pktstart> ]
+     ^                                            |
+     |                                            |
+     `--------------------------------------------'
+         absolute position in file 
+
+  c) in case of a side chain, the slot for the last chunk
+     has its last 20 bytes used as follows:
+     20 * 0x00  --> sidechain is complete, or
+      8 * 0x?? <4B-have> <4B-left> <4B-next_pend_link>
+               where <have> is the number of received chunks
+               where <left> is the number of missing chunks
+
+  d) The <pendscc> is the start of a linked list of
+     log entries which have an incomplete side chain.
+     - <pendscc> points to the first byte after the
+       youngest log entry with incomplete side chain
+     - inside the slot for the last chunk, the <next_pend_link>
+       has the continuation of the linked list
 */
 
 #include "tinySSBlib.h"
@@ -34,6 +53,22 @@ void compute_dmx(unsigned char *dst,
   memcpy(dst, h, 7);
 }
 
+
+static int _write_uint32(File f, uint32_t val)
+{
+  val = htonl(val);
+  return f.write((unsigned char*)&val, sizeof(val));
+}
+
+
+static uint32_t _read_uint32(File f)
+{
+  uint32_t val;
+  f.read((unsigned char*)&val, sizeof(val));
+  return ntohl(val);
+}
+
+
 ReplicaClass::ReplicaClass(char *datapath, unsigned char *fID)
 {
   memcpy(this->fid, fID, FID_LEN);
@@ -41,132 +76,88 @@ ReplicaClass::ReplicaClass(char *datapath, unsigned char *fID)
   fname = (char*) malloc(strlen(datapath) + 1 + 64 + 1 + 7 + 1); // "/log.bin"
   sprintf(fname, "%s/%s", FEED_DIR, to_hex(fid, FID_LEN, 0));
   if (!MyFS.exists(fname))
-    MyFS.mkdir(fname);
-  strcat(fname, "/");
-  suffix_pos = strlen(fname);
+    MyFS.mkdir(fname);  // perhaps this is done automatically by LittleFS
+  strcat(fname, "/log.bin");
+
+  chunk_cnt = -1;
 
 #ifdef ERASE
   // erase:
   _mk_fname(0); // log
-  MyFS.open(fname, FILE_WRITE, true).close();
+  MyFS.open(fname, "w", true).close();
   _mk_fname(1); // frt
   MyFS.remove(fname);
 #endif
 
-  _mk_fname(0); // log
-  if (!MyFS.exists(fname)) { // create log and frt
-    MyFS.open(fname, FILE_WRITE, true).close();
-    _mk_fname(3); // mid
-    if (!MyFS.exists(fname))
-      MyFS.open(fname, FILE_WRITE, true).close();
-    // init the frt.bin file:
-    _init_frontier();
-  } else {
-    File f = MyFS.open(fname, FILE_READ, false);
-    int log_len = f.size();
+  memcpy(mid, fid, HASH_LEN);
+  if (!MyFS.exists(fname)) { // create log
+    seq = 0;
+    pendscc = 0;
+    File f = MyFS.open(fname, "w", true);
+    _write_uint32(f, 0);// pendscc
+    _write_uint32(f, 0);// seq
     f.close();
-    // check whether tmp.bin exists, do the rename op that was lost
-    _mk_fname(2);
-    if (MyFS.exists(fname)) {
-      char *old = strdup(fname);
-      _mk_fname(1);
-      MyFS.rename(old, fname);
+  } else {
+    File f = MyFS.open(fname, "r+", false);
+    int sz = f.size();
+    f.seek(sz - 2 * sizeof(int32_t), SeekSet);
+    f.read((unsigned char*)&pendscc, sizeof(pendscc));
+    pendscc = ntohl(pendscc);
+    f.read((unsigned char*)&seq, sizeof(seq));
+    seq = ntohl(seq);
+    if (seq > 0) {
+      f.seek(sz - 3 * sizeof(uint32_t) - HASH_LEN, SeekSet);
+      f.read(mid, HASH_LEN);
     }
- 
-    // FIXME: fill MID content, if necessary
-    
-    // check whether frt.bin exists, else init one
-    _mk_fname(1);
-    if (!MyFS.exists(fname))
-      _init_frontier();
-    else {
-      state = NULL; // delay state loading
-#ifdef NOT_USED
-      // read the frontier file
-      _mk_fname(1);
-      f = MyFS.open(fname, FILE_READ, false);
-      int frt_len = f.size();
-      // FIXME: check whether length is zero, recover content
-      unsigned char *buf = (unsigned char*) malloc(frt_len);
-      f.read(buf, frt_len);
-      f.close();
-      // Serial.printf("   frt content is %s\r\n", to_hex(buf, frt_len, 0));
-      state = bipf_loads(buf, frt_len);
-      // Serial.printf("FID=%s\r\n", to_hex(fID, 32));
-      // Serial.println("   state=" + bipf2String(state));
-      free(buf);
-      max_seq_ref = bipf_dict_getref(state, str2bipf("max_seq"));
-      max_pos_ref = bipf_dict_getref(state, str2bipf("max_pos"));
-      prev_ref    = bipf_dict_getref(state, str2bipf("prev"));
-      pending_ref = bipf_dict_getref(state, str2bipf("pend_sc"));
- #endif
-    }
-    // Serial.printf("   msr=%p mpr=%p pvr=%p per=%p\r\n",
-    //               max_seq_ref, max_pos_ref, prev_ref, pending_ref);
-    // Serial.println("   pend_sc=" + bipf2String(pending_ref));
-
-    // check whether frt is up to date
-    // ... FIXME else redigest the log entries, then _persist_frontier
-  /*
-        while os.path.getsize(self.log_fname) > self.state['max_pos']:
-            with open(self.log_fname, 'r+b') as f:
-                pos = self.state['max_pos']
-                f.seek(pos, os.SEEK_SET)
-                pkt = f.read(120)
-                seq = self.state['max_seq'] + 1
-                nam = PFX + self.fid + seq.to_bytes(4,'big') + self.state['prev']
-                dmx = hashlib.sha256(nam).digest()[:7]
-                if self.is_author or dmx != pkt[:7]:
-                    print('truncating log file')
-                    f.seek(pos, os.SEEK_SET)
-                    f.truncate()
-                    break
-                chunk_cnt = 0
-                if pkt[7] == PKTTYPE_chain20:
-                    content_len, sz = bipf.varint_decode(pkt, 8)
-                    content_len -= 48 - 20 - sz
-                    ptr = pkt[36:56]
-                    chunk_cnt = (content_len + 99) // 100
-                if chunk_cnt > 0:
-                    self.state['pend_sc'][seq] = [0, chunk_cnt, ptr, pos + 120]
-                while chunk_cnt > 0: # allocate sidechain space in the file
-                    f.write(bytes(120))
-                    chunk_cnt -= 1
-                f.write(pos.to_bytes(4,'big'))
-                pos = f.tell()
-            self._persist_frontier(seq, pos,
-                                   hashlib.sha256(nam + pkt).digest()[:20])
-  */
+    f.close();
+    Serial.printf("opened log %s, %dB, seq=%d\r\n", fname, sz, seq);
   }
 }
 
 
-void ReplicaClass::_load_state()
+int ReplicaClass::load_chunk_cnt() // summed over all sequence numbers
 {
-  // Serial.println("   _load_state");
-  if (state != NULL)
-    return;
-  // read the frontier file
-  _mk_fname(1);
-  File f = MyFS.open(fname, FILE_READ, false);
-  int frt_len = f.size();
-  // FIXME: check whether length is zero, recover content
-  unsigned char *buf = (unsigned char*) malloc(frt_len);
-  f.read(buf, frt_len);
+  File f = MyFS.open(fname, "r");
+  if (!f)
+    return 0;
+  int cnt = 0, k = 0, s = seq;
+  uint32_t endAddr = f.size() - 2 * sizeof(uint32_t);
+  while (endAddr != 0) {
+    if ((++k % 10) == 0)
+      io_loop();
+    f.seek(endAddr - sizeof(uint32_t));
+    uint32_t startAddr = _read_uint32(f);
+    if ((endAddr - startAddr) > (TINYSSB_PKT_LEN+HASH_LEN+sizeof(uint32_t))) {
+      f.seek(endAddr - sizeof(uint32_t) - HASH_LEN - HASH_LEN, SeekSet);
+      unsigned char tmp[HASH_LEN];
+      f.read(tmp, HASH_LEN);
+      bool is_empty = true;
+      for (int i = 0; i < HASH_LEN; i++)
+        if (tmp[i] != 0) { is_empty = false; break; }
+      int delta;
+      if (is_empty)
+        delta = (endAddr-startAddr - HASH_LEN - sizeof(uint32_t)) \
+                                                       / TINYSSB_PKT_LEN - 1;
+      else {
+        f.seek(endAddr - sizeof(uint32_t) - HASH_LEN - \
+                                                3*sizeof(uint32_t), SeekSet);
+        delta = _read_uint32(f);
+      }
+      // Serial.printf("delta for seq=%d is %d\r\n", s, delta);
+      cnt += delta;
+    }
+    endAddr = startAddr;
+    s--;
+  }
   f.close();
-  // Serial.printf("   frt content is %s\r\n", to_hex(buf, frt_len, 0));
-  state = bipf_loads(buf, frt_len);
-  // Serial.printf("FID=%s\r\n", to_hex(fID, 32));
-  // Serial.println("   state=" + bipf2String(state));
-  free(buf);
-  max_seq_ref = bipf_dict_getref(state, str2bipf("max_seq"));
-  max_pos_ref = bipf_dict_getref(state, str2bipf("max_pos"));
-  prev_ref    = bipf_dict_getref(state, str2bipf("prev"));
-  pending_ref = bipf_dict_getref(state, str2bipf("pend_sc"));
+  // Serial.printf("chunk count for fid=%d is %d\r\n",
+  //               theGOset->_key_index(fid), cnt);
+  chunk_cnt = cnt;
+  return cnt;
 }
 
 
-int ReplicaClass::_get_content_len(unsigned char *pkt, int seq, int *valid_len)
+int ReplicaClass::_get_content_len(unsigned char *pkt,int seq_nr,int *valid_len)
 {
   if (pkt[DMX_LEN] == PKTTYPE_plain48) {
     if (valid_len)
@@ -176,39 +167,37 @@ int ReplicaClass::_get_content_len(unsigned char *pkt, int seq, int *valid_len)
   int sz = 5;
   int len = bipf_varint_decode(pkt, DMX_LEN+1, &sz);
   if (valid_len) {
-    *valid_len = len;
+    *valid_len = (48-20-sz); // no chunks implemented so far
+    /*    *valid_len = len;
     if (len > 48-20-sz) {
-      _load_state();
+      // _load_state();
       struct bipf_s i = { BIPF_INT, {}, {.i = seq} };
       struct bipf_s *p = bipf_dict_getref(pending_ref, &i);
       if (p != NULL)
         *valid_len = (48-20-sz) + 100 * p->u.list[0]->u.i;
     }
+    */
   }
   return len;
-  /*
-            if not seq in self.state['pend_sc']:
-                return (content_len, content_len)
-            available = (48-20-sz) + 100 * self.state['pend_sc'][seq][0]
-            return (available, content_len)
-  */
 }
 
 
-File ReplicaClass::_get_entry_start(int seq)
+File ReplicaClass::_open_at_start(int seq_nr, uint32_t *endAddr)
 {
-  _load_state();
-  if (seq < 1 || seq > max_seq_ref->u.i)
+  // _load_state();
+  if (seq_nr < 1 || seq_nr > seq)
     return (File) NULL;
-  _mk_fname(0); // log
-  File f = MyFS.open(fname, FILE_READ, false);
+
+  File f = MyFS.open(fname, "r+", false);
   if (!f)
     return (File) NULL;
-  uint pos = f.size();
-  int cnt = max_seq_ref->u.i - seq + 1;
-  while (cnt-- > 0) {
+  uint32_t pos = f.size() - 2*sizeof(uint32_t); // skip pendscc and seq
+  int cnt = seq - seq_nr + 1;
+  while (cnt-- > 0) { // we run this at least once
+    if (endAddr)
+      *endAddr = pos;
     // Serial.printf("pos=%d\r\n", pos);
-    f.seek(pos-4, SeekSet);
+    f.seek(pos-sizeof(uint32_t), SeekSet);
     if (f.read( (unsigned char*) &pos, sizeof(pos) ) != sizeof(pos)) {
       // Serial.printf("didn't worked pos=%d, cnt=%d\r\n", ntohl(pos), cnt);
       f.close();
@@ -222,69 +211,12 @@ File ReplicaClass::_get_entry_start(int seq)
 }
 
 
-void ReplicaClass::_persist_frontier()
-{
-  int len;
-  unsigned char *buf = bipf_dumps(state, &len);
-  // Serial.printf("   _persist_frontier %dB %s\r\n", len, to_hex(buf, len, 0));
-  _mk_fname(2); // tmp
-  char *tmp = strdup(fname);
-  // Serial.printf("open\r\n");
-  File f = MyFS.open(tmp, FILE_WRITE, true);
-  f.write(buf, len);
-  f.close();
-  // Serial.printf("closed\r\n");
-  free(buf);
-  _mk_fname(1); // frt
-  MyFS.rename(tmp, fname);
-  free(tmp);
-  // Serial.printf("renamed\r\n");
-}
-
-void ReplicaClass::_mk_fname(int n)
-{
-  if (n == 3)
-    strcpy(fname + suffix_pos, "mid.bin");
-  if (n == 2)
-    strcpy(fname + suffix_pos, "tmp.bin");
-  else if (n == 1)
-    strcpy(fname + suffix_pos, "frt.bin");
-  else
-    strcpy(fname + suffix_pos, "log.bin");
-}
-
-void ReplicaClass::_init_frontier()
-{
-  state = bipf_mkDict();
-  max_seq_ref = bipf_mkInt(0);
-  bipf_dict_set(state, bipf_mkString("max_seq"), max_seq_ref);
-  max_pos_ref = bipf_mkInt(0);
-  bipf_dict_set(state, bipf_mkString("max_pos"), max_pos_ref);
-  prev_ref = bipf_mkBytes(fid, HASH_LEN);
-  bipf_dict_set(state, bipf_mkString("prev"), prev_ref);
-  pending_ref = bipf_mkDict();
-  bipf_dict_set(state, bipf_mkString("pend_sc"), pending_ref);
-  _persist_frontier();
-}
-
 char ReplicaClass::ingest_entry_pkt(unsigned char *pkt) // True/False
 {
-  // Serial.println(String("incoming entry for log ") + to_hex(fid, FID_LEN, 0));
-  /*
-  long durations[10], t1, t2;
-  t1 = millis();
-
-  int ndx = feed_index(fid);
-  if (ndx < 0) {
-    Serial.println("  no such feed");
-    return;
-  }
-  t2 = millis(); durations[0] = t2 - t1; t1 = t2;
-  */
-  // check dmx
-  _load_state();  
+  // Serial.println(String("incoming entry for log ") + to_hex(fid, FID_LEN, 0))  // check dmx
+  // _load_state();  
   unsigned char dmx_val[DMX_LEN];
-  compute_dmx(dmx_val, fid, max_seq_ref->u.i + 1, prev_ref->u.buf);
+  compute_dmx(dmx_val, fid, seq + 1, mid);
   if (memcmp(dmx_val, pkt, DMX_LEN)) { // wrong dmx field
     Serial.println("   DMX mismatch");
     return 0;
@@ -300,195 +232,170 @@ char ReplicaClass::ingest_entry_pkt(unsigned char *pkt) // True/False
   }
   unsigned char h256[crypto_hash_sha256_BYTES];
   crypto_hash_sha256(h256, nam, sizeof(nam));
-  memcpy(prev_ref->u.buf, h256, HASH_LEN); // =msgID
+  memcpy(mid, h256, HASH_LEN); // =msgID
   // t2 = millis(); durations[2] = t2 - t1; t1 = t2;
   io_loop();
 
-  _mk_fname(0); // log
-  File f = MyFS.open(fname, FILE_APPEND, false);
+  File f = MyFS.open(fname, "r+"); // modify and append
   // Serial.printf("   appending %d.%d at %d\r\n", theGOset->_key_index(fid),
   //                max_seq_ref->u.i + 1, f.position());
+  f.seek(f.size() - 2*sizeof(uint32_t), SeekSet); // skip pendscc and seq
+  uint32_t pkt_start = f.position();
   f.write(pkt, TINYSSB_PKT_LEN);
-  int chunk_cnt = 0;
+  uint32_t ch_cnt = 0, tmp;
   if (pkt[DMX_LEN] == PKTTYPE_chain20) {
     int sz = 5;
     int content_len = bipf_varint_decode(pkt, DMX_LEN+1, &sz);
     content_len -= 48 - HASH_LEN - sz;
-    // ptr = pkt[36:56] --> pending_sc
-    chunk_cnt = (content_len + 99) / 100;
-    // Serial.printf("  content_len=%d, cc=%d\r\n", content_len, chunk_cnt);
+    // ptr = pkt[36:56] --> hash of first chunk
+    ch_cnt = (content_len + 99) / 100;
+    // Serial.printf("  content_len=%d, cc=%d\r\n", content_len, ch_cnt);
   }
-  if (chunk_cnt > 0) {
-    // Serial.printf("  1st chunk will be at %d\r\n", f.position());
-    struct bipf_s *sc = bipf_mkList();
-    bipf_list_append(sc, bipf_mkInt(0));
-    bipf_list_append(sc, bipf_mkInt(chunk_cnt));
-    bipf_list_append(sc, bipf_mkBytes(pkt+36, HASH_LEN));
-    bipf_list_append(sc, bipf_mkInt(f.position())); // max_pos_ref->u.i + TINYSSB_PKT_LEN));
-    /*
-    Serial.printf("* adding to sidechain: %d/%d pos=%d, dict_len=%d\r\n",
-                  max_seq_ref->u.i + 1, chunk_cnt,
-                  max_pos_ref->u.i + TINYSSB_PKT_LEN,
-                  pending_ref->cnt);
-    */
-    bipf_dict_set(pending_ref, bipf_mkInt(max_seq_ref->u.i + 1), sc);
-    // Serial.printf("  dict_len=%d\r\n", pending_ref->cnt);
+  if (ch_cnt > 0) {
     unsigned char empty[TINYSSB_PKT_LEN];
     memset(empty, 0, sizeof(empty));
-    for (int i = 0; i < chunk_cnt; i++)
+    for (int i = 1; i < ch_cnt; i++)
       f.write(empty, sizeof(empty));
+    f.write(empty, TINYSSB_PKT_LEN - HASH_LEN - 3 * sizeof(uint32_t)); // fill
+    f.write(pkt+36, HASH_LEN);   // hash of first side chain chunk
+    _write_uint32(f, 0);         // zero chunks obtained so far
+    _write_uint32(f, ch_cnt); // number of chunks left:
+    _write_uint32(f, pendscc);   // old pendscc position:
+    // -- this ends the last chunk
   }
-  uint oldpos = htonl(max_pos_ref->u.i);
-  f.write((unsigned char *) &oldpos, sizeof(oldpos));
+  f.write(mid, HASH_LEN);
+  _write_uint32(f, pkt_start);
+  // -- this ends the log entry block
+  if (ch_cnt != 0) // new pendscc
+    pendscc = f.position();
+  _write_uint32(f, pendscc);
+  _write_uint32(f, ++seq);
   f.close();
-  max_pos_ref->u.i += (chunk_cnt + 1) * TINYSSB_PKT_LEN + sizeof(oldpos);
-  max_seq_ref->u.i++;
-  _persist_frontier();
-  // t2 = millis(); durations[4] = t2 - t1; t1 = t2;
+
   io_loop();
-
-  // t2 = millis(); durations[5] = t2 - t1; t1 = t2;
-  // t2 = millis(); durations[6] = t2 - t1; t1 = t2;
-
-  /*
-  Serial.printf("   durations");
-  for (int i = 0; i < sizeof(durations)/sizeof(long); i++)
-    Serial.printf(" %ld", durations[i]);
-  Serial.printf("\r\n");
-  */
   // Serial.printf("end of ingest_entry_pkt\r\n");
   return 1;
 }
 
-char ReplicaClass::ingest_chunk_pkt(unsigned char *pkt, int seq, int *cnr) // True/False
-{
-  _load_state();
 
+char ReplicaClass::ingest_chunk_pkt(unsigned char *pkt, int snr, int *cnr) // True/False
+{
+  /* checking hash match should not be necessary, we filtered at CHKT level
   unsigned char h[crypto_hash_sha256_BYTES];
   crypto_hash_sha256(h, pkt, TINYSSB_PKT_LEN);
-  struct bipf_s k = { BIPF_INT, {}, {.i = seq} };
-  struct bipf_s *pend = bipf_dict_getref(pending_ref, &k);
-  // [cnr, rem, hptr, pos]
-  // assert correct hash val
-  if (pend == NULL || memcmp(h, pend->u.list[2]->u.buf, HASH_LEN)) {
-    // Serial.printf("unexpected chunk for seq=%d\r\n", seq);
-    return 0;
-  }
-  _mk_fname(0); // log
-  File f = MyFS.open(fname, "r+", false);
+  */
+  uint32_t endAddr;
+  File f = _open_at_start(snr, &endAddr);
   if (!f)
     return 0;
-  unsigned long pos = pend->u.list[3]->u.i;
-  // Serial.printf("  saving chunk %d.%d at %d\r\n", seq, *cnr, pos);
-  f.seek(pos, SeekSet);
-  // Serial.printf("  pos after seek is %d\r\n", f.position());
-  f.write(pkt, TINYSSB_PKT_LEN);
-  // Serial.printf("  pos after write is %d\r\n", f.position());
-  f.close();
-  // Serial.printf("chunk saved to disk\r\n");
-  if (pend->u.list[1]->u.i <= 1) { // chain is complete
-    bipf_dict_delete(pending_ref, &k);
-    if (cnr)
-      *cnr = -1;
-  } else {
-    pend->u.list[0]->u.i++;
-    pend->u.list[1]->u.i--;
-    memcpy(pend->u.list[2]->u.buf, pkt+100, HASH_LEN);
-    pend->u.list[3]->u.i = pos + TINYSSB_PKT_LEN;
-    if (cnr)
-      *cnr = pend->u.list[0]->u.i;
+  uint32_t startAddr = f.position();
+  if ((endAddr - startAddr) <= (TINYSSB_PKT_LEN+HASH_LEN+sizeof(uint32_t))) {
+    // that's bad: packet has no sidechain
+    f.close();
+    return 0;
   }
-  _persist_frontier();
-  // Serial.printf("end of ingest_chunk_pkt\r\n");
+  // test final hash-of-next-chunk field
+  f.seek(endAddr - sizeof(uint32_t) - HASH_LEN - HASH_LEN, SeekSet);
+  unsigned char tmp[HASH_LEN];
+  f.read(tmp, HASH_LEN);
+  bool is_empty = true;
+  for (int i = 0; i < HASH_LEN; i++)
+    if (tmp[i] != 0) { is_empty = false; break; }
+  if (is_empty) {
+    // that's bad: sidechain already complete
+    f.close();
+    return 0;
+  }
+  // read side chain status
+  f.seek(endAddr - sizeof(uint32_t) - HASH_LEN - 3*sizeof(uint32_t), SeekSet);
+  uint32_t have = _read_uint32(f);
+  uint32_t left = _read_uint32(f);
+  uint32_t pscc = _read_uint32(f);
+  f.seek(startAddr + (1+have) * TINYSSB_PKT_LEN, SeekSet);
+  f.write(pkt, TINYSSB_PKT_LEN);
+  if (left == 1) { // this was the last chunk, trim the pending chain
+    Serial.printf("  chain %d.%d.%d complete\r\n",
+                  theGOset->_key_index(fid), snr, *cnr);
+    if (pendscc == endAddr) {
+      pendscc = pscc;
+      f.seek(f.size() - 2*sizeof(uint32_t));
+      _write_uint32(f, pendscc);
+    } else if (pendscc != 0) {
+      uint32_t pos = pendscc;
+      // pos has start if linked list of open side chains
+      // (i.e., pos points to the end of the respective log entry)
+      while (pos != 0) {
+        if (!f.seek(pos - HASH_LEN - 2*sizeof(uint32_t), SeekSet))
+          break;
+        uint32_t tmp = _read_uint32(f); // continuation position
+        if (tmp == endAddr) { // found it, replace it
+          if (!f.seek(pos - HASH_LEN - 2*sizeof(uint32_t), SeekSet))
+            break;
+          _write_uint32(f, pscc);
+          break;
+        }
+        pos = tmp;
+      }
+    }
+  } else { // update side chain status
+    Serial.printf("  writing new chain status %d.%d.%d: have=%d left=%d\r\n",
+                  theGOset->_key_index(fid), snr, *cnr, have+1, left-1);
+    f.seek(endAddr - sizeof(uint32_t) - HASH_LEN - 3*sizeof(uint32_t), SeekSet);
+    _write_uint32(f, have+1);
+    _write_uint32(f, left-1);
+  }
+  f.close();
+  chunk_cnt++;
   return 1;
 }
 
+
 int ReplicaClass::get_next_seq(unsigned char *dmx) // returns seq and DMX
 {
-  _load_state();
-
-  // Serial.printf(" max_seq_ref=%p prev_ref=%p\r\n", max_seq_ref, prev_ref);
-  int maxs = max_seq_ref->u.i;
-  // Serial.printf(" max_seq=%d\r\n", maxs);
-  // Serial.printf(" prev=%s\r\n", to_hex(prev_ref->u.buf, prev_ref->cnt, 0));
   if (dmx)
-    compute_dmx(dmx, fid, maxs + 1, prev_ref->u.buf);
-  return maxs + 1;
+    compute_dmx(dmx, fid, seq + 1, mid);
+  return seq + 1;
 }
 
-int ReplicaClass::get_content_len(int seq, int *valid_len)
+
+int ReplicaClass::get_content_len(int seq_nr, int *valid_len)
 {
-  unsigned char *pkt = this->get_entry_pkt(seq);
+  unsigned char *pkt = this->get_entry_pkt(seq_nr);
   if (!pkt)
     return -1;
   if (pkt[DMX_LEN] != PKTTYPE_plain48 && pkt[DMX_LEN] != PKTTYPE_chain20)
     return -1;
-  return _get_content_len(pkt, seq, valid_len);
-  /*
-  if (pkt[DMX_LEN] == PKTTYPE_plain48) {
-    if (valid_len)
-      *valid_len = 48;
-    return 48; // (48,48)
-  }
-  if (pkt[DMX_LEN] != PKTTYPE_chain20)
-    return -1;
-  int sz = 5;
-  int content_len = bipf_varint_decode(pkt, DMX_LEN+1, &sz);
-
-  if (valid_len) {
-    struct bipf_s i = { BIPF_INT, {}, {.i = seq} };
-    struct bipf_s *p = bipf_dict_getref(pending_ref, &i);
-    if (p == NULL)
-      *valid_len = content_len;
-    else
-      *valid_len = (48-20-sz) + 100 * p->u.list[0]->u.i;
-  }
-  return content_len;
-  */
-  /*
-            if not seq in self.state['pend_sc']:
-                return (content_len, content_len)
-            available = (48-20-sz) + 100 * self.state['pend_sc'][seq][0]
-            return (available, content_len)
-  */
+  return _get_content_len(pkt, seq_nr, valid_len);
 }
 
-int ReplicaClass::get_chunk_cnt()
-{
-  _load_state();
 
-  int c = max_pos_ref->u.i - (TINYSSB_PKT_LEN + 4) * max_seq_ref->u.i;
-  c /= TINYSSB_PKT_LEN;
-  for (int i = 0; i < pending_ref->cnt; i++) {
-    struct bipf_s *s = pending_ref->u.dict[2*i+1];
-    c -= s->u.list[1]->u.i; // remaining
-  }
-  return c;
-}
-
+/*
 struct bipf_s* ReplicaClass::get_open_chains() // return a dict
 {
-  _load_state();
+  // _load_state();
 
   return pending_ref;
 }
+*/
 
 
+/*
 struct bipf_s* ReplicaClass::get_next_in_chain(int seq)
 {
-  _load_state();
+  // _load_state();
 
   struct bipf_s i = { BIPF_INT, {}, {.i = seq} };
   return bipf_dict_getref(pending_ref, &i);
 }
+*/
 
 
-unsigned char* ReplicaClass::get_entry_pkt(int seq)
+unsigned char* ReplicaClass::get_entry_pkt(int seq_nr)
 // results points to static buffer
 {
-  File f = _get_entry_start(seq);
+  File f = _open_at_start(seq_nr);
   if (f == (File) NULL) {
-    // Serial.printf("_get_entry_start %d failed\r\n", seq);
+    // Serial.printf("_open_at_start %d failed\r\n", seq_nr);
     return NULL;
   }
   static unsigned char buf[TINYSSB_PKT_LEN];
@@ -498,9 +405,111 @@ unsigned char* ReplicaClass::get_entry_pkt(int seq)
 }
 
 
+unsigned char* ReplicaClass::get_chunk_pkt(int seq_nr, int chunk_nr)
+{
+  if (seq_nr < 1 || seq_nr > seq)
+    return NULL;
+  uint32_t endAddr;
+  File f = _open_at_start(seq_nr, &endAddr);
+  if (!f)
+    return NULL;
+  uint32_t startAddr = f.position();
+  if ((endAddr - startAddr) <= (TINYSSB_PKT_LEN+HASH_LEN+sizeof(uint32_t))) {
+    f.close();
+    return NULL;
+  }
+  f.seek(endAddr - sizeof(uint32_t) - HASH_LEN - HASH_LEN, SeekSet);
+  unsigned char tmp[HASH_LEN];
+  f.read(tmp, HASH_LEN);
+  bool is_empty = true;
+  unsigned int have;
+  for (int i = 0; i < HASH_LEN; i++)
+    if (tmp[i] != 0) { is_empty = false; break; }
+  if (is_empty)
+    have = (endAddr-startAddr - HASH_LEN - sizeof(uint32_t))            \
+                                                       / TINYSSB_PKT_LEN - 1;
+  else {
+    f.seek(endAddr - sizeof(uint32_t) - HASH_LEN -                      \
+                                                3*sizeof(uint32_t), SeekSet);
+    have = _read_uint32(f);
+  }
+  if (chunk_nr >= have) {
+    f.close();
+    return NULL;
+  }
+  static unsigned char buf[TINYSSB_PKT_LEN];
+  f.seek(startAddr + TINYSSB_PKT_LEN * (1 + chunk_nr), SeekSet);
+  int sz = f.read(buf, sizeof(buf));
+  f.close();
+  return sz == sizeof(buf) ? buf : NULL;
+}
+
+
+int ReplicaClass::get_open_sidechains(int max_cnt, struct chunk_needed_s *pcn)
+{
+  if (seq == 0)
+    return 0;
+  File f = MyFS.open(fname, "r");
+  f.seek(f.size() - 2*sizeof(uint32_t));
+  f.close();
+  uint32_t pos = _read_uint32(f);
+  if (pos == 0)
+    return 0;
+  int cnt = 0;
+  uint32_t old_iter;
+  if (pssc_iter == 0) {
+    old_iter = 1;
+    pssc_iter = seq;
+  } else {
+    old_iter = pssc_iter;
+    if (--pssc_iter == 0)
+      pssc_iter = seq;
+  }
+  uint32_t endAddr;
+  f = _open_at_start(pssc_iter, &endAddr);
+  uint32_t startAddr = f.position();
+  do {
+    if ((endAddr - startAddr) > (TINYSSB_PKT_LEN+HASH_LEN+sizeof(uint32_t))) {
+      f.seek(endAddr - sizeof(uint32_t) - HASH_LEN - HASH_LEN, SeekSet);
+      unsigned char tmp[HASH_LEN];
+      f.read(tmp, HASH_LEN);
+      bool is_empty = true;
+      for (int i = 0; i < HASH_LEN; i++)
+        if (tmp[i] != 0) { is_empty = false; break; }
+      if (!is_empty) { // side chain not completed yet
+        pcn[cnt].snr = pssc_iter;
+        f.seek(endAddr - sizeof(uint32_t) - HASH_LEN -                  \
+                                                3*sizeof(uint32_t), SeekSet);
+        pcn[cnt].cnr = _read_uint32(f); // have
+        if (pcn[cnt].cnr == 0)
+          f.seek(startAddr + 36);
+        else
+          f.seek(startAddr + TINYSSB_PKT_LEN * (1 + pcn[cnt].cnr) - HASH_LEN);
+        f.read(pcn[cnt].hash, HASH_LEN);
+        cnt++;
+      }
+      // else Serial.printf("    s=%d has full sidechain\r\n", pssc_iter);
+    }
+    // else Serial.printf("    s=%d has no sidechain\r\n", pssc_iter);
+    if (startAddr != 0) {
+      endAddr = startAddr;
+      f.seek(endAddr - sizeof(uint32_t));
+      startAddr = _read_uint32(f);
+      pssc_iter--;
+    } else {
+      f.close();
+      pssc_iter = seq;
+      f = _open_at_start(pssc_iter, &endAddr);
+      startAddr = f.position();
+    }
+  } while (cnt < max_cnt && pssc_iter != old_iter);
+  f.close();
+  return cnt;
+}
+
+
 void ReplicaClass::hex_dump(int seq)
 {
-  _mk_fname(0); // log
   Serial.printf("# %s\r\n", fname);
   File f = MyFS.open(fname, FILE_READ);
   if (!f) {
@@ -543,49 +552,26 @@ void ReplicaClass::hex_dump(int seq)
   }
 }
 
-unsigned char* ReplicaClass::get_chunk_pkt(int seq, int chunk_nr)
-{
-  _load_state();
 
-  if (seq < 1 || seq > max_seq_ref->u.i)
-    return NULL;
-  // check that we persisted this chunk, is not in a pending sidechain
-  struct bipf_s i = { BIPF_INT, {}, {.i = seq} };
-  struct bipf_s *p = bipf_dict_getref(pending_ref, &i);
-  if (p != NULL && chunk_nr >= p->u.list[0]->u.i)
-    return NULL;
-  // read the chunk
-  static unsigned char buf[TINYSSB_PKT_LEN];
-  File f = MyFS.open(fname, FILE_READ, false);
-  if (!f)
-    return NULL;
-  uint pos = f.size();
-  int cnt = max_seq_ref->u.i - seq + 1;
-  int lim;
-  while (cnt-- > 0) {
-    f.seek(pos-4, SeekSet);
-    lim = pos;
-    if (f.read( (unsigned char*) &pos, sizeof(pos) ) != sizeof(pos)) {
-      f.close();
-      return NULL;
-    }
-    pos = ntohl(pos);
+int ReplicaClass::get_mid(int seq_nr, unsigned char *mid_ptr)
+{
+  if (seq_nr < 1 || seq_nr > seq || mid_ptr == NULL)
+    return 0;
+  if (seq_nr == seq) {
+    memcpy(mid_ptr, mid, HASH_LEN);
+    return 1;
   }
-  pos += TINYSSB_PKT_LEN * (chunk_nr+1);
-  if (pos > lim-TINYSSB_PKT_LEN) {
-    f.close();
-    return NULL;
-  }
-  f.seek(pos, SeekSet);
-  int sz = f.read(buf, sizeof(buf));
+  uint32_t endAddr;
+  File f = _open_at_start(seq_nr, &endAddr);
+  f.seek(endAddr - sizeof(uint32_t) - HASH_LEN);
+  f.read(mid_ptr, HASH_LEN);
   f.close();
-  return sz == sizeof(buf) ? buf : NULL;
+  return 1;
 }
 
-
-unsigned char* ReplicaClass::read(int seq, int *valid_len)
+unsigned char* ReplicaClass::read(int seq_nr, int *valid_len)
 {
-  File f = _get_entry_start(seq);
+  File f = _open_at_start(seq_nr);
   if (f == (File) NULL)
     return NULL;
   // Serial.printf("#seq %d, pos=%d\r\n", seq, f.position());
@@ -606,6 +592,8 @@ unsigned char* ReplicaClass::read(int seq, int *valid_len)
     f.close();
     return NULL;
   }
+  return NULL;
+  /*
   int len;
   if (_get_content_len(pkt, seq, &len) < 0)
     return NULL;
@@ -630,32 +618,7 @@ unsigned char* ReplicaClass::read(int seq, int *valid_len)
   }
   f.close();
   return buf;
-
-  /*
-        with open(self.log_fname, 'rb') as f:
-            pos = os.path.getsize(self.log_fname)
-
-            cnt = self.state['max_seq'] - seq + 1
-            while cnt > 0:
-                f.seek(pos-4, os.SEEK_SET)
-                pos = int.from_bytes(f.read(4), byteorder='big')
-                cnt -= 1
-            f.seek(pos, os.SEEK_SET)
-            pkt = f.read(120)
-            if pkt[7] == PKTTYPE_plain48:
-                return pkt[8:56]
-            if pkt[7] != PKTTYPE_chain20:
-                return None
-            chain_len, sz = bipf.varint_decode(pkt[8:])
-            content = pkt[8+sz:36]
-            blocks = (chain_len - len(content) + 99) // 100
-            while blocks > 0:
-                pkt = f.read(120)
-                content += pkt[:100]
-                blocks -= 1
-        return content[:chain_len]
   */
-
 }
 
 

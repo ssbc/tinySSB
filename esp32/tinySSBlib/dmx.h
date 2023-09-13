@@ -11,7 +11,7 @@
 
 #define DMXT_SIZE   (6+GOSET_MAX_KEYS) // we need place for want (1 per feed),
                                        // plus misc protocols (GOset, mgmt, WANT, CHNK)
-#define CHKT_SIZE   300                // this size is a guess, too small
+#define CHKT_SIZE   45 // 3 times a normal chunk vector size
 #define DMX_PFX     "tinyssb-v0"
 
 struct dmx_s {
@@ -22,7 +22,7 @@ struct dmx_s {
   int seq;
 };
 
-struct blb_s {
+struct hsh_s {
   unsigned char h[HASH_LEN];
   void (*fct)(unsigned char*, int, int, struct face_s *f);
   struct chain_s *front;
@@ -44,7 +44,7 @@ class DmxClass {
  public:
   struct dmx_s dmxt[DMXT_SIZE];
   int dmxt_cnt;
-  struct blb_s chkt[CHKT_SIZE];
+  struct hsh_s chkt[CHKT_SIZE];
   int chkt_cnt;
 
   unsigned char goset_dmx[DMX_LEN];
@@ -58,9 +58,9 @@ class DmxClass {
                void (*fct)(unsigned char*, int, unsigned char*,
                            struct face_s*)=NULL,
                unsigned char *aux=NULL, /*int ndx=-1,*/ int seq=0);
-  void arm_blb(unsigned char *h,
+  void arm_hsh(unsigned char *h,
                void (*fct)(unsigned char*, int, int, struct face_s*)=NULL,
-               unsigned char *fid=NULL, int seq=-1, int bnr=-1, int last=0);
+               unsigned char *fid=NULL, int seq=-1, int cnr=-1, int last=0);
   void compute_dmx(unsigned char *dst, unsigned char *buf, int len);
   int on_rx(unsigned char *buf, int len, unsigned char *hash, struct face_s *f);
   void set_want_dmx();

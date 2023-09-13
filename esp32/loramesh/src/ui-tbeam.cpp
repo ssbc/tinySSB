@@ -92,8 +92,6 @@ UIClass::UIClass()
   ble_cnt = wifi_cnt = 0;
   lora_fr = lora_bw = lora_sf = 0;
 
-  memset(peers, 0, sizeof(peers));
-
   // pinMode(BUTTON_PIN, INPUT);
   userButton.begin(BUTTON_PIN);
   userButton.setLongClickTime(1000);
@@ -168,11 +166,21 @@ void UI_TBeam_Class::loop()
 #endif
   }
 
+  if (curr_screen == UI_TBeam_Class::SCREEN_SPLASH) {
+    static double old_density;
+
+    double d = thePeers->get_peer_density();
+    if (d != old_density) {
+      old_density = d;
+      refresh_screen(curr_screen);
+    }
+  }
+  
   if (curr_screen == UI_TBeam_Class::SCREEN_PEERS) {
     static long next;
-    if (millis() > next) {
-      refresh_screen(curr_screen);
+    if (millis() > next) { // refresh once a second
       next = millis() + 900;
+      refresh_screen(curr_screen);
     }
   }
 
@@ -254,6 +262,12 @@ void UI_TBeam_Class::refresh_screen(int scr)
             (int)(the_lora_config->bw/1000), the_lora_config->sf);
     theDisplay.setFont(ArialMT_Plain_10);
     theDisplay.drawString(0, 54, fr);
+
+    double d = thePeers->get_peer_density();
+    if (d >= 0.25) theDisplay.fillRect(72, 12, 3, 3);
+    if (d >= 1.25) theDisplay.fillRect(76,  9, 3, 6);
+    if (d >= 2.25) theDisplay.fillRect(80,  6, 3, 9);
+    if (d >= 3.25) theDisplay.fillRect(84,  3, 3, 12);
 #endif
   } else if (scr == UI_TBeam_Class::SCREEN_NODE) {
     theDisplay.setFont(ArialMT_Plain_10);
@@ -298,21 +312,17 @@ void UI_TBeam_Class::refresh_screen(int scr)
     theDisplay.drawString(105, 0, "snr");
     int y = 14;
     long now = millis();
-    for (int i = 0; i < MAX_PEERS; i++) {
-      if (peers[i].id[0] == '\0')
-        continue;
-      long since = (now - peers[i].when) / 1000;
-      if (since >= 300) { // remove stale peers after 5 min
-        peers[i].id[0] = '\0';
-        continue;
-      }
-      theDisplay.drawString( 0, y, String(-since));
+    for (int i = 0; i < MAX_HEARD_PEERS; i++) {
+      struct peer_s *p = thePeers->heard_peers + i;
+      if (p->id[0] == '\0')
+        break;
+      theDisplay.drawString( 0, y, String((p->when - now) / 1000));
       char buf[10];
-      strcpy(buf, peers[i].id); // uppercase is more readable
+      strcpy(buf, p->id); // uppercase is more readable
       for (int j=0; j < strlen(buf); j++) buf[j] = toupper(buf[j]);
       theDisplay.drawString(35, y, buf);
-      theDisplay.drawString(75, y, String(peers[i].rssi));
-      sprintf(buf, "%.f1", peers[i].snr);
+      theDisplay.drawString(75, y, String(p->rssi));
+      sprintf(buf, "%.f1", p->snr);
       theDisplay.drawString(105, y, buf);
       y += 12;
     }
@@ -358,7 +368,7 @@ void UI_TBeam_Class::show_boot_msg(char *s)
   if (cnt == MAX_BOOT_MSGS) {
     theDisplay.clear();
     theDisplay.setFont(ArialMT_Plain_16);
-    theDisplay.drawString(0, 0, "starting");
+    theDisplay.drawString(0, 0, "starting tinySSB");
     memmove(boot_msgs, boot_msgs+1, 3*sizeof(char*));
     cnt--;
     n++;

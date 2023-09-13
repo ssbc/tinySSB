@@ -72,13 +72,11 @@ int crc_check(unsigned char *pkt, int len) // returns 0 if OK
 
 int incoming(struct face_s *f, unsigned char *pkt, int len, int has_crc)
 {
-  unsigned char h[crypto_hash_sha256_BYTES];
-  crypto_hash_sha256(h, pkt, len);
   Serial.printf("%c> %dB %s..", f->name[0], len, to_hex(pkt, DMX_LEN));
-  if (has_crc)
-    Serial.printf("%s ", to_hex(pkt + len-6-sizeof(uint32_t), 6));
-  else
-    Serial.printf("%s ", to_hex(pkt + len-6, 6));
+  int hlen = has_crc ? len - sizeof(uint32_t) : len;
+  Serial.printf("%s ", to_hex(pkt + hlen-6, 6));
+  unsigned char h[crypto_hash_sha256_BYTES];
+  crypto_hash_sha256(h, pkt, hlen);
   Serial.printf("h=%s\r\n", to_hex(h, HASH_LEN));
   
   if (len <= (DMX_LEN + sizeof(uint32_t))) {
@@ -91,13 +89,9 @@ int incoming(struct face_s *f, unsigned char *pkt, int len, int has_crc)
     // lora_bad_crc++;
     return -1;
   }
-  if (has_crc) {
-    // Serial.println("CRC OK");
-    len -= sizeof(uint32_t);
-  }
-  // Serial.printf("<  incoming packet, %d bytes\r\n", len);
+  // Serial.printf("<  incoming packet, %d bytes\r\n", hlen);
 
-  if (!theDmx->on_rx(pkt, len, h, f))
+  if (!theDmx->on_rx(pkt, hlen, h, f))
     return 0;
   Serial.println(String("   unknown DMX ") + to_hex(pkt, DMX_LEN, 0));
   return -1;

@@ -41,7 +41,7 @@ void incoming_want_request(unsigned char *buf, int len, unsigned char *aux, stru
       unsigned char *pkt = theRepo->fid2replica(fid)->get_entry_pkt(seq);
       if (pkt == NULL)
         continue;
-      Serial.printf("  repo.read(%d.%d) -> %s..\r\n", fNDX, seq, to_hex(pkt, 8));
+      Serial.printf("  have entry %d.%d  %s..\r\n", fNDX, seq, to_hex(pkt, 8));
       // io_enqueue(pkt, TINYSSB_PKT_LEN);
       unsigned char *tmp = (unsigned char*) malloc(TINYSSB_PKT_LEN);
       memcpy(tmp, pkt, TINYSSB_PKT_LEN);
@@ -101,21 +101,11 @@ void incoming_chnk_request(unsigned char *buf, int len, unsigned char *aux, stru
         err_cnt++;
         continue;
       }
-        // ||
-        //         (*slpptr)->u.list[0]->typ != BIPF_INT || (*slpptr)->u.list[1]->typ != BIPF_INT ||
-        //         (*slpptr)->u.list[2]->typ != BIPF_INT)
-        // ||
-        //         (*slpptr)->u.list[0]->typ != BIPF_INT || (*slpptr)->u.list[1]->typ != BIPF_INT ||
-        //         (*slpptr)->u.list[2]->typ != BIPF_INT)
-    // int fNDX = (*slpptr)->u.list[0]->u.i;
-    // int seq = (*slpptr)->u.list[1]->u.i;
-    // int cnr = (*slpptr)->u.list[2]->u.i; // chunk nr
       int fNDX = lst[0]->u.i;
       int seq = lst[1]->u.i;
       int cnr = cnr_copy[i]; // chunk nr
-      // v += (v.length() == 0 ? "[ " : " ") + String(fNDX) + "." + String(seq) + "." + String(cnr);
-    // Serial.printf(" %d.%d.%d", fNDX, seq, cnr);
       unsigned char *fid = theGOset->get_key(fNDX);
+      /*
       unsigned char *pkt = theRepo->fid2replica(fid)->get_entry_pkt(seq);
       if (pkt == NULL || pkt[DMX_LEN] != PKTTYPE_chain20) continue;
       int szlen = 4;
@@ -131,16 +121,21 @@ void incoming_chnk_request(unsigned char *buf, int len, unsigned char *aux, stru
         continue;
       }
       io_loop();
+      */
       unsigned char *chunk = theRepo->fid2replica(fid)->get_chunk_pkt(seq, cnr);
 
       if (chunk == NULL) { // missing content
         // Serial.printf("   -- cannot load chunk %d.%d.%d\r\n", fNDX, seq, cnr);
         continue;
       }
-      //Serial.printf("   have chunk %d.%d.%d\r\n", fNDX, seq, cnr);
+      unsigned char h[crypto_hash_sha256_BYTES];
+      crypto_hash_sha256(h, chunk, TINYSSB_PKT_LEN);
+      Serial.printf("   have chunk %d.%d.%d  %s..",
+                    fNDX, seq, cnr, to_hex(chunk, 8));
+      Serial.printf(" #%s#\r\n", to_hex(h, HASH_LEN));
       // io_enqueue(chunk, TINYSSB_PKT_LEN, NULL, f);
       unsigned char *tmp = (unsigned char*) malloc(TINYSSB_PKT_LEN);
-      memcpy(tmp, pkt, TINYSSB_PKT_LEN);
+      memcpy(tmp, chunk, TINYSSB_PKT_LEN);
       theSched->schedule_asap(tmp, TINYSSB_PKT_LEN);
        
       found_something++;
@@ -169,7 +164,7 @@ void incoming_chnk_request(unsigned char *buf, int len, unsigned char *aux, stru
   return;
 }
 
-void incoming_pkt(unsigned char *buf, int len, unsigned char *fid, struct face_s *f)
+void incoming_entry(unsigned char *buf, int len, unsigned char *fid, struct face_s *f)
 {
   // Serial.println("   incoming log entry");
   if (len != TINYSSB_PKT_LEN) return;
@@ -186,16 +181,19 @@ void incoming_pkt(unsigned char *buf, int len, unsigned char *fid, struct face_s
     Serial.printf("   appended %d.%d", theGOset->_key_index(fid), ns-1);
     io_loop();
     // int ndx = theGOset->_key_index(fid);
-    theDmx->arm_dmx(dmx_val, incoming_pkt, r->fid, /*ndx,*/ ns);
+    theDmx->arm_dmx(dmx_val, incoming_entry, r->fid, /*ndx,*/ ns);
 
+    /*
     struct bipf_s *p = r->get_next_in_chain(ns-1);
     if (p != NULL) {
       theRepo->chnk_is_valid = 0;
       // Serial.printf("   .. new sidechain for seq=%d\r\n", ns-1);
       // [cnr, rem, hptr, pos]
-      theDmx->arm_blb(p->u.list[2]->u.buf, incoming_chunk, r->fid,
+      theDmx->arm_hsh(p->u.list[2]->u.buf, incoming_chunk, r->fid,
                    ns-1, 0, p->u.list[1]->u.i);
     }
+    */
+    theUI->refresh();
   } else
     Serial.printf("   .. not a valid pkt\r\n");
   int delta = millis() - now;
@@ -212,17 +210,21 @@ void incoming_chunk(unsigned char *buf, int len, int chkt_ndx, struct face_s *f)
   unsigned long now = millis();
 
   char is_valid = 0;
-  struct blb_s *bp = theDmx->chkt + chkt_ndx;
+  struct hsh_s *bp = theDmx->chkt + chkt_ndx;
   for (struct chain_s *tp = bp->front; tp; tp = tp->next) {
     int ndx = theGOset->_key_index(tp->fid);
-    int next_cnr;
+    int next_cnr = tp->cnr;
     if (theRepo->fid2replica(tp->fid)->ingest_chunk_pkt(buf, tp->seq, &next_cnr)) {
       is_valid = 1;
       Serial.printf("   persisted chunk %d.%d.%d", ndx, tp->seq, tp->cnr);
       theRepo->chnk_is_valid = 0;
       theRepo->chunk_cnt++;
+      // FIXME: cannot do the following as rearming can dealloc the linked list
+      /*
       if (next_cnr > 0)
-        theDmx->arm_blb(buf+100, incoming_chunk, tp->fid, tp->seq, tp->cnr+1, tp->last_cnr);
+        theDmx->arm_hsh(buf+100, incoming_chunk, tp->fid, tp->seq, tp->cnr+1, tp->last_cnr);
+      */
+      theUI->refresh();
     } else 
       Serial.printf("  invalid chunk %d.%d.%d/%d or file problem?",
                     ndx, tp->seq, tp->cnr, tp->last_cnr);
@@ -231,7 +233,7 @@ void incoming_chunk(unsigned char *buf, int len, int chkt_ndx, struct face_s *f)
     theSched->tick();
   }
   if (is_valid)
-    theDmx->arm_blb(bp->h); // remove old CHUNK handler for this hash val
+    theDmx->arm_hsh(bp->h); // remove old CHUNK handler for this hash val
   // Serial.printf("   end of persisting chunk\r\n");
 
   int delta = millis() - now;
@@ -296,10 +298,11 @@ void probe_for_want_vect(unsigned char **pkt,
                          unsigned short *len,
                          unsigned short *reprobe_in_millis)
 {
+  // Serial.println("probe_for_chnk_vect");
   *reprobe_in_millis = NODE_ROUND_LEN/2 + esp_random() % 500;
 
   *pkt = NULL;
-  if (theGOset->goset_len == 0)
+  if (theGOset->goset_len == 0 || !theGOset->in_sync())
     return;
   theRepo->mk_want_vect();
   if (theRepo->want_len <= 0)
@@ -320,7 +323,7 @@ void probe_for_chnk_vect(unsigned char **pkt,
   *reprobe_in_millis = NODE_ROUND_LEN/2 + esp_random() % 500;
 
   *pkt = NULL;
-  if (theGOset->goset_len == 0)
+  if (theGOset->goset_len == 0 || !theGOset->in_sync())
     return;
   theRepo->mk_chnk_vect();
   if (theRepo->chnk_len <= 0)
