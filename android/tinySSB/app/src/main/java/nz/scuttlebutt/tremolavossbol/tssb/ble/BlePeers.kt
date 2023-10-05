@@ -176,7 +176,7 @@ class BlePeers(val act: MainActivity) {
                 val rc = act.tinyDemux.on_rx(ch.value)
                 act.ioLock.unlock()
                 if (!rc)
-                    Log.d("ble rx", "not dmx entry for ${ch.value.toHex()}")
+                    Log.d("ble rx", "no dmx entry for ${ch.value.toHex()}")
             }
         }
 

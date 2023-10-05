@@ -228,7 +228,7 @@ class GOset(val context: MainActivity) {
     fun _add_key(key: ByteArray) {
         if (!_include_key(key)) // adds key if necessary
             return
-        context.tinyRepo.new_feed(key)
+        context.tinyRepo.add_replica(key)
 
         keys.sortWith({a:ByteArray,b:ByteArray -> byteArrayCmp(a,b)})
         if (keys.size >= largest_claim_span) { // only rebroadcast if we are up to date

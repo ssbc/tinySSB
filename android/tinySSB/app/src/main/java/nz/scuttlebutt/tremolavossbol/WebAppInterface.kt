@@ -3,7 +3,6 @@ package nz.scuttlebutt.tremolavossbol
 import android.Manifest
 import android.content.ClipData
 import android.content.ClipboardManager
-import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.util.Base64
@@ -15,7 +14,7 @@ import androidx.core.content.ContextCompat.checkSelfPermission
 import com.google.zxing.integration.android.IntentIntegrator
 import org.json.JSONObject
 
-import nz.scuttlebutt.tremolavossbol.tssb.LogTinyEntry
+
 import nz.scuttlebutt.tremolavossbol.utils.Bipf
 import nz.scuttlebutt.tremolavossbol.utils.Bipf.Companion.BIPF_LIST
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_IAM
@@ -57,10 +56,14 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
                     Log.d("wai", "restreaming ${fid.toHex()}")
                     var i = 1
                     while (true) {
-                        val (payload,mid) = act.tinyRepo.feed_read_content(fid, i)
-                        if (payload == null) break
+                        val r = act.tinyRepo.fid2replica(fid)
+                        if(r == null)
+                            break
+                        val payload = r.read(i)
+                        val mid = r.get_mid(i)
+                        if (payload == null || mid == null) break
                         Log.d("restream", "${i}, ${payload.size} Bytes")
-                        sendToFrontend(fid, i, mid!!, payload)
+                        sendToFrontend(fid, i, mid, payload)
                         i++
                     }
                 }
@@ -68,7 +71,7 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
             }
             "wipe:others" -> {
                 for (fid in act.tinyRepo.listFeeds()) {
-                    if (fid == act.idStore.identity.verifyKey)
+                    if (fid.contentEquals(act.idStore.identity.verifyKey))
                         continue
                     act.tinyRepo.delete_feed(fid)
                 }
@@ -105,7 +108,7 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
             "wipe" -> {
                 act.settings!!.resetToDefault()
                 act.idStore.setNewIdentity(null) // creates new identity
-                act.tinyRepo.repo_reset()
+                act.tinyRepo.reset()
                 if (act.websocket != null)
                     act.websocket!!.stop()
                 if (act.ble != null)
@@ -347,9 +350,9 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
         eval(cmd)
     }
 
-    fun sendTinyEventToFrontend(entry: LogTinyEntry) {
-        Log.d("wai","sendTinyEvent ${entry.body.toHex()}")
-        sendToFrontend(entry.fid, entry.seq, entry.mid, entry.body)
+    fun sendTinyEventToFrontend(fid: ByteArray, seq: Int, mid:ByteArray, body: ByteArray) {
+        Log.d("wai","sendTinyEvent ${body.toHex()}")
+        sendToFrontend(fid, seq, mid, body)
     }
 
     fun sendToFrontend(fid: ByteArray, seq: Int, mid: ByteArray, payload: ByteArray) {

@@ -24,6 +24,7 @@ import nz.scuttlebutt.tremolavossbol.crypto.IdStore
 import nz.scuttlebutt.tremolavossbol.tssb.ble.BlePeers
 import nz.scuttlebutt.tremolavossbol.tssb.*
 import nz.scuttlebutt.tremolavossbol.tssb.ble.BluetoothEventListener
+import nz.scuttlebutt.tremolavossbol.utils.Bipf
 import nz.scuttlebutt.tremolavossbol.utils.Constants
 import tremolavossbol.R
 import java.net.*
@@ -85,13 +86,23 @@ class MainActivity : Activity() {
         // if (!mlock!!.isHeld) mlock!!.acquire()
         // mkSockets()
 
-        Log.d("IDENTITY", "is ${idStore.identity.toRef()}")
+        Log.d("IDENTITY", "is ${idStore.identity.toRef()} (${idStore.identity.verifyKey})")
 
+        //val dict = mutableMapOf<String,Any>()
+        //dict["test1"] = 1000
+        //dict["test2"] = 248
+        //Log.d("DICT TEST", "res: ${Bipf.bipf_loads(Bipf.encode(Bipf.mkDict(dict))!!)!!.get()}")
+
+        Log.d("INT TEST", "res: ${Bipf.bipf_loads(Bipf.encode(Bipf.mkInt(250))!!)!!.getInt()}")
         val webView = findViewById<WebView>(R.id.webView)
         wai = WebAppInterface(this, webView)
         tinyIO = IO(this, wai)
         tinyGoset._include_key(idStore.identity.verifyKey) // make sure our local key is in
-        tinyRepo.repo_load()
+        tinyRepo.load()
+        //for (f in tinyRepo.listFeeds()) {
+        //    tinyGoset._include_key(f)
+        //}
+        tinyGoset.adjust_state()
         tinyDemux.arm_dmx(tinyGoset.goset_dmx,  {buf:ByteArray, aux:ByteArray?, _ -> tinyGoset.rx(buf,aux)}, null)
         tinyDemux.arm_dmx(tinyDemux.want_dmx!!, {buf:ByteArray, aux:ByteArray?, sender:String? -> tinyNode.incoming_want_request(buf,aux,sender)})
         tinyDemux.arm_dmx(tinyDemux.chnk_dmx!!, { buf:ByteArray, aux:ByteArray?, _ -> tinyNode.incoming_chunk_request(buf,aux)})

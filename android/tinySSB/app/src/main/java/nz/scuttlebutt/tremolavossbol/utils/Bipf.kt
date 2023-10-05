@@ -6,8 +6,12 @@ import kotlin.experimental.and
 import kotlin.experimental.or
 
 import nz.scuttlebutt.tremolavossbol.utils.Bipf.Companion.BIPF_BYTES
+import nz.scuttlebutt.tremolavossbol.utils.Bipf.Companion.BIPF_DICT
+import nz.scuttlebutt.tremolavossbol.utils.Bipf.Companion.BIPF_DOUBLE
+import nz.scuttlebutt.tremolavossbol.utils.Bipf.Companion.BIPF_EMPTY
 import nz.scuttlebutt.tremolavossbol.utils.Bipf.Companion.BIPF_INT
 import nz.scuttlebutt.tremolavossbol.utils.Bipf.Companion.BIPF_LIST
+import nz.scuttlebutt.tremolavossbol.utils.Bipf.Companion.BIPF_RESERVED
 import nz.scuttlebutt.tremolavossbol.utils.Bipf.Companion.BIPF_STRING
 import nz.scuttlebutt.tremolavossbol.utils.HelperFunctions.Companion.toBase64
 import nz.scuttlebutt.tremolavossbol.utils.HelperFunctions.Companion.toHex
@@ -24,11 +28,58 @@ class Bipf_e(t: Int) {
                                 else throw Exception("BIPF type is ${typ} instead of BYTES")}
     fun getInt(): Int         { if (typ == BIPF_INT) return v as Int
                                 else throw Exception("BIPF type is ${typ} instead of INT")}
-    fun getList(): ArrayList<Bipf_e> { if (typ == BIPF_LIST) return v as ArrayList<Bipf_e>
+    fun getList(): ArrayList<Any?> { if (typ == BIPF_LIST) return ArrayList((v as ArrayList<Bipf_e>).map { it -> it.get() })
+                                else throw Exception("BIPF type is ${typ} instead of LIST")}
+    fun getBipfList(): ArrayList<Bipf_e> {if (typ == BIPF_LIST) return v as ArrayList<Bipf_e>
                                 else throw Exception("BIPF type is ${typ} instead of LIST")}
     fun getBoolean(): Boolean { if (typ == BIPF_BOOLNONE && v as Int >= 0) return (v as Int) > 0
                                 else throw Exception("BIPF type is ${typ} instead of BOOL")}
+    fun getDict(): MutableMap<*,*> {if (typ == BIPF_DICT) {
+        val dict = mutableMapOf<Any?, Any?>()
+        for ((key, value) in v as MutableMap<Bipf_e, Bipf_e>) {
+            if (key.typ == BIPF_LIST || key.typ == BIPF_DICT) {
+                throw Exception("BIPF key type can't be list or dict")
+            }
+            dict[key.get()] = value.get()
+        }
+        return dict
+    } else throw Exception("BIPF type is ${typ} instead of BOOL")}
     fun isNone(): Boolean     { return typ == BIPF_BOOLNONE && (v as Int) == -1 }
+
+    fun get(): Any? {
+        return when(typ) {
+            BIPF_STRING -> {
+                getString()
+            }
+            BIPF_BYTES -> {
+                getBytes()
+            }
+            BIPF_INT -> {
+                getInt()
+            }
+            BIPF_DOUBLE -> {
+                throw Exception("BIPF type ${typ} not implemented")
+            }
+            BIPF_LIST -> {
+                getList()
+            }
+            BIPF_DICT -> {
+                getDict()
+            }
+            BIPF_BOOLNONE ->{
+                if (isNone()) null else getBoolean()
+            }
+            BIPF_RESERVED -> {
+                throw Exception("BIPF type ${typ} not implemented")
+            }
+            BIPF_EMPTY ->{
+                throw Exception("BIPF type ${typ} not implemented")
+            }
+            else -> {
+                throw Exception("BIPF type ${typ} doesn't exist")
+            }
+        }
+    }
 }
 
 class Bipf {
@@ -45,6 +96,17 @@ class Bipf {
 
         val TAG_SIZE = 3
         val TAG_MASK = 7
+
+        @JvmStatic
+        private val type2encLen = mapOf(
+            Boolean::class.java to { _: Any -> 1 },
+            ByteArray::class.java to { v: Any -> (v as ByteArray).size },
+            MutableMap::class.java to { v: Any ->  _dictEncLen(v as MutableMap<*, *>) }, //_dictEncLen(x)
+            Float::class.java to { _: Any -> 8 },
+            Int::class.java to { v: Any -> _intEncLen(v as Int) }, //
+            ArrayList::class.java to { v: Any -> _listEncLen(v as ArrayList<*>)}, //
+            String::class.java to { v: Any -> (v as String).length }
+        )
 
         @JvmStatic
         fun mkBool(b: Boolean): Bipf_e {
@@ -84,6 +146,37 @@ class Bipf {
         }
 
         @JvmStatic
+        fun mkList(l: ArrayList<*>): Bipf_e {
+            val e = Bipf_e(BIPF_LIST)
+            val lst = ArrayList<Bipf_e>()
+            for (v in l) {
+                lst.add(mk(v))
+            }
+            e.v = lst
+            e.cnt = lst.size
+            return e
+        }
+
+        @JvmStatic
+        fun mkDict(): Bipf_e {
+            val e = Bipf_e(BIPF_DICT)
+            e.v = mutableMapOf<Bipf_e, Bipf_e>()
+            return e
+        }
+
+        @JvmStatic
+        fun mkDict(d: MutableMap<*,*>): Bipf_e {
+            val e = Bipf_e(BIPF_DICT)
+            val dict = mutableMapOf<Bipf_e, Bipf_e>()
+            for ((k, v) in d) {
+                dict[mk(k)] = mk(v)
+            }
+            e.v = dict
+            e.cnt = dict.size
+            return e
+        }
+
+        @JvmStatic
         fun mkString(s: String): Bipf_e {
             val e = Bipf_e(BIPF_STRING)
             e.v = s.encodeToByteArray()
@@ -91,10 +184,33 @@ class Bipf {
         }
 
         @JvmStatic
+        fun mk(v: Any?): Bipf_e {
+            return when(v) {
+                is Bipf_e -> v
+                is String -> mkString(v)
+                is ByteArray -> mkBytes(v)
+                is Int -> mkInt(v)
+                is Double -> throw Exception("BIPF variables of type double are not implemented")
+                is ArrayList<*> -> mkList(v)
+                is MutableMap<*,*> -> mkDict(v)
+                is Boolean -> mkBool(v)
+                null -> mkNone()
+                else -> throw Exception("BIPF doesn't support variables of type ${v.javaClass}")
+            }
+        }
+
+        @JvmStatic
         fun list_append(lst: Bipf_e, e: Bipf_e) {
             val alst = lst.v as ArrayList<Bipf_e>
             alst.add(e)
             lst.cnt++
+        }
+
+        @JvmStatic
+        fun dict_append(dict: Bipf_e, key: Bipf_e, value: Bipf_e) {
+            val d = dict.v as MutableMap<Bipf_e, Bipf_e>
+            d[key] = value
+            dict.cnt++
         }
 
         @JvmStatic
@@ -112,6 +228,12 @@ class Bipf {
             }
             // Log.d("bipf", "varint decode x${buf.sliceArray(old..pos-1).toHex()} -> ${v}")
             return v to (pos - old + 1)
+        }
+
+        @JvmStatic
+        fun varint_encoding_length(v: Int): Int {
+            val bit_length = v.toString(2).length
+            return if(v == 0) 1 else (bit_length + 6) / 7
         }
 
         @JvmStatic
@@ -162,11 +284,12 @@ class Bipf {
                     var i = 0
                     while (i < 8*sz) { // little endian
                         val b = buf[p].toInt()
+
                         v = v or ((if (b >= 0) b else (256 + b)) shl i)
                         p++
                         i += 8
                     }
-                    val m = 1 shl (i-1)
+                    val m = 1 shl (i+7) // TODO double check if this change is inline with the Bipf spec (previously: 1 shl (i-1))
                     val e = Bipf_e(BIPF_INT)
                     if ((v and m) == 0)
                         e.v = v
@@ -193,6 +316,24 @@ class Bipf {
                     // e.cnt = sz
                     e.v = buf.sliceArray(pos..pos+sz-1)
                     return e to sz
+                }
+                BIPF_DICT -> {
+                    val dict = mutableMapOf<Bipf_e, Bipf_e>()
+                    var p = pos
+                    while (p < lim) {
+                        val (k, ksz) = decode(buf, p, lim)
+                        if(k == null)
+                            return null to -1
+                        if (k.typ == BIPF_LIST || k.typ == BIPF_DICT)
+                            return null to -1
+                        p += ksz
+                        val (v, vsz) = decode(buf, p, lim)
+                        if (v == null)
+                            return null to -1
+                        p += vsz
+                        dict[k] = v
+                    }
+                    return mkDict(dict) to (p - pos)
                 }
                 else -> {
                     Log.d("bipf", " not implemented or wrong tag ${tag} ${pos}");
@@ -226,6 +367,36 @@ class Bipf {
             val tagbuf = varint_encode(tagInt)
             // Log.d("bipf", "  ${tagbuf.toHex()} ${body.toHex()}")
             return tagbuf + body
+        }
+
+        @JvmStatic
+        fun _intEncLen(v: Int): Int {
+            val x = if (v < 0) (-v - 1) else v
+            val bit_length  = x.toString(2).length
+            return 1 + bit_length
+        }
+
+        @JvmStatic
+        fun _listEncLen(v: ArrayList<*>): Int {
+            return v.map { encodingLength(it) }.reduce {acc, it -> acc + it}
+        }
+
+        @JvmStatic
+        fun _dictEncLen(v: MutableMap<*,*>): Int {
+            return v.entries.sumOf { (k, v) -> encodingLength(k) + encodingLength(v) }
+        }
+
+        @JvmStatic
+        fun encodingLength(v: Any?): Int {
+            if (v == null)
+                return 1
+
+            val sz = type2encLen[v::class.java]?.invoke(v)
+            if (sz == null) {
+                return -1
+            }
+
+            return varint_encoding_length(sz shr TAG_SIZE) + sz
         }
 
         @JvmStatic
@@ -268,6 +439,18 @@ class Bipf {
                 BIPF_STRING -> {
                     return e.v as ByteArray
                 }
+                BIPF_DICT -> {
+                    val ad = e.v!! as MutableMap<Bipf_e, Bipf_e>
+                    var buf: ByteArray = ByteArray(0)
+                    for ((k,v) in ad) {
+                        val kenc = encode(k)
+                        val venc = encode(v)
+                        if (kenc == null || venc == null)
+                            return null
+                        buf += kenc + venc
+                    }
+                    return buf
+                }
                 else -> {
                     Log.d("bipf", "typ ${e.typ} not implemented")
                 }
@@ -290,7 +473,7 @@ class Bipf {
         fun bipf_list2JSON(e: Bipf_e): JSONArray? {
             // Log.d("bipf", "list2J typ=${e.typ}")
             if (e.typ != BIPF_LIST) return null
-            val lst = e.getList()
+            val lst = e.getBipfList()
             // Log.d("bipf", "list2J ${lst.size}")
             val obj = JSONArray()
             for (i in 0..lst.lastIndex) {
