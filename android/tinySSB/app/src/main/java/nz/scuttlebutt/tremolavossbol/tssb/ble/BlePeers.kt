@@ -6,7 +6,6 @@ import android.annotation.SuppressLint
 import android.bluetooth.*
 import android.bluetooth.BluetoothGatt.GATT_SUCCESS
 import android.bluetooth.BluetoothGatt.STATE_CONNECTED
-import android.bluetooth.BluetoothProfile.STATE_CONNECTED
 import android.bluetooth.BluetoothProfile.STATE_DISCONNECTED
 import android.bluetooth.le.BluetoothLeAdvertiser
 import android.bluetooth.le.AdvertiseCallback
@@ -25,17 +24,16 @@ import android.os.Build
 import android.os.ParcelUuid
 import android.util.Log
 import android.widget.Toast
-import androidx.annotation.RequiresApi
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import nz.scuttlebutt.tremolavossbol.MainActivity
-import nz.scuttlebutt.tremolavossbol.crypto.SodiumAPI.Companion.sha256
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_BLE_REPL_SERVICE_2022
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_BLE_RX_CHARACTERISTIC
+import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_BLE_RX_NAME_DESCRIPTOR
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_BLE_TX_CHARACTERISTIC
 import nz.scuttlebutt.tremolavossbol.utils.HelperFunctions.Companion.b32encode
 import nz.scuttlebutt.tremolavossbol.utils.HelperFunctions.Companion.toHex
-import kotlin.collections.HashMap
+
 
 class BlePeers(val act: MainActivity) {
 
@@ -45,11 +43,14 @@ class BlePeers(val act: MainActivity) {
     private var gattServer: BluetoothGattServer? = null
     private var advertiser: BluetoothLeAdvertiser? = null
 
+    private val device_pubkey = mutableMapOf<BluetoothDevice, ByteArray>()
+
     private val connectedDevices = mutableSetOf<BluetoothDevice>() // Bluetooth devices connected to the hosted GATT-server
     private var pending = mutableMapOf<BluetoothDevice,BluetoothGatt>() // pending connection to other GATT-Servers, waiting for a successful reply
     var peers = mutableMapOf<BluetoothDevice,BluetoothGatt>() // Bluetooth devices we are connected to
     private var writeErrorCounter = mutableMapOf<BluetoothDevice,Int>() // Counts the number of write errors for the given Bluetooth device (not included in the set -> no errors occurred).
     var isScanning = false
+    private var previous_device_name: String? = null // contains the original bluetooth name in order to reset
 
     private val scanSettings = ScanSettings.Builder()
         .setScanMode(ScanSettings.SCAN_MODE_LOW_POWER)
@@ -100,9 +101,11 @@ class BlePeers(val act: MainActivity) {
             ActivityCompat.requestPermissions(act, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), 555)
             return
         }
-        // set ble name
-        val name = act.idStore.identity.verifyKey.sha256().toHex().substring(0,8)
-        bluetoothAdapter.name = name
+        // shorten original name (to 8 bytes)
+        if (bluetoothAdapter.name.length > 8) {
+            previous_device_name = bluetoothAdapter.name
+            bluetoothAdapter.name = bluetoothAdapter.name.substring(0 until 8)
+        }
 
         //start GATT server + client
         startBleScan()
@@ -114,6 +117,10 @@ class BlePeers(val act: MainActivity) {
 
     @SuppressLint("MissingPermission")
     fun stopBluetooth() {
+        if (previous_device_name != null) {
+                bluetoothAdapter?.setName(previous_device_name)
+                previous_device_name = null
+            }
         stopBleScan()
         for (p in peers) {
             p.value.close()
@@ -167,6 +174,25 @@ class BlePeers(val act: MainActivity) {
     @SuppressLint("MissingPermission")
     private val gattCallback = object : BluetoothGattCallback() {
 
+        override fun onDescriptorRead(
+            gatt: BluetoothGatt?,
+            descriptor: BluetoothGattDescriptor?,
+            status: Int
+        ) {
+            Log.d("ble", "onDescriptorRead")
+            super.onDescriptorRead(gatt, descriptor, status)
+
+            if (gatt == null)
+                return
+
+            if (descriptor?.uuid == TINYSSB_BLE_RX_NAME_DESCRIPTOR) {
+                Log.d("ble", "received name: ${descriptor!!.value.toHex()}")
+                device_pubkey[gatt.device] = descriptor!!.value
+                refreshShortNameForKey(descriptor!!.value)
+            }
+
+        }
+
         override fun onCharacteristicChanged(gatt: BluetoothGatt?, ch: BluetoothGattCharacteristic?) {
             Log.d("ble", "change..")
             super.onCharacteristicChanged(gatt, ch)
@@ -212,6 +238,11 @@ class BlePeers(val act: MainActivity) {
                             Log.d("ble disc", "ch still is null")
                         else {
                             Log.d("ble disc", "ch ${ch.uuid.toString()} found, enable notif")
+                            val chRx = s.getCharacteristic(TINYSSB_BLE_RX_CHARACTERISTIC)
+                            if (chRx != null ) {
+                                val read = gatt.readDescriptor(chRx.getDescriptor(TINYSSB_BLE_RX_NAME_DESCRIPTOR))
+                                Log.d("ble", "read: $read")
+                            }
                             gatt.setCharacteristicNotification(ch, true)
                             val lst =
                                 ch.getDescriptors(); //find the descriptors on the characteristic
@@ -222,6 +253,7 @@ class BlePeers(val act: MainActivity) {
                             val descr = lst.get(0); // there should be only one descriptor
                             descr.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
                             gatt.writeDescriptor(descr); //apply these changes to the ble chip to tell it we are ready for the data
+
                             pending.remove(gatt.device)
                             peers[gatt.device] = gatt
                             notifyFrontend(gatt.device, "online")
@@ -292,6 +324,7 @@ class BlePeers(val act: MainActivity) {
                         gatt.disconnect()
                         gatt.close()
                         peers.remove(gatt.device)
+                        device_pubkey.remove(gatt.device)
                         notifyFrontend(gatt.device, "offline")
                         writeErrorCounter.remove(gatt.device)
                     }
@@ -321,6 +354,7 @@ class BlePeers(val act: MainActivity) {
 
 
             }
+
         }
 
         override fun onScanFailed(errorCode: Int) {
@@ -345,6 +379,9 @@ class BlePeers(val act: MainActivity) {
         val descriptor = BluetoothGattDescriptor(TINYSSB_BLE_TX_CHARACTERISTIC, BluetoothGattDescriptor.PERMISSION_WRITE)
         chTX.addDescriptor(descriptor)
 
+        val nameDescr = BluetoothGattDescriptor(TINYSSB_BLE_RX_NAME_DESCRIPTOR, BluetoothGattDescriptor.PERMISSION_READ)
+        chRX.addDescriptor(nameDescr)
+
         gattService.addCharacteristic(chRX)
         gattService.addCharacteristic(chTX)
         gattServer = bluetoothManager.openGattServer(act, gattServerCallback).apply { addService(gattService)}
@@ -358,7 +395,7 @@ class BlePeers(val act: MainActivity) {
         advertiser = bluetoothAdapter.bluetoothLeAdvertiser
 
         val advertiseSettings = AdvertiseSettings.Builder().setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_BALANCED).setTimeout(0).setConnectable(true).build()
-        val advertiseData = AdvertiseData.Builder().addServiceUuid(ParcelUuid(TINYSSB_BLE_REPL_SERVICE_2022)).setIncludeDeviceName(true).build()
+        val advertiseData = AdvertiseData.Builder().addServiceUuid(ParcelUuid(TINYSSB_BLE_REPL_SERVICE_2022)).setIncludeDeviceName(true).setIncludeTxPowerLevel(false).build()
         //advertiser.startAdvertising(advertiseSettings, advertiseData, advertiseCallback)
         advertiser?.let { it.startAdvertising(advertiseSettings,advertiseData,advertiseCallback)}
     }
@@ -404,6 +441,17 @@ class BlePeers(val act: MainActivity) {
                         notifyFrontend(device, "offline")
                     Log.d("GATT_Server", "Device disconnected: $device")
                 }
+        }
+
+        override fun onDescriptorReadRequest(
+            device: BluetoothDevice?,
+            requestId: Int,
+            offset: Int,
+            descriptor: BluetoothGattDescriptor?
+        ) {
+            Log.d("ble server", "onDescriptorReadRequest")
+            super.onDescriptorReadRequest(device, requestId, offset, descriptor)
+            gattServer?.sendResponse(device, requestId, GATT_SUCCESS, offset, act.idStore.identity.verifyKey)
         }
 
 
@@ -486,13 +534,22 @@ class BlePeers(val act: MainActivity) {
     @SuppressLint("MissingPermission")
     private fun deviceToShortName(device: BluetoothDevice): String? {
 
-        if (device.name != null) {
-            val key = act.tinyGoset.keys.firstOrNull { it.sha256().toHex().substring(0,8) == device.name }
-            if (key != null) {
-                val b32 = key.sliceArray(0 until 7).b32encode().substring(0 until 10)
-                return "${b32.substring(0 until 5)}-${b32.substring(5)}"
+        val id = device_pubkey[device]
+        val name = device.name
+
+        if (id == null && name != null)
+            return "?? $name ??"
+
+        if (id != null) {
+            val b32 = id.sliceArray(0 until 7).b32encode().substring(0 until 10)
+            val b32_name = "${b32.substring(0 until 5)}-${b32.substring(5)}"
+            if (act.tinyGoset.keys.any { it.contentEquals(id) }) {
+                return b32_name
             } else {
-                return "?? ${device.name} ??"
+                if (name == null)
+                    return "?? $b32_name ??"
+                else
+                    return "?? $name ($b32_name) ??"
             }
         }
 
