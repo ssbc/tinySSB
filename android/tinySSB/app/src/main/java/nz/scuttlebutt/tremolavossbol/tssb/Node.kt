@@ -179,7 +179,7 @@ class Node(val context: MainActivity) {
     fun publish_public_content(content: ByteArray) {
         val repo = context.tinyRepo
         Log.d("node", "publish_public_content ${content.size}B")
-        val pkt = repo.mk_logEntry(content)
+        val seq = repo.mk_logEntry(content)
         //Log.d("node", "publish_public_content --> pkt ${if (pkt == null) 0 else pkt.size}B")
         //Log.d("node", "publish_public_content --> content ${if (pkt == null) 0 else pkt.toHex()}B")
         //if (pkt == null) return false

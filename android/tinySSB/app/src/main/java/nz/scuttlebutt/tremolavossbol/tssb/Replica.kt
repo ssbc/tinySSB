@@ -203,7 +203,8 @@ class Replica(val context: MainActivity, val datapath: File, val fid: ByteArray)
         var pos: Int
         try {
             pend = state.pend_sc[seq]!!
-            assert(pend.hptr.contentEquals(pkt.sha256().sliceArray(0 until HASH_LEN)))
+            if(pend.hptr.contentEquals(pkt.sha256().sliceArray(0 until HASH_LEN)))
+                return false
             RandomAccessFile(log, "rwd").use { f ->
                 f.seek(pend.pos.toLong())
                 f.write(pkt)
@@ -307,7 +308,8 @@ class Replica(val context: MainActivity, val datapath: File, val fid: ByteArray)
 
     fun get_chunk_pkt(seq: Int, cnr: Int): ByteArray? {
         try {
-            assert(seq >= 1 && seq <= state.max_seq)
+            if(seq < 1 || seq > state.max_seq)
+                return null
             if (state.pend_sc.containsKey(seq)) {
                 if (cnr >= state.pend_sc[seq]!!.cnr)
                     return null
@@ -377,7 +379,8 @@ class Replica(val context: MainActivity, val datapath: File, val fid: ByteArray)
     // TODO implement PKTTYPE_plain48
     fun write48(c: ByteArray): Int {
         var content = c
-        assert(log.length().toInt() == state.max_pos)
+        if(log.length().toInt() != state.max_pos)
+            return -1
         if (content.size < 48) {
             content += ByteArray(48-content.size) //TODO: Is this correct? (compare to simplepub code l. 237)
         } else {
@@ -388,12 +391,14 @@ class Replica(val context: MainActivity, val datapath: File, val fid: ByteArray)
         val dmx = context.tinyDemux.compute_dmx(nam)
         val msg = dmx + ByteArray(1) { PKTTYPE_plain48.toByte()} + content
         val wire = msg + signDetached(nam + msg, context.idStore.identity.signingKey!!)
-        assert(wire.size == TINYSSB_PKT_LEN)
-        assert(verifySignDetached(
+        if(wire.size != TINYSSB_PKT_LEN)
+            return -1
+        if(!verifySignDetached(
             wire.sliceArray(56..wire.lastIndex),
             nam + wire.sliceArray(0 until 56),
             fid
         ))
+            return -1
         log.appendBytes(wire + state.max_pos.toByteArray())
         persist_frontier(seq, wire.size + 4, (nam +wire).sha256().sliceArray(0 until HASH_LEN))
         return seq
@@ -401,7 +406,8 @@ class Replica(val context: MainActivity, val datapath: File, val fid: ByteArray)
 
     fun write(c: ByteArray): Int {
         var content = c
-        assert(log.length().toInt() == state.max_pos) // TODO assert can throw an Error which is not handled
+        if(log.length().toInt() != state.max_pos)
+            return -1//
         val chunks = ArrayList<ByteArray>()
         val seq = state.max_seq + 1
         val sz = Bipf.varint_encode(content.size)
@@ -428,12 +434,14 @@ class Replica(val context: MainActivity, val datapath: File, val fid: ByteArray)
         Log.d("replica write", "dmx is ${dmx.toHex()}, chnk_cnt: ${chunks.size}")
         val msg = dmx + ByteArray(1) { PKTTYPE_chain20.toByte()} + payload
         var wire = msg + signDetached(nam + msg, context.idStore.identity.signingKey!!)
-        assert(wire.size == TINYSSB_PKT_LEN)
-        assert(verifySignDetached(
+        if(wire.size != TINYSSB_PKT_LEN)
+            return -1
+        if(!verifySignDetached(
             wire.sliceArray(56..wire.lastIndex),
             nam + wire.sliceArray(0 until 56),
             fid
         ))
+            return -1
         chunks.add(0, wire)
         var log_entry = chunks.reduce {acc, it -> acc + it}
         log_entry += state.max_pos.toByteArray()
