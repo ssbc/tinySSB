@@ -203,8 +203,10 @@ class Replica(val context: MainActivity, val datapath: File, val fid: ByteArray)
         var pos: Int
         try {
             pend = state.pend_sc[seq]!!
-            if(pend.hptr.contentEquals(pkt.sha256().sliceArray(0 until HASH_LEN)))
+            if(!pend.hptr.contentEquals(pkt.sha256().sliceArray(0 until HASH_LEN))) {
+                Log.e("ingest_chunk_pkt", "hptr missmatch, expected: ${pend.hptr.toHex()}, hptr: ${pkt.sha256().sliceArray(0 until HASH_LEN).toHex()}, seq: $seq, cnr: ${pend.cnr}")
                 return false
+            }
             RandomAccessFile(log, "rwd").use { f ->
                 f.seek(pend.pos.toLong())
                 f.write(pkt)
@@ -420,10 +422,13 @@ class Replica(val context: MainActivity, val datapath: File, val fid: ByteArray)
         if (i > 0)
             content += ByteArray(100-i)
         var ptr = ByteArray(HASH_LEN)
+        var d = 0
         while (content.size > 0) {
             val buf = content.sliceArray(content.size - 100 .. content.lastIndex) + ptr
             chunks.add(buf)
             ptr = buf.sha256().sliceArray(0 until HASH_LEN)
+            Log.d("write", "ptr: ${ptr.toHex()}, $d")
+            d++
             content = content.sliceArray(0 .. content.lastIndex - 100)
         }
         chunks.reverse()
