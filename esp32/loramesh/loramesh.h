@@ -20,7 +20,7 @@
 # include "src/lib/kiss.h"
 #endif
 
-#include "./src/lib/la_wifi_web.h"
+#include "./src/lib/config_wifi_web.h"
 
 struct bipf_s *the_config;
 
@@ -253,7 +253,7 @@ void setup()
   // the_TVA_app = new App_TVA_Class(posts);
   // the_TVA_app->restream();
 
-  setup_la_wifi_web();
+  setup_config_wifi_web();
 
   theUI->spinner(false);
   theUI->buzz();

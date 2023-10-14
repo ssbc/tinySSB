@@ -1,8 +1,9 @@
-// tinyssblib/la_wifi_web
+// tinyssblib/config_wifi_web
 
-// local access: web via wifi
+// local config: web via wifi
 
 #include <Arduino.h>
+#include "tinySSBlib.h" // "config-tSSB.h"
 
 #include <WiFi.h>
 //#include <FS.h>
@@ -37,7 +38,7 @@ const char index_html[] PROGMEM =
         "<option selected=\"\" value=\"SX1276\">Semtech SX1276</option>"
         "<option value=\"SX1262\">Semtech SX1262</option></select><br>"
     "<label>Carrier Frequency</label>&nbsp;"
-      "<input id=\"freq\" max=\"1020\" min=\"137\" name=\"freq\" step=\".061035\" type=\"number\" value=\"908\" /><br>"
+      "<input id=\"freq\" min=\"905000000\" max=\"1020000000\" name=\"freq\" step=\"61035\" type=\"number\" value=\"908000000\" /><br>"
     "<label>Spreading Factor</label>&nbsp;"
       "<select id=\"SF\" name=\"SF\">"
         "<option value=\"7\">7</option>"
@@ -54,10 +55,10 @@ const char index_html[] PROGMEM =
         "<option value=\"8\">4/8</option></select><br>"
     "<label>Bandwidth</label>&nbsp;"
       "<select id=\"BW\" name=\"BW\">"
-        "<option value=\"62.5\">62.5 kHz</option>"
-        "<option value=\"125\">125 kHz</option>"
+        "<option value=\"62500\">62.5 kHz</option>"
+        "<option value=\"125000\">125 kHz</option>"
         "<option selected=\"\" value=\"250\">250 kHz</option>"
-        "<option value=\"500\">500 kHz</option></select><br>"
+        "<option value=\"500000\">500 kHz</option></select><br>"
     "<label>Transmission Power (dBm)</label>&nbsp;"
       "<input id=\"power\" max=\"20\" min=\"-4\" name=\"power\" step=\"1\" type=\"number\" value=\"17\" /><br>"
     "<label>Preamble (symbols)</label>&nbsp;"
@@ -107,7 +108,7 @@ String processor(const String& var)
 }
 
 
-void setup_la_wifi_web(){
+void setup_config_wifi_web(){
   //  Serial.begin(115200);
  
 /*  
@@ -173,49 +174,98 @@ if (WiFi.waitForConnectResult() != WL_CONNECTED) {
 
   //TODO: process lora_config form
   server.on("/lora_config", HTTP_POST, [](AsyncWebServerRequest * request){
-    String chipset;
-    String freq;
-    String SF;
-    String CR;
-    String BW;
-    String power;
-    String preamble;
-    if (request->hasParam("chipset", true)){
+
+    struct name_value_s dict[] = {
+      {"freq", 0, NULL},
+      {"SF", 0, NULL},
+      {"CR", 0, NULL},
+      {"BW", 0, NULL},
+      {"power", 0, NULL},
+      {"preamble", 0, NULL},
+      {NULL, 0, NULL}
+    };
+    char *err_field = NULL;
+
+    for (struct name_value_s *dp = dict; dp->field != NULL; dp++) {
+      if (request->hasParam(dp->field, true)) {
+        String val = request->getParam(dp->field, true)->value();
+        Serial.printf("parsing <%s> <%s>\r\n", dp->field, val.c_str());
+        const char *cp = val.c_str();
+        char *endp = NULL;
+        int i = strtol(cp, &endp, 10);
+        if (endp[0] != '\0') {
+          err_field = dp->field;
+          break;
+        }
+        dp->i_value = i;
+        // dp->s_value = strdup(cp);
+      }
+    }
+
+    /*
+    String chipset, freq, SF, CR, BW, power, preamble;
+    if (request->hasParam("chipset", true)) {
       chipset = request->getParam("chipset", true)->value();
-      } else {
-          chipset = "none";
-      }
-    if (request->hasParam("freq", true)){
+    } else {
+      chipset = "none";
+    }
+    if (request->hasParam("freq", true)) {
       freq = request->getParam("freq", true)->value();
-      } else {
-          freq = "none";
-      }
-    if (request->hasParam("SF", true)){
+    } else {
+      freq = "none";
+    }
+    if (request->hasParam("SF", true)) {
       SF = request->getParam("SF", true)->value();
-      } else {
-          SF = "none";
-      }
-    if (request->hasParam("CR", true)){
+    } else {
+      SF = "none";
+    }
+    if (request->hasParam("CR", true)) {
       CR = request->getParam("CR", true)->value();
-      } else {
-          CR = "none";
-      }
-    if (request->hasParam("BW", true)){
+      _
+    } else {
+      CR = "none";
+    }
+    if (request->hasParam("BW", true)) {
       BW = request->getParam("BW", true)->value();
-      } else {
-          BW = "none";
-      }
-    if (request->hasParam("power", true)){
+    } else {
+      BW = "none";
+    }
+    if (request->hasParam("power", true)) {
       power = request->getParam("power", true)->value();
-      } else {
-          power = "none";
-      }
-if (request->hasParam("preamble", true)){
+    } else {
+      power = "none";
+    }
+    if (request->hasParam("preamble", true)){
       preamble = request->getParam("preamble", true)->value();
-      } else {
+    } else {
           preamble = "none";
-      } 
-    request->send(200, "text/plain", "Chipset: " + chipset + " Frequency: " + freq + " Spreading Factor: " + SF + " Coding Rate: 4/" + CR + " Bandwidth: " + BW + " Transmit Power: " + power + " Preamble: " + preamble);
+    }
+
+      "Chipset: " + chipset +
+      "Frequency: " + freq +
+      " Spreading Factor: " + SF +
+      " Coding Rate: 4/" + CR +
+      " Bandwidth: " + BW +
+      " Transmit Power: " + power +
+      " Preamble: " + preamble);
+    */
+
+    if (err_field == NULL) {
+      err_field = config_apply(dict);
+      Serial.println("after config_apply");
+      if (err_field)
+        request->send(200, "text/plain", String("Config error: ") + err_field);
+      else {
+        String s = "";
+        for (struct name_value_s *dp = dict; dp->field != NULL; dp++)
+          s += String(dp->field) + ": " + String(dp->i_value) + " ";
+        Serial.println("request reply is <" + s + ">");
+        request->send(200, "text/plain", s);
+        theUI->refresh();
+      }
+    } else
+      request->send(200, "text/plain",
+                    String("invalid value for parameter ") + err_field);  
   });
   
   //TODO: process gps_config form
@@ -230,7 +280,8 @@ if (request->hasParam("preamble", true)){
   });
 
   server.onNotFound([](AsyncWebServerRequest *request){
-    request->send(404, "text/plain", "The content you are looking for was not found.");
+    request->send(404, "text/plain",
+                  "The content you are looking for was not found.");
   });
  
   server.begin();

@@ -4,6 +4,7 @@
 // (c) 2023 <christian.tschudin@unibas.ch>
 
 #include "tinySSBlib.h"
+#include "device.h"
 
 #include <sodium/crypto_auth.h>
 
@@ -91,6 +92,27 @@ void config_save(struct bipf_s *dict) // persist the BIPF dict
   f.write(buf, len);
   f.close();
   free(buf);
+}
+
+char* config_apply(struct name_value_s *dict) // returns NULL or err
+{
+  static char err[100];
+
+  err[0] = '\0';
+  for (struct name_value_s *dp = dict; dp->field != NULL; dp++) {
+    int rc;
+#ifdef USE_RADIO_LIB
+    // currently we assume that we only get radio config requests
+    if (!strcmp(dp->field, "freq"))
+      rc = radio.setFrequency(dp->i_value/1000000.0);
+    if (rc != RADIOLIB_ERR_NONE)
+      sprintf(err, "%s", "setting %s failed", dp->field);
+    else
+      Serial.println("config worked");
+#endif
+  }
+
+  return err[0] ? err : NULL;
 }
 
 // eof
