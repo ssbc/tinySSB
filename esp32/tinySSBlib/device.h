@@ -77,6 +77,19 @@
 
 #endif // TINYSSB_BOARD_TWRIST
 
+// ---------------------------------------------------------------------------
+
+#ifdef TINYSSB_BOARD_WIFIPAPER // Heltec device
+// https://heltec.org/project/wifi-lora-32/
+# define DEVICE_MAKE "Heltec WifiPaper"
+# define HAS_BLE
+# define HAS_LORA
+# define HAS_OLED
+
+# define USE_LORA_LIB
+# define USING_SX1262
+
+#endif // TINYSSB_BOARD_WIFIPAPER
 
 
 

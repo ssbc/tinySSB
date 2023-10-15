@@ -7,6 +7,7 @@
 #include "src/ui-tbeam.h"
 #include "src/ui-tdeck.h"
 #include "src/ui-twrist.h"
+#include "src/ui-wifipap.h"
 
 #include "src/hardware.h"
 

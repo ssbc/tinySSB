@@ -1,9 +1,0 @@
-# symbolic link, created at make tim
-partitions.csv
-
-# content of build directory
-build/*
-
-# emacs backup files
-*~
-
