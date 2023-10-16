@@ -229,7 +229,6 @@ int lora_rcvd_pkts = 0; // absolute counter
 
   void newLoraPacket_cb(void)
   {
-    Serial.println("   new lora pkt");
     /*
     if (lora_transmitting) {
       radio.finishTransmit();
@@ -240,6 +239,7 @@ int lora_rcvd_pkts = 0; // absolute counter
     if (lora_fetching || lora_transmitting)
       return;
     new_lora_pkt = true;
+    Serial.println("   new lora pkt");
   }
 #endif
 
@@ -250,24 +250,26 @@ void lora_init()
 
 #ifdef USE_RADIO_LIB
   // int rc = radio.begin(the_lora_config->fr/1000000.0);
+  Serial.printf("setting LoRa to fr=%d/bw=%d/sf=%d\r\n", the_lora_config->fr,
+                the_lora_config->bw, the_lora_config->sf);
   int rc = radio.setFrequency(the_lora_config->fr/1000000.0); // float, in MHz
-  Serial.printf("lora setFr rc=%d\r\n");
-  rc = radio.setBandwidth((double)(the_lora_config->bw));
-  Serial.printf("lora setBw rc=%d\r\n");
+  Serial.printf("lora setFr rc=%d\r\n", rc);
+  rc = radio.setBandwidth(the_lora_config->bw/1000.0); // float, in kHz
+  Serial.printf("lora setBw rc=%d\r\n", rc);
   rc = radio.setSpreadingFactor(the_lora_config->sf);
-  Serial.printf("lora setSf rc=%d\r\n");
+  Serial.printf("lora setSf rc=%d\r\n", rc);
   rc = radio.setCodingRate(the_lora_config->cr);
-  Serial.printf("lora setCr rc=%d\r\n");
+  Serial.printf("lora setCr rc=%d\r\n", rc);
   rc = radio.setSyncWord(the_lora_config->sw);
-  Serial.printf("lora setSw rc=%d\r\n");
+  Serial.printf("lora setSw rc=%d\r\n", rc);
   rc = radio.setOutputPower(the_lora_config->tx);
-  Serial.printf("lora setPr rc=%d\r\n");
+  Serial.printf("lora setPr rc=%d\r\n", rc);
   rc = radio.setCurrentLimit(140); // (accepted range is 45 - 140 mA), 0=disable
-  Serial.printf("lora setCR rc=%d\r\n");
+  Serial.printf("lora setCR rc=%d\r\n", rc);
   rc = radio.setPreambleLength(8); // (accepted range is 0 - 65535)
-  Serial.printf("lora setPL rc=%d\r\n");
+  Serial.printf("lora setPL rc=%d\r\n", rc);
   rc = radio.setCRC(false);
-  Serial.printf("lora I rc=%d\r\n");
+  Serial.printf("lora setED rc=%d\r\n", rc); // CRC error detection
   radio.setPacketReceivedAction(newLoraPacket_cb);
 #endif
 
@@ -299,16 +301,17 @@ void lora_send(unsigned char *buf, short len)
   memcpy(data+len, &crc, sizeof(crc));
 
   lora_transmitting = true;
-  lora_send_ok = radio.transmit(data, len + sizeof(crc), 0) == RADIOLIB_ERR_NONE;
+  int rc = radio.transmit(data, len + sizeof(crc), 0);
+  lora_send_ok =  rc == RADIOLIB_ERR_NONE;
   free(data);
 
-  if (lora_send_ok) {
+  if (rc == RADIOLIB_ERR_NONE) {
     Serial.printf("l< %dB %s..",
                   len + sizeof(crc), to_hex(buf,7,0));
     Serial.printf("%s @%d\r\n", to_hex(buf + len - 6, 6, 0), millis());
   } else {
-    Serial.printf("   LoRa send fail %dB %s..", len, to_hex(buf,7,0));
-    Serial.printf("%s @%d\r\n", to_hex(buf + len - 6, 6, 0), millis());
+    Serial.printf("   LoRa send fail %dB %s..", len, to_hex(buf,7,0), rc);
+    Serial.printf("%s @%d, code=%d\r\n", to_hex(buf + len - 6, 6, 0), millis(), rc);
   }
   lora_pkt_cnt++;
   lora_sent_pkts++;
