@@ -95,7 +95,7 @@ void GOsetClass::_add_pending(unsigned char *claim)
 
 bool GOsetClass::in_sync()
 {
-  return largest_claim_span == 0 || largest_claim_span == goset_len;
+  return goset_len >= largest_claim_span;
 }
 
 void GOsetClass::dump()

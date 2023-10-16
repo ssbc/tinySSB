@@ -44,6 +44,7 @@ struct zap_s {
 class GOsetClass {
  public:
   int goset_len = 0; // number of set elements
+  int largest_claim_span = 0;
   unsigned char goset_state[GOSET_KEY_LEN];
   int pending_c_cnt = 0, pending_n_cnt = 0;
 
@@ -64,7 +65,6 @@ class GOsetClass {
  private:
   unsigned long last_round = 0;
   unsigned char goset_keys[GOSET_KEY_LEN * GOSET_MAX_KEYS];
-  int largest_claim_span = 0;
   struct claim_s pending_claims[MAX_PENDING];
   struct novelty_s pending_novelty[MAX_PENDING];
   int novelty_credit;

@@ -25,6 +25,7 @@ public:
   void to_next_screen();
   void refresh_screen(int n);
   void show_boot_msg(char *s);
+  void lora_advance_wheel();
 
   char curr_screen;
 private:

@@ -16,6 +16,11 @@ extern void hw_init();
 // # define SS      18   // GPIO18 -- SX1278's CS
 # define RST     14   // GPIO14 -- SX1278's RESET
 # define DI0     26   // GPIO26 -- SX1278's IRQ(Interrupt Request)
+# define DI1     35
+# define DI2     34
+
+// SPI.begin(5, 19, 27, 18);
+// LoRa.setPins(SS, RST, DI0);
 
 #endif
 
@@ -57,6 +62,17 @@ extern void hw_init();
 // # define SS      18   // GPIO18 -- SX1278's CS
 # define RST     14   // GPIO14 -- SX1278's RESET
 # define DI0     26   // GPIO26 -- SX1278's IRQ(Interrupt Request)
+
+// cs/busy/rst/di01
+
+// tbeam 2: 10, 4, 5, 1    according to meshtastic
+// tbeam 2: 5, 33, 13, 14  according to https://meshtastic.discourse.group/t/tbeam-with-sx1262/972/24
+// tbeam 1: 18, 32, 23, 33  according to meshtastic
+// tbeam 1: 18, 26?, 23, ??  according to 
+#define RADIO_CS_PIN        18
+#define RADIO_BUSY_PIN      x
+#define RADIO_RST_PIN       14
+#define RADIO_DIO1_PIN      26
 
 // user button
 #ifdef TBEAM_07

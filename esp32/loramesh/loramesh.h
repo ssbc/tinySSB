@@ -25,13 +25,6 @@ struct bipf_s *the_config;
 unsigned char my_mac[6];
 char ssid[sizeof(tSSB_WIFI_SSID) + 6];
 
-#ifdef USE_RADIO_LIB
-# if defined(TINYSSB_BOARD_TBEAM) || defined(TINYSSB_BOARD_TDECK)
-   SX1262 radio = new Module(RADIO_CS_PIN, RADIO_DIO1_PIN,
-                             RADIO_RST_PIN, RADIO_BUSY_PIN);
-#endif
-#endif
-
 DmxClass   *theDmx;
 UIClass    *theUI;
 Repo2Class *theRepo;
@@ -164,18 +157,19 @@ void setup()
 #endif
   // theUI->show_node_name(ssid);
   theUI->spinner(true);
+  theUI->show_boot_msg("mounting file system");
 
-  if (!MyFS.begin(true)) {
-    msg = "LittleFS Mount Failed, partition was reformatted";
-    theUI->show_boot_msg(msg);
-    Serial.println(msg);
-    // return;
-  } else
-    theUI->show_boot_msg("mounted LittleFS");
+  if (!MyFS.begin(true))
+    msg = "could not mount file system, partition was reformatted";
+  else
+    msg = "file system was mounted";
+  theUI->show_boot_msg(msg);
+  Serial.println(msg);
+
   // MyFS.format(); // uncomment and run once after a change in partition size
 
   MyFS.mkdir(FEED_DIR);
-  Serial.printf("LittleFS: %d total bytes, %d used\r\n",
+  Serial.printf("file system: %d total bytes, %d used\r\n",
                 MyFS.totalBytes(), MyFS.usedBytes());
 
   theUI->show_boot_msg("load config");

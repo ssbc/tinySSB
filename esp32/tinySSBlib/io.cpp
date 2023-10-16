@@ -229,7 +229,7 @@ int lora_rcvd_pkts = 0; // absolute counter
 
   void newLoraPacket_cb(void)
   {
-    // Serial.println("newLoraPkt");
+    Serial.println("   new lora pkt");
     /*
     if (lora_transmitting) {
       radio.finishTransmit();
@@ -246,10 +246,11 @@ int lora_rcvd_pkts = 0; // absolute counter
 
 void lora_init()
 {
-  Serial.println("LoRa init");
+  Serial.println("LoRa config");
 
 #ifdef USE_RADIO_LIB
-  int rc = radio.begin(the_lora_config->fr/1000000.0);
+  // int rc = radio.begin(the_lora_config->fr/1000000.0);
+  int rc = radio.setFrequency(the_lora_config->fr/1000000.0); // float, in MHz
   Serial.printf("lora setFr rc=%d\r\n");
   rc = radio.setBandwidth((double)(the_lora_config->bw));
   Serial.printf("lora setBw rc=%d\r\n");
@@ -269,7 +270,9 @@ void lora_init()
   Serial.printf("lora I rc=%d\r\n");
   radio.setPacketReceivedAction(newLoraPacket_cb);
 #endif
+
 #ifdef USE_LORA_LIB
+  LoRa.setFrequency(the_lora_config->fr); // int, in Hz
   LoRa.setTxPower(the_lora_config->tx);
   LoRa.setSignalBandwidth(the_lora_config->bw);
   LoRa.setSpreadingFactor(the_lora_config->sf);
@@ -340,24 +343,26 @@ void lora_loop()
 #ifdef USE_RADIO_LIB
   lora_fetching = true;
   if (new_lora_pkt) {
-    // Serial.println("   lora_poll: new pkt");
+    Serial.println("   lora_loop: new pkt");
     radio.standby();
     new_lora_pkt = false;
 
+    Serial.println("   lora_loop: while loop starts");
     while (-1) {
       unsigned char buf[MAX_PKT_LEN];
+      Serial.println("   lora_loop: getPacketLength");
       size_t len = radio.getPacketLength();
+      Serial.printf("      returned %d\r\n", len);
       if (len <= 0)
         break;
       theUI->lora_advance_wheel();
       if (len > MAX_PKT_LEN)
         len = MAX_PKT_LEN;
-      // Serial.printf("   lora_poll: len=%d\r\n", len);
       lora_rcvd_pkts++;
       lora_pkt_cnt++;
       int rc = radio.readData(buf, len);
       if (rc != RADIOLIB_ERR_NONE) {
-        Serial.printf("  readData returned %d\r\n", rc);
+        Serial.printf("   readData returned %d\r\n", rc);
         break;
       }
       if (lora_face.in_buf->is_full()) {
@@ -366,6 +371,7 @@ void lora_loop()
         lora_face.in_buf->in(buf, len);
       break;
     }
+    Serial.println("   lora_loop: restarting receiving");
     radio.startReceive();
   }
 

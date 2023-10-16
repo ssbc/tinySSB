@@ -1,6 +1,6 @@
 // config-tSSB.h
 
-#if !defined(_INCLUDE_CONFIG_TSSB_H)
+#ifndef _INCLUDE_CONFIG_TSSB_H
 #define _INCLUDE_CONFIG_TSSB_H
 
 #include "tinySSBlib.h"
