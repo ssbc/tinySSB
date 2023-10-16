@@ -325,7 +325,9 @@ void probe_for_chnk_vect(unsigned char **pkt,
   *pkt = NULL;
   if (theGOset->goset_len == 0 || !theGOset->in_sync())
     return;
+  // Serial.println(" will ask repo");
   theRepo->mk_chnk_vect();
+  // Serial.println(" did ask repo");
   if (theRepo->chnk_len <= 0)
     return;
   Serial.println("   prepare CHNK vect");

@@ -52,6 +52,7 @@ void hw_init()
 
 #include <axp20x.h>
 #include <Wire.h>
+
 AXP20X_Class axp;
 
 #ifdef HAS_GPS
@@ -74,6 +75,10 @@ RadioChoice fused_radio;
 void hw_init()
 {
   Wire.begin(21, 22);
+
+  SPI.end();
+  SPI.begin(SCK, MISO, MOSI); // copied from T-Deck code
+  
   if (axp.begin(Wire, AXP192_SLAVE_ADDRESS)) {
     Serial.println("AXP192 Begin FAIL");
   } else {
@@ -113,7 +118,7 @@ void hw_init()
     fused_radio.is_62 = true;
     Serial.println("RadioLib sx1262 init success!");
   } else {
-    Serial.println("RadioLib sx1262 init did not work, trying sx1276");
+    Serial.printf("RadioLib sx1262 init did not work (code %d), trying sx1276\r\n", state);
     state = radio_sx1276.begin();
     if (state == RADIOLIB_ERR_NONE) {
       fused_radio.is_62 = false;
@@ -133,12 +138,40 @@ void hw_init()
 #ifdef TINYSSB_BOARD_TDECK
 
 #ifdef USE_RADIO_LIB
-  SX1262 radio = new Module(RADIO_CS_PIN, RADIO_DIO1_PIN,
-                            RADIO_RST_PIN, RADIO_BUSY_PIN);
+# ifdef USING_SX1262
+    SX1262 radio_sx1262 = new Module(RADIO_CS_PIN, RADIO_DIO1_PIN,
+                                     RADIO_RST_PIN, RADIO_BUSY_PIN); // , RADIO_BUSY_PIN);
+# endif
+# ifdef USING_SX1276
+    SX1276 radio_sx1276 = new Module(RADIO_CS_PIN, RADIO_DIO1_PIN,
+                                     RADIO_RST_PIN, RADIO_BUSY_PIN); // , RADIO_BUSY_PIN);
+# endif
+
+RadioChoice fused_radio;
+
 #endif
 
 void hw_init()
 {
+  SPI.end();
+  SPI.begin(BOARD_SPI_SCK, BOARD_SPI_MISO, BOARD_SPI_MOSI); //SD
+
+  int state = radio_sx1262.begin();
+  if (state == RADIOLIB_ERR_NONE) {
+    fused_radio.is_62 = true;
+    Serial.println("RadioLib sx1262 init success!");
+  } else {
+    Serial.printf("RadioLib sx1262 init did not work (%d), trying sx1276\r\n", state);
+    state = radio_sx1276.begin();
+    if (state == RADIOLIB_ERR_NONE) {
+      fused_radio.is_62 = false;
+      Serial.println("RadioLib sx1276 init success!");
+    } else while (true) {
+      Serial.print(F("RadioLib for both sx1276 and sx1262 failed, code "));
+      Serial.println(state);
+      delay(2000);
+    }
+  }
 }
 
 #endif

@@ -185,6 +185,13 @@ void Repo2Class::mk_want_vect()
 
 void Repo2Class::mk_chnk_vect()
 {
+  /*
+#ifdef TINYSSB_BOARD_TDECK
+    chnk_len = 0;
+    return;
+#endif
+  */
+
   if (theGOset->goset_len == 0)
     chnk_len = 0;
   else {
@@ -200,7 +207,9 @@ void Repo2Class::mk_chnk_vect()
       ndx = (ndx+1) % theGOset->goset_len;
       ReplicaClass *r = fid2replica(theGOset->get_key(ndx));
       io_loop();
+      Serial.println("asking for open sidechains");
       int n = r->get_open_sidechains(4, table);
+      Serial.printf(" --> n=%d\r\n", n);
       for (int i = 0; i < n; i++) {
         // Serial.printf("  h=%s s=%d c=%d\r\n",
         //               to_hex(table[i].hash, HASH_LEN),

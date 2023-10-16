@@ -43,7 +43,9 @@ void SchedClass::tick()
   }
   if (ndx > 0) { // pkt slot
     ndx--;
+    // Serial.printf("before io_send()\r\n");
     io_send(packets[ndx], lengths[ndx], faces[ndx]);
+    // Serial.printf("after io_send()\r\n");
     free(packets[ndx]);
     packets[ndx] = NULL;
     return;
@@ -62,6 +64,7 @@ void SchedClass::tick()
   if (pkt != NULL) { // our slot, use it
     // Serial.printf("  probe %d has pkt: %d\r\n", ndx, len);
     io_send(pkt, len);
+    // Serial.printf("  after probe\r\n");
     free(pkt);
   }
   // Serial.println("  probe has no packet");

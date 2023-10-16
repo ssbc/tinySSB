@@ -102,13 +102,54 @@ public:
 
 #ifdef TINYSSB_BOARD_TDECK
 // https://www.lilygo.cc/products/t-deck
+
+# include "RadioLib.h"
+
 # define DEVICE_MAKE "Lilygo T-Deck"
 # define HAS_BLE
 # define HAS_LORA
 
 # define USE_RADIO_LIB
-# define USING_SX1262
-  extern SX1262 radio;
+# define USING_SX1262  // better Semtec chip, used in newer TBeams, TDeck
+  extern SX1262 radio_sx1262;
+# define USING_SX1276 // 868/916 MHz
+  extern SX1276 radio_sx1276;
+
+extern class RadioChoice {
+public:
+  int is_62;
+#define _method0V(M)   { if (is_62) radio_sx1262.M(); else radio_sx1276.M(); }
+#define _method0I(M)   { return is_62 ? radio_sx1262.M() : radio_sx1276.M(); }
+#define _method1(M,P) { return is_62 ? radio_sx1262.M(P):radio_sx1276.M(P); }
+  int setFrequency(float f)     _method1(setFrequency,f);
+  int setBandwidth(int bw)      _method1(setBandwidth,bw);
+  int setSpreadingFactor(int v) _method1(setSpreadingFactor,v);
+  int setCodingRate(int v)      _method1(setCodingRate,v);
+  int setSyncWord(int v)        _method1(setSyncWord,v);
+  int setOutputPower(int v)     _method1(setOutputPower,v);
+  int setCurrentLimit(int v)    _method1(setCurrentLimit,v);
+  int setPreambleLength(int v)  _method1(setPreambleLength,v);
+  int setCRC(int v)             _method1(setCRC,v);
+  void setPacketReceivedAction(void (*v)(void)) _method1(setPacketReceivedAction,v);
+  void standby()                _method0V(standby);
+  void startReceive()           _method0V(startReceive);
+  int getPacketLength()         _method0I(getPacketLength);
+  int getRSSI()                 _method0I(getRSSI);
+  int getSNR()                  _method0I(getSNR);
+  int readData(unsigned char *buf, int len) {
+    return is_62 ? radio_sx1262.readData(buf,len) : radio_sx1276.readData(buf,len);
+  };
+  int transmit(unsigned char *buf, int len, int a) {
+    return is_62 ? radio_sx1262.transmit(buf,len,a) : radio_sx1276.transmit(buf,len,a);
+  };
+  /*
+    return is_62 ? radio_sx1262.setPacketReceivedAction(v) :
+                   radio_sx1276.setPacketReceivedAction(v);
+                   };*/
+} fused_radio;
+
+# define radio fused_radio
+ 
 #endif // TINYSSB_BOARD_TDECK
 
 // ---------------------------------------------------------------------------
