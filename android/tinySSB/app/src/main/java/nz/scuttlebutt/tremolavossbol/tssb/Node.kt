@@ -159,8 +159,6 @@ class Node(val context: MainActivity) {
         val chnk_buf = context.tinyRepo.mk_chnk_vect()
         if (chnk_buf != null)
             context.tinyIO.enqueue(chnk_buf, context.tinyDemux.chnk_dmx)
-
-        // TODO update_progress(vector.toSortedMap().values.toList(), "me")
     }
 
     fun incoming_pkt(buf: ByteArray, fid: ByteArray) {

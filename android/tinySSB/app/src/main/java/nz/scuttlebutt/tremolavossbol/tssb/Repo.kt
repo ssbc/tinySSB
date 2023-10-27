@@ -129,7 +129,7 @@ class Repo(val context: MainActivity) {
     }
 
     fun mk_want_vect(): ByteArray? {
-        want_is_valid = false // not implemented yet
+        want_is_valid = false // TODO optimization not implemented yet
         if (want_is_valid) return null
 
         val lst = ArrayList<Int>()
@@ -154,9 +154,19 @@ class Repo(val context: MainActivity) {
             if (encoding_len > 100)
                 break
         }
+
         want_offs = (want_offs + i + 1) % context.tinyGoset.keys.size
         want_is_valid = true
+
+
         if(lst.size > 1) {
+            var vec = lst.slice(1 .. lst.lastIndex) // want_vector without offset
+            vec = vec.mapIndexed { index, i ->
+                val new_idx =(index + want_offs) % vec.size
+                lst.slice(1 .. lst.lastIndex)[new_idx]}
+
+            context.tinyNode.update_progress(vec, "me")
+
             return Bipf.encode(Bipf.mkList(lst))
         }
         return null
