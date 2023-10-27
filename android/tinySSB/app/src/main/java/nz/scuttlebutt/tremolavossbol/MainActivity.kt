@@ -80,6 +80,9 @@ class MainActivity : Activity() {
         // tremolaState = TremolaState(this)
         idStore = IdStore(this)
 
+        // upgrades repo filesystem if necessary
+        tinyRepo.upgrade_repo()
+
 
         // wifiManager = applicationContext.getSystemService(WIFI_SERVICE) as WifiManager
         // mlock = wifiManager?.createMulticastLock("lock")

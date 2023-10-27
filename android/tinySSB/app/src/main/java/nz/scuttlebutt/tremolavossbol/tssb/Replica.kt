@@ -97,7 +97,7 @@ class Replica(val context: MainActivity, val datapath: File, val fid: ByteArray)
                 f.read(pkt)
                 val seq = state.max_seq + 1
                 val nam = DMX_PFX + fid + seq.toByteArray() + state.prev
-                val dmx = context.tinyDemux.compute_dmx(nam)
+                val dmx = nam.sha256().sliceArray(0 until DMX_LEN)
                 if (!dmx.contentEquals(pkt.sliceArray(0 until DMX_LEN))) { // TODO isAuthor check (like in the simplepub implementation)
                     f.setLength(pos.toLong())
                     return@use
@@ -144,7 +144,7 @@ class Replica(val context: MainActivity, val datapath: File, val fid: ByteArray)
             return false
         }
         val nam = DMX_PFX + fid + seq.toByteArray() + state.prev
-        val dmx = context.tinyDemux.compute_dmx(nam)
+        val dmx = nam.sha256().sliceArray(0..DMX_LEN-1)
         if (!dmx.contentEquals(pkt.sliceArray(0 until DMX_LEN))) {
             Log.d("Replica", "ingest_entry: dmx mismatch")
             return false
@@ -187,7 +187,7 @@ class Replica(val context: MainActivity, val datapath: File, val fid: ByteArray)
         context.tinyDemux.arm_dmx(dmx) // remove old dmx handler
         // arm dmx handler for next entry
         val new_nam = DMX_PFX + fid + (seq + 1).toByteArray() + (nam + pkt).sha256().sliceArray(0 until HASH_LEN)
-        val new_dmx = context.tinyDemux.compute_dmx(new_nam)
+        val new_dmx = new_nam.sha256().sliceArray(0 until DMX_LEN)
         val fct = { buf: ByteArray, fid: ByteArray?, _: String? -> context.tinyNode.incoming_pkt(buf,fid!!) }
         context.tinyDemux.arm_dmx(new_dmx, fct, fid)
 
@@ -390,7 +390,7 @@ class Replica(val context: MainActivity, val datapath: File, val fid: ByteArray)
         }
         val seq = state.max_seq + 1
         val nam = DMX_PFX + fid + seq.toByteArray() + state.prev
-        val dmx = context.tinyDemux.compute_dmx(nam)
+        val dmx = nam.sha256().sliceArray(0 until DMX_LEN)
         val msg = dmx + ByteArray(1) { PKTTYPE_plain48.toByte()} + content
         val wire = msg + signDetached(nam + msg, context.idStore.identity.signingKey!!)
         if(wire.size != TINYSSB_PKT_LEN)
@@ -434,7 +434,7 @@ class Replica(val context: MainActivity, val datapath: File, val fid: ByteArray)
         chunks.reverse()
         payload += ptr
         val nam = DMX_PFX + fid + seq.toByteArray() + state.prev
-        val dmx = context.tinyDemux.compute_dmx(nam)
+        val dmx = nam.sha256().sliceArray(0 until DMX_LEN)
 
         Log.d("replica write", "dmx is ${dmx.toHex()}, chnk_cnt: ${chunks.size}")
         val msg = dmx + ByteArray(1) { PKTTYPE_chain20.toByte()} + payload

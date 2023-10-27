@@ -1,15 +1,24 @@
 package nz.scuttlebutt.tremolavossbol.tssb
 
+import android.content.Context
 import android.content.Context.MODE_PRIVATE
 import android.util.Log
 import nz.scuttlebutt.tremolavossbol.MainActivity
+import nz.scuttlebutt.tremolavossbol.crypto.SodiumAPI.Companion.sha256
 import nz.scuttlebutt.tremolavossbol.utils.Bipf
+import nz.scuttlebutt.tremolavossbol.utils.Constants
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.DMX_PFX
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.FID_LEN
+import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_PKT_LEN
 import nz.scuttlebutt.tremolavossbol.utils.HelperFunctions.Companion.decodeHex
 import nz.scuttlebutt.tremolavossbol.utils.HelperFunctions.Companion.toByteArray
 import nz.scuttlebutt.tremolavossbol.utils.HelperFunctions.Companion.toHex
+import nz.scuttlebutt.tremolavossbol.utils.HelperFunctions.Companion.toInt32
 import java.io.File
+import java.io.RandomAccessFile
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
+import kotlin.math.log
 import kotlin.random.Random
 
 class Repo(val context: MainActivity) {
@@ -55,7 +64,7 @@ class Repo(val context: MainActivity) {
         replicas.add(new_r)
         val seq = new_r.state.max_seq + 1
         val nam = DMX_PFX + fid + seq.toByteArray() + new_r.state.prev
-        val dmx = context.tinyDemux.compute_dmx(nam)
+        val dmx = nam.sha256().sliceArray(0 until Constants.DMX_LEN)
         val fct = { buf: ByteArray, fid: ByteArray?, _: String? -> context.tinyNode.incoming_pkt(buf,fid!!) }
         context.tinyDemux.arm_dmx(dmx, fct, fid)
 
@@ -202,4 +211,106 @@ class Repo(val context: MainActivity) {
     fun feed_read_content(fid: ByteArray, seq: Int): ByteArray? {
         return fid2replica(fid)?.read(seq)
     }
+
+    /**
+     * Converts the old repo filesystem (used in version v0.1.5-alpha) to the current filesystem.
+     * This method is crash resistant, e.g it only overwrites/deletes old files, if the upgrade was successful.
+     *
+     * It is assumed that the previous filesystem was correctly stored.
+     *
+     */
+    fun upgrade_repo() {
+        val dir = File(context.getDir(TINYSSB_DIR, MODE_PRIVATE), FEED_DIR)
+        feediterate@ for (f in dir.listFiles()) {
+            if (!f.isDirectory || f.name.length != 2* FID_LEN)
+                continue
+            val feed_dir = File(dir, f.name)
+            val feed_files = feed_dir.listFiles()
+            if(feed_files == null) { // no upgrade needed or unknown file system
+                continue
+            }
+            // crashed after writing log file to disk, which can lead to missing mid.bin file
+            if(feed_files.any { it.name == "log.bin" }) {
+                if(!feed_files.any { it.name == "mid.bin" }) {
+                    Files.move(File(feed_dir, "mid").toPath(), File(feed_dir, "mid.bin").toPath(), StandardCopyOption.ATOMIC_MOVE)
+                    val sidechains = feed_files.filter { it.name.startsWith("!") || it.name.startsWith("-") }
+                    sidechains.forEach { it.delete() }
+                }
+                continue // frontier, mid and log file are already successfully upgraded
+            }
+            val old_log = RandomAccessFile(File(feed_dir, "log"), "r")
+            var buffer = ByteArray(TINYSSB_PKT_LEN)
+            var pos = 0
+            val new_log = File(feed_dir, "log.bin.tmp")
+
+            if(new_log.exists()) // remove unsuccessful upgrade attempt and restart the upgrade
+                new_log.delete()
+            new_log.createNewFile()
+
+            val pend = mutableMapOf<Int, Pending>()
+
+            while(old_log.read(buffer) == TINYSSB_PKT_LEN) {
+                pos += TINYSSB_PKT_LEN
+                var chunk_cnt = 0
+                val curr_seq = pos / TINYSSB_PKT_LEN
+                if (buffer[7].toInt() == Constants.PKTTYPE_chain20) {
+                    var (len, sz) = Bipf.varint_decode(buffer, Constants.DMX_LEN + 1, Constants.DMX_LEN + 4)
+                    len -= 48 - 20 - sz
+                    chunk_cnt = (len + 99) / 100
+                }
+                var logentry = buffer
+                if (chunk_cnt > 0) {
+                    val finishedSidechain = File(feed_dir, "-$curr_seq")
+                    val openSidechain = File(feed_dir, "!$curr_seq")
+                    if(finishedSidechain.exists()) {
+                        logentry += finishedSidechain.readBytes()
+                    } else if(openSidechain.exists()) {
+                        val num_missing = chunk_cnt - (openSidechain.length() % TINYSSB_PKT_LEN).toInt()
+                        val chain = openSidechain.readBytes()
+                        logentry += chain + ByteArray((num_missing * TINYSSB_PKT_LEN))
+                        pend[curr_seq] = Pending((openSidechain.length() % TINYSSB_PKT_LEN).toInt(), num_missing, chain.sliceArray(chain.size - 20 .. chain.lastIndex), new_log.length().toInt() + TINYSSB_PKT_LEN + openSidechain.length().toInt())
+                    } else {
+                        continue@feediterate //TODO handle corrupted filesystems (e.g. clear corrupted feeds)
+                    }
+                }
+                logentry += new_log.length().toInt().toByteArray()
+                new_log.appendBytes(logentry)
+            }
+
+            val new_state = State()
+            val old_mid = File(feed_dir, "mid")
+
+            new_state.max_pos = new_log.length().toInt()
+            new_state.pend_sc = pend
+            if (old_mid.exists() && old_mid.length() > 0)
+                new_state.prev = old_mid.readBytes().sliceArray(old_mid.length().toInt() - 20 until old_mid.length().toInt())
+            new_state.max_seq  = File(feed_dir, "log").length().toInt() / 120
+
+
+
+            // log file successfully upgraded, persist changes
+            val frontier = File(feed_dir, "frontier.bin")
+            if (frontier.exists())
+                frontier.delete()
+            frontier.createNewFile()
+            frontier.appendBytes(new_state.toWire())
+
+            Files.move(new_log.toPath(), File(feed_dir, "log.bin").toPath(), StandardCopyOption.ATOMIC_MOVE)
+            File(feed_dir, "log").delete()
+            Files.move(old_mid.toPath(), File(feed_dir, "mid.bin").toPath(), StandardCopyOption.ATOMIC_MOVE)
+
+
+            val sidechains = feed_files.filter { it.name.startsWith("!") || it.name.startsWith("-") }
+            sidechains.forEach { it.delete() }
+        }
+
+        // file containing the version number of the current repo filesystem
+        val version_file = File(dir, "version")
+        if(version_file.exists())
+            version_file.delete()
+
+        version_file.writeText("3fpf-0.0.1")
+
+    }
+
 }
