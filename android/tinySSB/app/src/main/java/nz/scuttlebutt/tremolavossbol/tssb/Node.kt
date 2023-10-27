@@ -86,7 +86,6 @@ class Node(val context: MainActivity) {
         }
         var v= "CHNK vector=["
         var credit = 3
-        Log.d("in_chnk", "outer")
         for (e in vect.getBipfList()) {
             val fNDX: Int
             val fid: ByteArray
@@ -136,22 +135,6 @@ class Node(val context: MainActivity) {
 
         Log.d("node", "beacon")
 
-        /*val l = arrayListOf<Any>()
-        val c = arrayListOf<Any>(1, "ok", 2)
-        l.add(c)
-
-        val b = Bipf.bipf_loads(Bipf.encode(Bipf.mk(l))!!)!!
-
-        val lst = b.getBipfList()[0].getBipfList()
-
-        val first = lst[0].get()
-        val sec = lst[1].get()
-        val third = lst[2].get()
-
-        Log.d("Test", "$first, $sec, $third")
-
-
-        return*/
         val want_buf = context.tinyRepo.mk_want_vect()
         if (want_buf != null)
             context.tinyIO.enqueue(want_buf, context.tinyDemux.want_dmx)

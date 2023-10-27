@@ -194,7 +194,6 @@ class Repo(val context: MainActivity) {
             for ((seq, p) in pending) {
                 val c = arrayListOf(ndx, seq, p.cnr)
                 lst.add(c)
-                Log.d("mk_chnk", "calc encoding len")
                 encoding_len += Bipf.encodingLength(c)
                 v += (if (v.length == 0) "[ " else " ") + "$ndx.$seq.${p.cnr}"
                 if (encoding_len > 100)
@@ -203,7 +202,6 @@ class Repo(val context: MainActivity) {
             i++
             if (encoding_len > 100)
                 break
-            Log.d("mk_chnk", "new feed")
             chnk_offs = (chnk_offs + i + 1) % context.tinyGoset.keys.size
 
         }

@@ -57,7 +57,6 @@ class State {
 
     fun toWire(): ByteArray {
         val wire = toDict()
-        Log.d("to_wire", "wire_maxpos: ${Bipf.bipf_loads(Bipf.encode(Bipf.mkDict(toDict()))!!)!!.get()}")
         return Bipf.encode(Bipf.mkDict(toDict()))!!
     }
 
@@ -91,7 +90,6 @@ class Replica(val context: MainActivity, val datapath: File, val fid: ByteArray)
         while (log.length() > state.max_pos) {
             RandomAccessFile(log, "rwd").use { f ->
                 var pos = state.max_pos
-                Log.d("replica", "init pos: $pos")
                 f.seek(pos.toLong())
                 val pkt = ByteArray(TINYSSB_PKT_LEN)
                 f.read(pkt)
@@ -128,7 +126,6 @@ class Replica(val context: MainActivity, val datapath: File, val fid: ByteArray)
     fun persist_frontier(seq: Int, pos: Int, prev: ByteArray) {
         state.max_seq = seq
         state.max_pos = pos
-        Log.d("persist_frontier", "pos: $pos")
         state.prev = prev
         val f = fnt.startWrite()
         f.write(state.toWire())
@@ -156,21 +153,18 @@ class Replica(val context: MainActivity, val datapath: File, val fid: ByteArray)
                 fid
             )
         ) {
-            Log.d("Replica", "ingest_entry: signature verify failed")
+            Log.e("Replica", "ingest_entry: signature verify failed")
             return false
         }
-        Log.d("Replica", "DEBUG REP")
         var chunk_cnt = 0
         if (pkt[7].toInt() == PKTTYPE_chain20) {
             var (len, sz) = Bipf.varint_decode(pkt, DMX_LEN + 1, DMX_LEN + 4)
             len -= 48 - 20 - sz
             chunk_cnt = (len + 99) / 100
         }
-        Log.d("Replica", "DEBUG REP 2")
         var log_entry = pkt + ByteArray(chunk_cnt * TINYSSB_PKT_LEN)
         log_entry += state.max_pos.toByteArray()
         log.appendBytes(log_entry)
-        Log.d("Replica", "DEBUG REP 3, chunk_cnt: $chunk_cnt")
         if (chunk_cnt > 0) {
             val ptr = pkt.sliceArray(36 until 56)
             state.pend_sc[seq] = Pending(0, chunk_cnt, ptr, state.max_pos + TINYSSB_PKT_LEN)
@@ -197,7 +191,7 @@ class Replica(val context: MainActivity, val datapath: File, val fid: ByteArray)
     }
 
     fun ingest_chunk_pkt(pkt: ByteArray, seq: Int): Boolean {
-        Log.d("replica", "ingest_chunk-pkt")
+        Log.d("replica", "ingest_chunk_pkt")
         if (pkt.size != TINYSSB_PKT_LEN) return false
         val pend: Pending
         var pos: Int
@@ -220,7 +214,6 @@ class Replica(val context: MainActivity, val datapath: File, val fid: ByteArray)
             state.pend_sc.remove(seq)
             val content = read(seq)
             val message_id = get_mid(seq)
-            Log.d("ingest_chnk", "sidechain complete, content: ${content?.toHex()}, mid: ${message_id?.toHex()}")
             if (message_id != null && content != null) {
                 context.wai.sendTinyEventToFrontend(fid, seq, message_id, content)
             }
@@ -229,7 +222,6 @@ class Replica(val context: MainActivity, val datapath: File, val fid: ByteArray)
             pend.rem--
             pend.hptr = pkt.sliceArray(pkt.size - 20..pkt.lastIndex)
             pend.pos = pos
-            Log.d("ingest_chnk", "arm new chnk dmx, cnr: ${pend.cnr}, rem: ${pend.rem}")
             val chunk_fct = { chunk: ByteArray, fid: ByteArray?, seq: Int -> context.tinyNode.incoming_chunk(chunk,fid,seq) }
             context.tinyDemux.arm_blb(pend.hptr, chunk_fct, fid, seq, pend.cnr)
         }
@@ -242,7 +234,6 @@ class Replica(val context: MainActivity, val datapath: File, val fid: ByteArray)
     }
 
     fun get_mid(seq: Int): ByteArray? {
-        Log.d("get_mid", "for seq: $seq")
         if(seq < 1 || seq > state.max_seq)
             return null
         val pos = (seq - 1) * HASH_LEN
@@ -270,7 +261,6 @@ class Replica(val context: MainActivity, val datapath: File, val fid: ByteArray)
 
     fun get_entry_pkt(seq: Int): ByteArray? {
         try {
-            Log.d("get_entry", "seq: $seq, max: ${state.max_seq}")
             if(seq < 1 || seq > state.max_seq)
                 return null
             var pos = log.length()
@@ -340,12 +330,9 @@ class Replica(val context: MainActivity, val datapath: File, val fid: ByteArray)
     }
 
     fun read(seq: Int): ByteArray? {
-        Log.d("read", "DEBUG, max seq: ${state.max_seq}, seq: $seq")
         if (state.max_seq < seq || seq < 1)
             return null
-        Log.d("read", "DEBUG1.1")
         var pos = log.length()
-        Log.d("read", "DEBUG1.2, pos: $pos")
         var cnt = state.max_seq - seq + 1
         RandomAccessFile(log, "rwd").use { f ->
             while (cnt > 0) {
@@ -353,15 +340,12 @@ class Replica(val context: MainActivity, val datapath: File, val fid: ByteArray)
                 pos = f.readInt().toLong()
                 cnt--
             }
-            Log.d("read", "DEBUG2")
             f.seek(pos)
             val pkt = ByteArray(TINYSSB_PKT_LEN)
             f.read(pkt)
-            Log.d("read", "DEBUG3")
             if (pkt[7].toInt() == PKTTYPE_plain48)
                 return pkt.sliceArray(8 until 56)
             if (pkt[7].toInt() == PKTTYPE_chain20) { //read whole sidechain
-                Log.d("read", "DEBUG4")
                 val (chain_len, sz) = Bipf.varint_decode(pkt, DMX_LEN + 1, DMX_LEN + 4)
                 var content = pkt.sliceArray(8 + sz until 36)
                 var blocks = (chain_len - content.size + 99) / 100
@@ -427,7 +411,6 @@ class Replica(val context: MainActivity, val datapath: File, val fid: ByteArray)
             val buf = content.sliceArray(content.size - 100 .. content.lastIndex) + ptr
             chunks.add(buf)
             ptr = buf.sha256().sliceArray(0 until HASH_LEN)
-            Log.d("write", "ptr: ${ptr.toHex()}, $d")
             d++
             content = content.sliceArray(0 .. content.lastIndex - 100)
         }
@@ -450,13 +433,10 @@ class Replica(val context: MainActivity, val datapath: File, val fid: ByteArray)
         chunks.add(0, wire)
         var log_entry = chunks.reduce {acc, it -> acc + it}
         log_entry += state.max_pos.toByteArray()
-        Log.d("size", "size before: ${log.length()}")
         log.appendBytes(log_entry)
         // save mid
         mid.appendBytes((nam + wire).sha256().sliceArray(0 until HASH_LEN))
-        //Log.d("sizes", "sizes: dmx: ${dmx.size}, +1, payload: ${payload.size}, sign: ${signDetached(nam + msg, context.idStore.identity.signingKey!!).size}")
         persist_frontier(seq, state.max_pos + log_entry.size, (nam + wire).sha256().sliceArray(0 until HASH_LEN))
-        Log.d("write", "new max pos: ${state.max_pos}")
         context.wai.sendTinyEventToFrontend(fid, seq, (nam + wire).sha256().sliceArray(0 until HASH_LEN), c)
         Log.d("replica", "write success, len: ${log_entry.size}")
         return seq
