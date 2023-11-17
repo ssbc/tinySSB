@@ -43,14 +43,13 @@ class BlePeers(val act: MainActivity) {
     private var gattServer: BluetoothGattServer? = null
     private var advertiser: BluetoothLeAdvertiser? = null
 
-    private val device_pubkey = mutableMapOf<BluetoothDevice, ByteArray>()
+    private val device_pubkey = mutableMapOf<BluetoothDevice, ByteArray>() // Maps bluetooth devices to their advertised tinySSB public key
 
     private val connectedDevices = mutableSetOf<BluetoothDevice>() // Bluetooth devices connected to the hosted GATT-server
     private var pending = mutableMapOf<BluetoothDevice,BluetoothGatt>() // pending connection to other GATT-Servers, waiting for a successful reply
     var peers = mutableMapOf<BluetoothDevice,BluetoothGatt>() // Bluetooth devices we are connected to
     private var writeErrorCounter = mutableMapOf<BluetoothDevice,Int>() // Counts the number of write errors for the given Bluetooth device (not included in the set -> no errors occurred).
     var isScanning = false
-    private var previous_device_name: String? = null // contains the original bluetooth name in order to reset
 
     private val scanSettings = ScanSettings.Builder()
         .setScanMode(ScanSettings.SCAN_MODE_LOW_POWER)
@@ -101,11 +100,6 @@ class BlePeers(val act: MainActivity) {
             ActivityCompat.requestPermissions(act, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), 555)
             return
         }
-        // shorten original name (to 8 bytes)
-        if (bluetoothAdapter.name.length > 8) {
-            previous_device_name = bluetoothAdapter.name
-            bluetoothAdapter.name = bluetoothAdapter.name.substring(0 until 8)
-        }
 
         //start GATT server + client
         startBleScan()
@@ -117,10 +111,6 @@ class BlePeers(val act: MainActivity) {
 
     @SuppressLint("MissingPermission")
     fun stopBluetooth() {
-        if (previous_device_name != null) {
-                bluetoothAdapter?.setName(previous_device_name)
-                previous_device_name = null
-            }
         stopBleScan()
         for (p in peers) {
             p.value.close()
@@ -395,7 +385,7 @@ class BlePeers(val act: MainActivity) {
         advertiser = bluetoothAdapter.bluetoothLeAdvertiser
 
         val advertiseSettings = AdvertiseSettings.Builder().setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_BALANCED).setTimeout(0).setConnectable(true).build()
-        val advertiseData = AdvertiseData.Builder().addServiceUuid(ParcelUuid(TINYSSB_BLE_REPL_SERVICE_2022)).setIncludeDeviceName(true).setIncludeTxPowerLevel(false).build()
+        val advertiseData = AdvertiseData.Builder().addServiceUuid(ParcelUuid(TINYSSB_BLE_REPL_SERVICE_2022)).setIncludeDeviceName(bluetoothAdapter.name.length <= 8).setIncludeTxPowerLevel(false).build()
         //advertiser.startAdvertising(advertiseSettings, advertiseData, advertiseCallback)
         advertiser?.let { it.startAdvertising(advertiseSettings,advertiseData,advertiseCallback)}
     }
