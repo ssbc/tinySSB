@@ -368,7 +368,7 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
         // in-order api
         val replica = act.tinyRepo.fid2replica(fid)
 
-        if (frontend_frontier.getInt(fid.toHex(), 0) == seq && replica != null) {
+        if (frontend_frontier.getInt(fid.toHex(), 1) == seq && replica != null) {
             for (i in seq .. replica.state.max_seq ) {
                 val content = replica.read(i)
                 val message_id= replica.get_mid(seq)
