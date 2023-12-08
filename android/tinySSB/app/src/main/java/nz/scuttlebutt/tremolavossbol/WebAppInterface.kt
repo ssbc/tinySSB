@@ -3,6 +3,7 @@ package nz.scuttlebutt.tremolavossbol
 import android.Manifest
 import android.content.ClipData
 import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.util.Base64
@@ -30,6 +31,7 @@ import org.json.JSONArray
 class WebAppInterface(val act: MainActivity, val webView: WebView) {
 
     var frontend_ready = false
+    private val frontend_frontier = act.getSharedPreferences("frontend_frontier", Context.MODE_PRIVATE)
 
     @JavascriptInterface
     fun onFrontendRequest(s: String) {
@@ -63,7 +65,7 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
                         val mid = r.get_mid(i)
                         if (payload == null || mid == null) break
                         Log.d("restream", "${i}, ${payload.size} Bytes")
-                        sendToFrontend(fid, i, mid, payload)
+                        sendTinyEventToFrontend(fid, i, mid, payload)
                         i++
                     }
                 }
@@ -352,26 +354,39 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
 
     fun sendTinyEventToFrontend(fid: ByteArray, seq: Int, mid:ByteArray, body: ByteArray) {
         Log.d("wai","sendTinyEvent ${body.toHex()}")
-        sendToFrontend(fid, seq, mid, body)
+        var e = toFrontendObject(fid, seq, mid, body)
+        if (e != null)
+            eval("b2f_new_event($e)")
+
+        // in-order api
+        val replica = act.tinyRepo.fid2replica(fid)
+
+        if (frontend_frontier.getInt(fid.toHex(), 0) == seq && replica != null) {
+            for (i in seq .. replica.state.max_seq ) {
+                val content = replica.read(i)
+                val message_id= replica.get_mid(seq)
+                if(content == null || message_id == null)
+                    break
+                e = toFrontendObject(fid, i, message_id, content)
+                if (e != null)
+                    eval("b2f_new_in_order_event($e)")
+                frontend_frontier.edit().putInt(fid.toHex(), i + 1).apply()
+            }
+        }
     }
 
-    fun sendToFrontend(fid: ByteArray, seq: Int, mid: ByteArray, payload: ByteArray) {
-        Log.d("wai", "sendToFrontend seq=${seq} ${payload.toHex()}")
+    fun toFrontendObject(fid: ByteArray, seq: Int, mid: ByteArray, payload: ByteArray): String? {
         val bodyList = Bipf.decode(payload)
         if (bodyList == null || bodyList.typ != BIPF_LIST) {
-            Log.d("sendToFrontend", "decoded payload == null")
-            return
+            Log.d("toFrontendObject", "decoded payload == null")
+            return null
         }
         val param = Bipf.bipf_list2JSON(bodyList)
         var hdr = JSONObject()
         hdr.put("fid", "@" + fid.toBase64() + ".ed25519")
         hdr.put("ref", mid.toBase64())
         hdr.put("seq", seq)
-        var cmd = "b2f_new_event({header:${hdr.toString()},"
-        cmd += "public:${param.toString()}"
-        cmd += "});"
-        Log.d("CMD", cmd)
-        eval(cmd)
+        return "{header:${hdr.toString()}, public:${param.toString()}}"
     }
 
 
