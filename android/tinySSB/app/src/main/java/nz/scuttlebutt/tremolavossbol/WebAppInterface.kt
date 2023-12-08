@@ -31,7 +31,7 @@ import org.json.JSONArray
 class WebAppInterface(val act: MainActivity, val webView: WebView) {
 
     var frontend_ready = false
-    private val frontend_frontier = act.getSharedPreferences("frontend_frontier", Context.MODE_PRIVATE)
+    val frontend_frontier = act.getSharedPreferences("frontend_frontier", Context.MODE_PRIVATE)
 
     @JavascriptInterface
     fun onFrontendRequest(s: String) {
@@ -350,6 +350,13 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
         var cmd = "b2f_new_voice('" + voice.toBase64() + "');"
         Log.d("CMD", cmd)
         eval(cmd)
+    }
+
+    fun sendIncompleteEntryToFrontend(fid: ByteArray, seq: Int, mid:ByteArray, body: ByteArray) {
+        val e = toFrontendObject(fid, seq, mid, body)
+        if (e != null)
+            eval("b2f_new_incomplete_event($e)")
+
     }
 
     fun sendTinyEventToFrontend(fid: ByteArray, seq: Int, mid:ByteArray, body: ByteArray) {

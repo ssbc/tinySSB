@@ -303,6 +303,7 @@ class Repo(val context: MainActivity) {
                 frontier.delete()
             frontier.createNewFile()
             frontier.appendBytes(new_state.toWire())
+            context.wai.frontend_frontier.edit().putInt(f.name, new_state.max_pos + 1).apply()
 
             Files.move(new_log.toPath(), File(feed_dir, "log.bin").toPath(), StandardCopyOption.ATOMIC_MOVE)
             File(feed_dir, "log").delete()

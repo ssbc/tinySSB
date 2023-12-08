@@ -185,6 +185,11 @@ class Replica(val context: MainActivity, val datapath: File, val fid: ByteArray)
         val fct = { buf: ByteArray, fid: ByteArray?, _: String? -> context.tinyNode.incoming_pkt(buf,fid!!) }
         context.tinyDemux.arm_dmx(new_dmx, fct, fid)
 
+        val (_, sz) = Bipf.varint_decode(pkt, DMX_LEN + 1, DMX_LEN + 4)
+        val content = pkt.sliceArray(8 + sz until 36)
+
+        context.wai.sendIncompleteEntryToFrontend(fid, seq, (nam + pkt).sha256().sliceArray(0 until HASH_LEN), content)
+
         if(sendToFront)
             context.wai.sendTinyEventToFrontend(fid, seq, (nam + pkt).sha256().sliceArray(0 until HASH_LEN), read_content(seq)!!)
         return true
