@@ -981,22 +981,46 @@ function b2f_local_peer(type, identifier, displayname, status) {
 
 /**
  * This function is called, when the backend received a new log entry and successfully completed the corresponding sidechain.
- * The backend assures, that the log entries are sent to the frontend in the same sequential order as in the append-only log.
+ * The backend assures, that the log entries are sent to the frontend in the exact same sequential order as in the append-only log.
  *
  * @param {Object} e     Object containing all information of the log_entry.
- * @param {Object} e.hdr Contains basic information about the log entry.{tst: 1700234500672, ref: 417869, fid: '@AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=.ed25519'}
+ * @param {Object} e.hdr Contains basic information about the log entry.
  * @param {number} e.hdr.tst Timestamp at which the message was created. (Number of milliseconds elapsed since midnight at the beginning of January 1970 00:00 UTC)
  * @param {string} e.hdr.ref The message ID of this log entry.
  * @param {string} e.hdr.fid The public key of the author encoded in base64.
  * @param {[]} e.public The payload of the message
  *
  */
+
 function b2f_new_in_order_event(e) {
 }
 
+/**
+ * This function is invoked whenever the backend receives a new log entry, regardless of whether the associated sidechain is fully loaded or not.
+ *
+ * @param {Object} e     Object containing all information of the log_entry.
+ * @param {Object} e.hdr Contains basic information about the log entry.
+ * @param {number} e.hdr.tst Timestamp at which the message was created. (Number of milliseconds elapsed since midnight at the beginning of January 1970 00:00 UTC)
+ * @param {string} e.hdr.ref The message ID of this log entry.
+ * @param {string} e.hdr.fid The public key of the author encoded in base64.
+ * @param {[]} e.public The payload of the logentry, without the content of the sidechain
+ *
+ */
 function b2f_new_incomplete_event(e) {
 }
 
+/**
+ * This function is called, when the backend received a new log entry and successfully completed the corresponding sidechain.
+ * This callback does not ensure any specific order; the log entries are forwarded in the order they are received.
+ *
+ * @param {Object} e     Object containing all information of the log_entry.
+ * @param {Object} e.hdr Contains basic information about the log entry.
+ * @param {number} e.hdr.tst Timestamp at which the message was created. (Number of milliseconds elapsed since midnight at the beginning of January 1970 00:00 UTC)
+ * @param {string} e.hdr.ref The message ID of this log entry.
+ * @param {string} e.hdr.fid The public key of the author encoded in base64.
+ * @param {[]} e.public The payload of the message
+ *
+ */
 function b2f_new_event(e) { // incoming SSB log event: we get map with three entries
                             // console.log('hdr', JSON.stringify(e.header))
     console.log('pub', JSON.stringify(e.public))
