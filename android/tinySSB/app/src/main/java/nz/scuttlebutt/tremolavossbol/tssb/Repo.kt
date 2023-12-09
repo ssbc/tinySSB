@@ -155,8 +155,7 @@ class Repo(val context: MainActivity) {
                 break
         }
 
-        want_offs = (want_offs + i + 1) % context.tinyGoset.keys.size
-        want_is_valid = true
+
 
 
         if(lst.size > 1) {
@@ -164,11 +163,13 @@ class Repo(val context: MainActivity) {
             vec = vec.mapIndexed { index, i ->
                 val new_idx =(index + want_offs) % vec.size
                 lst.slice(1 .. lst.lastIndex)[new_idx]}
-
             context.tinyNode.update_progress(vec, "me")
 
             return Bipf.encode(Bipf.mkList(lst))
         }
+
+        want_offs = (want_offs + i + 1) % context.tinyGoset.keys.size
+        want_is_valid = true
         return null
     }
 
