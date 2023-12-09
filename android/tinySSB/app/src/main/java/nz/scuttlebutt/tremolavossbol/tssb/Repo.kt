@@ -11,6 +11,7 @@ import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.DMX_PFX
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.FID_LEN
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_PKT_LEN
 import nz.scuttlebutt.tremolavossbol.utils.HelperFunctions.Companion.decodeHex
+import nz.scuttlebutt.tremolavossbol.utils.HelperFunctions.Companion.toBase64
 import nz.scuttlebutt.tremolavossbol.utils.HelperFunctions.Companion.toByteArray
 import nz.scuttlebutt.tremolavossbol.utils.HelperFunctions.Companion.toHex
 import nz.scuttlebutt.tremolavossbol.utils.HelperFunctions.Companion.toInt32
@@ -78,6 +79,9 @@ class Repo(val context: MainActivity) {
             want_offs = Random.nextInt(0, context.tinyGoset.keys.size - 1)
             chnk_offs = Random.nextInt(0, context.tinyGoset.keys.size - 1)
         }
+
+        if(context.isWaiInitialized())
+            context.wai.eval("b2f_new_contact(\"@${fid.toBase64()}.ed25519\")") // notify frontend
 
         want_is_valid = false
         chnk_is_valid = false
