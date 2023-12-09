@@ -993,7 +993,7 @@ function b2f_local_peer(type, identifier, displayname, status) {
  */
 function b2f_new_in_order_event(e) {
 
-    console.log("b2f inorder event")
+    console.log("b2f inorder event:", JSON.stringify(e.public))
 
     if (!(e.header.fid in tremola.contacts)) {
         var a = id2b32(e.header.fid);

@@ -451,4 +451,9 @@ class Replica(val context: MainActivity, val datapath: File, val fid: ByteArray)
         Log.d("replica", "write success, len: ${log_entry.size}")
         return seq
     }
+
+    fun isSidechainComplete(seq: Int): Boolean {
+        return !state.pend_sc.containsKey(seq)
+    }
+
 }
