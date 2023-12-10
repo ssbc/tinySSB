@@ -1,8 +1,6 @@
 package nz.scuttlebutt.tremolavossbol.tssb
 
-import android.content.Context
 import android.content.Context.MODE_PRIVATE
-import android.util.Log
 import nz.scuttlebutt.tremolavossbol.MainActivity
 import nz.scuttlebutt.tremolavossbol.crypto.SodiumAPI.Companion.sha256
 import nz.scuttlebutt.tremolavossbol.utils.Bipf
@@ -14,12 +12,10 @@ import nz.scuttlebutt.tremolavossbol.utils.HelperFunctions.Companion.decodeHex
 import nz.scuttlebutt.tremolavossbol.utils.HelperFunctions.Companion.toBase64
 import nz.scuttlebutt.tremolavossbol.utils.HelperFunctions.Companion.toByteArray
 import nz.scuttlebutt.tremolavossbol.utils.HelperFunctions.Companion.toHex
-import nz.scuttlebutt.tremolavossbol.utils.HelperFunctions.Companion.toInt32
 import java.io.File
 import java.io.RandomAccessFile
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
-import kotlin.math.log
 import kotlin.random.Random
 
 class Repo(val context: MainActivity) {
@@ -222,7 +218,7 @@ class Repo(val context: MainActivity) {
     }
 
     fun feed_read_content(fid: ByteArray, seq: Int): ByteArray? {
-        return fid2replica(fid)?.read(seq)
+        return fid2replica(fid)?.read_content(seq)
     }
 
     /**

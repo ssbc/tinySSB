@@ -186,7 +186,7 @@ class Replica(val context: MainActivity, val datapath: File, val fid: ByteArray)
         context.tinyDemux.arm_dmx(new_dmx, fct, fid)
 
         if(sendToFront)
-            context.wai.sendTinyEventToFrontend(fid, seq, (nam + pkt).sha256().sliceArray(0 until HASH_LEN), read(seq)!!)
+            context.wai.sendTinyEventToFrontend(fid, seq, (nam + pkt).sha256().sliceArray(0 until HASH_LEN), read_content(seq)!!)
         return true
     }
 
@@ -212,7 +212,7 @@ class Replica(val context: MainActivity, val datapath: File, val fid: ByteArray)
         }
         if (pend.rem <= 1) { //sidechain is complete
             state.pend_sc.remove(seq)
-            val content = read(seq)
+            val content = read_content(seq)
             val message_id = get_mid(seq)
             if (message_id != null && content != null) {
                 context.wai.sendTinyEventToFrontend(fid, seq, message_id, content)
@@ -329,7 +329,8 @@ class Replica(val context: MainActivity, val datapath: File, val fid: ByteArray)
         }
     }
 
-    fun read(seq: Int): ByteArray? {
+
+    fun read_content(seq: Int): ByteArray? {
         if (state.max_seq < seq || seq < 1)
             return null
         var pos = log.length()
@@ -346,9 +347,13 @@ class Replica(val context: MainActivity, val datapath: File, val fid: ByteArray)
             if (pkt[7].toInt() == PKTTYPE_plain48)
                 return pkt.sliceArray(8 until 56)
             if (pkt[7].toInt() == PKTTYPE_chain20) { //read whole sidechain
-                val (chain_len, sz) = Bipf.varint_decode(pkt, DMX_LEN + 1, DMX_LEN + 4)
+                val (content_len, sz) = Bipf.varint_decode(pkt, DMX_LEN + 1, DMX_LEN + 4)
+                Log.d("DEBUGLEN", "len: $content_len, sz: $sz")
+                if (content_len <= (28-sz)) {
+                    return pkt.sliceArray(8+sz until 8+sz+content_len)
+                }
                 var content = pkt.sliceArray(8 + sz until 36)
-                var blocks = (chain_len - content.size + 99) / 100
+                var blocks = (content_len - content.size + 99) / 100
                 while (blocks > 0) {
                     f.read(pkt)
                     content += pkt.sliceArray(0 until 100)
@@ -397,7 +402,7 @@ class Replica(val context: MainActivity, val datapath: File, val fid: ByteArray)
         val chunks = ArrayList<ByteArray>()
         val seq = state.max_seq + 1
         val sz = Bipf.varint_encode(content.size)
-        var payload = sz + content.sliceArray(0 until min(28 - sz.size, content.size - 1))
+        var payload = sz + content.sliceArray(0 until min(28 - sz.size, content.size))
         if (payload.size < 28) { //TODO: compare with simplepub code l. 260
             payload += ByteArray(28 - payload.size)
         }

@@ -59,7 +59,7 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
                         val r = act.tinyRepo.fid2replica(fid)
                         if(r == null)
                             break
-                        val payload = r.read(i)
+                        val payload = r.read_content(i)
                         val mid = r.get_mid(i)
                         if (payload == null || mid == null) break
                         Log.d("restream", "${i}, ${payload.size} Bytes")
