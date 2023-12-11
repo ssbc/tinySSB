@@ -452,6 +452,25 @@ function refresh_connection_entry(id) {
 
 }
 
+function refresh_goset_progressbar(curr, max) {
+
+    console.log("refresh_goset_progressbar", curr, max)
+
+    var delta = max - curr
+
+    document.getElementById('connection-overlay-progressbar-goset').value = (curr / max) * 100
+    document.getElementById('connection-overlay-progressbar-label-goset').textContent = delta + " key" + (delta > 1 ? "s" : "") + " left"
+    if (delta > 0) {
+        console.log("display progress")
+        document.getElementById('goset-progress-container').style.display = "initial"
+        document.getElementById('progress-container').style.display = "none"
+    } else {
+        document.getElementById('goset-progress-container').style.display = "none"
+        document.getElementById('progress-container').style.display = "initial"
+    }
+
+}
+
 function refresh_connection_progressbar(min_entries, old_min_entries, old_want_entries, curr_want_entries, max_entries) {
 
     console.log("min:", min_entries)

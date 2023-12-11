@@ -175,6 +175,8 @@ class Node(val context: MainActivity) {
     var old_min: List<Int>? = null
     var old_min_from: String? = null
 
+
+
     // calculates current replication progress and sends update to frontend
     fun update_progress(want_vector: List<Int>, from: String) {
 

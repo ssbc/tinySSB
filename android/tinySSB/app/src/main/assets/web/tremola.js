@@ -543,6 +543,8 @@ function save_content_alias() {
     var val = document.getElementById('old_contact_alias').value;
     var deleteAlias = false
 
+    val.trim()
+
     if (val == '') {
         deleteAlias = true
         if (c.iam != "" && new_contact_id != myId) {

@@ -1,6 +1,7 @@
 package nz.scuttlebutt.tremolavossbol.tssb
 
 import android.content.Context.MODE_PRIVATE
+import android.util.Log
 import nz.scuttlebutt.tremolavossbol.MainActivity
 import nz.scuttlebutt.tremolavossbol.crypto.SodiumAPI.Companion.sha256
 import nz.scuttlebutt.tremolavossbol.utils.Bipf
@@ -21,6 +22,7 @@ import kotlin.random.Random
 class Repo(val context: MainActivity) {
     val TINYSSB_DIR = "tinyssb"
     val FEED_DIR = "feeds"
+    private var loadingFinished = false // indicates whether all replicas have already been loaded into the repo.
     private val replicas = ArrayList<Replica>()
     private var want_is_valid = false
     private var chnk_is_valid = false
@@ -50,7 +52,10 @@ class Repo(val context: MainActivity) {
 
         for (f in fdir.listFiles { file -> file.isDirectory && file.name.length == 2 * FID_LEN} ?: emptyArray()) {
             add_replica(f.name.decodeHex())
+            context.tinyGoset._add_key(f.name.decodeHex())
         }
+
+        loadingFinished = true
 
     }
 
@@ -70,6 +75,8 @@ class Repo(val context: MainActivity) {
         for ((seq, p) in chains) {
             context.tinyDemux.arm_blb(p.hptr, chunk_fct,fid,seq, p.cnr)
         }
+
+
 
         if (context.tinyGoset.keys.size > 1) {
             want_offs = Random.nextInt(0, context.tinyGoset.keys.size - 1)
@@ -159,10 +166,11 @@ class Repo(val context: MainActivity) {
 
 
         if(lst.size > 1) {
+            // notify frontend
             var vec = lst.slice(1 .. lst.lastIndex) // want_vector without offset
-            vec = vec.mapIndexed { index, i ->
-                val new_idx =(index + want_offs) % vec.size
-                lst.slice(1 .. lst.lastIndex)[new_idx]}
+            val front = vec.subList(vec.size - lst[0], vec.size)
+            val back = vec.subList(0, vec.size - lst[0])
+            vec = front + back
             context.tinyNode.update_progress(vec, "me")
 
             return Bipf.encode(Bipf.mkList(lst))
@@ -320,6 +328,10 @@ class Repo(val context: MainActivity) {
 
         version_file.writeText("3fpf-0.0.1")
 
+    }
+
+    fun isLoaded(): Boolean {
+        return loadingFinished
     }
 
 }
