@@ -28,6 +28,7 @@ class Repo(val context: MainActivity) {
     private var chnk_is_valid = false
     private var want_offs = 0
     private var chnk_offs = 0
+    private var numberOfPendingChunks = 0
 
     private fun clean(dir: File) {
         for (f in dir.listFiles() ?: emptyArray()) {
@@ -74,6 +75,7 @@ class Repo(val context: MainActivity) {
         val chunk_fct = { chunk: ByteArray, fid: ByteArray?, seq: Int -> context.tinyNode.incoming_chunk(chunk,fid,seq) }
         for ((seq, p) in chains) {
             context.tinyDemux.arm_blb(p.hptr, chunk_fct,fid,seq, p.cnr)
+            addNumberOfPendingChunks(p.rem)
         }
 
 
@@ -332,6 +334,15 @@ class Repo(val context: MainActivity) {
 
     fun isLoaded(): Boolean {
         return loadingFinished
+    }
+
+    fun addNumberOfPendingChunks(amount: Int) {
+        numberOfPendingChunks += amount
+        context.wai.eval("refresh_chunk_progressbar($numberOfPendingChunks)")
+    }
+
+    fun getNumberOfPendingCHunks(): Int {
+        return numberOfPendingChunks
     }
 
 }

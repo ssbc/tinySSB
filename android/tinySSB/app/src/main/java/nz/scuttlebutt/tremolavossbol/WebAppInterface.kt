@@ -43,6 +43,7 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
             "ready" -> {
                 eval("b2f_initialize(\"${act.idStore.identity.toRef()}\")")
                 frontend_ready = true
+                act.tinyRepo.addNumberOfPendingChunks(0) // initialize chunk progress bar
                 act.tinyNode.beacon()
             }
             "reset" -> { // UI reset
