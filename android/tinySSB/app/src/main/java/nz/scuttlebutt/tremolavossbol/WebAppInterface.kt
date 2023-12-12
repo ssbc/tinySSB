@@ -370,7 +370,7 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
 
         if (frontend_frontier.getInt(fid.toHex(), 1) == seq && replica != null) {
             for (i in seq .. replica.state.max_seq ) {
-                val content = replica.read(i)
+                val content = replica.read_content(i)
                 val message_id= replica.get_mid(seq)
                 if(content == null || message_id == null || !replica.isSidechainComplete(i))
                     break
