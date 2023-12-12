@@ -114,7 +114,7 @@
 
   <div id="new_contact-overlay" class="qr-overlay" style="display: none; text-align: center">
     <div style='margin-bottom: 15px;'>&nbsp;<br>Scan tinySSB QR code<br>of a trustworthy person:</div>
-    <button class="passive buttontext" onclick="qr_scan_start();" style="border: 0pt; height: 60pt; width: 120px; background-image: url('img/qr-code-scan.svg');">&nbsp;</button><br>&nbsp;<hr>
+    <button class="passive buttontext" onclick="qr_scan_start(QR_SCAN_TARGET.ADD_CONTACT);" style="border: 0pt; height: 60pt; width: 120px; background-image: url('img/qr-code-scan.svg');">&nbsp;</button><br>&nbsp;<hr>
     <br>or enter their SSB identity as text:<br>&nbsp;
     <div style="display: flex;">
       <textarea rows="2" id="contact_id" placeholder="Tap here to type" style="width: calc(100% - 50px); vertical-align: middle;"></textarea>
@@ -294,8 +294,21 @@
 
   <div id='edit-overlay' class='qr-overlay'>
     <div id="edit_title" style='margin-bottom: 25px;'>Edit X:</div>
-    <input type="text" id="edit_text" onkeypress="edit_checkEnter(event)" minlength="1" size="64" style="width: calc(100% - 10px); height: 30px;">&nbsp;
+    <input type="text" id="edit_text" onkeypress="onEnter(event)" minlength="1" size="64" style="width: calc(100% - 10px); height: 30px;">&nbsp;
     <div style='text-align: right;'><button class="passive buttontext" onclick="edit_confirmed();" style="background-image: url('img/checked.svg'); margin-right: 5px; border: 0pt; height: 30px; width: 30px;">&nbsp;</button></div>
+  </div>
+
+  <div id='import-id-overlay' class='qr-overlay'>
+    <div style='font-size: larger; text-align: center'><b>Import new ID</b></div>
+    <div style='margin-left: 10px; margin-right: 10px;margin-bottom: 15px;'><p align=“justify“><b>Caution: </b>Ensure you avoid utilizing the same identity simultaneously on multiple devices, as this could result in concurrent actions, thus rendering your log invalid.</p></div>
+    <div style='text-align: center'><b>Import via QR Code</b></div>
+    <br>
+    <div style='display: flex; justify-content: center;'><button class="passive buttontext" onclick="qr_scan_start(QR_SCAN_TARGET.IMPORT_ID);" style="border: 0pt; height: 60pt; width: 120px; background-image: url('img/qr-code-scan.svg');margin: auto;">&nbsp;</button></div>
+    <br>
+    <div style='text-align: center; margin-left: 10px; margin-right: 10px;margin-bottom: 15px;'><b>Import via copied secret key</b></div>
+    <textarea placeholder='{"curve": "ed25519", "secret": "YOUR SECRECT KEY"}' id="import-id-input" rows="3" onkeypress="onEnter(event)"></textarea>
+    <button class="passive buttontext" style="background-image: url('img/checked.svg');border: 0pt; height: 40px; width: 40px;" onclick="btn_import_id()" ></button>
+    <div></div>
   </div>
 
   <div id="snackbar">the msg</div>
@@ -388,30 +401,6 @@
     </div>
   </div>
 
-</div>
-
-<div id='div:footer' class=neutral style="height: 56px; align-content: center; border: 3px inset #ebf4fa /*var(--light)*/; border-radius: 2px; margin: 3px; width: calc(100% - 12px);">
-
-  <table width=100% cellpadding="2pt"><tr>
-    <td width=33%><button id='btn:chats'    class="w100 flat active buttontext" onclick="btnBridge(this);" style="background-image: url('img/chat.svg');">&nbsp;<!-- font size=+3>&#x1F4E8;</font><br><font size=small>Chats</font --></button>
-    <td width=33%><button id='btn:kanban'   class="w100 flat passive buttontext" onclick="btnBridge(this);" style="background-image: url('img/kanban.svg');">&nbsp;<!-- font size=+3>&#x1F5E3;</font><br><font size=small>Board</font --></button>
-    <td width=33%><button id='btn:contacts' class="w100 flat passive buttontext" onclick="btnBridge(this);" style="background-image: url('img/contacts.svg');">&nbsp;<!-- font size=+3>&#x1F465;</font><br><font size=small>Contacts</font --></button>
-  </table>
-
-</div>
-
-  <table id="div:textarea" class="neutral" style="height: 56px; width: calc(100% - 6pt); display: none; border: 3px inset #ebf4fa /*var(--light)*/; margin: 3pt;" width=100%>
-    <tr><td width=95%><textarea id='draft' rows=3 placeholder='Tap here to type'></textarea>
-      <!-- td width=5% height=100%><button id='btn:attach' class="flat passive buttontext"><font size=+2>&#x1F4CE;</font><br><font size=small>Attach</font></button></td -->
-      <td width=8% height=100%><button id='btn:attach' class="flat white buttontext" onclick="btnBridge(this);" style="background-image: url('img/record.svg'); fill: #fff; width: 50px; height: 50px; margin-bottom: 4px;"></button>
-      <td width=5% height=100%><button id='btn:preview' class="flat passive buttontext" onclick="showPreview();" style="background-image: url('img/send-button.svg'); width: 50px; height: 50px; margin-bottom: 4px;">&nbsp;<!-- font size=+2>&#x1F440;</font><br><font size=small>Preview</font --></button>
-  </table>
-
-  <div id='div:confirm-members' class=neutral style="height: 36px; align-content: center; border: 3px inset #ebf4fa /*var(--light)*/; border-radius: 2pt; margin: 3px; margin-top: 20px; display: none; flex-direction: row; justify-content: center; align-items: center;">
-    <!-- button class="flat passive buttontext" style="background-image: url('img/cancel.svg'); width: 50%; height: 50px; margin: 5px;" onclick="onBackPressed();">&nbsp;</--button -->
-    <button class="flat passive buttontext" style="background-image: url('img/checked.svg'); width: 100%; height: 30px; margin: 3px;" onclick="members_confirmed();">&nbsp;</button>
-  </div>
-
   <div id="div:settings" style="display: none; height: calc(100% - 45px);"><div style="height: 100%; overflow: scroll; margin: 6px;">
     <div style="text-align: center;"><em>Configurations</em></div>
     <hr>
@@ -436,15 +425,15 @@
     <hr>
 
     <div class="settings">
-        <div class="settingsText">Connect to Pub via Websocket</div>
-        <div style="float: right;"><label class="switch">
-          <input id="websocket" type="checkbox" onchange="toggle_changed(this);">
-          <span class="slider round"></span></label></div>
+      <div class="settingsText">Connect to Pub via Websocket</div>
+      <div style="float: right;"><label class="switch">
+        <input id="websocket" type="checkbox" onchange="toggle_changed(this);">
+        <span class="slider round"></span></label></div>
     </div>
     <div id="container:settings_ws_url" class="websocket_url_settings" style="display:none;">
-          <div class="settingsText" style="margin-right: 10px;font-size: 16px;margin-bottom: 5px;">URL: </div>
-          <input type="text" id="settings_urlInput" onkeypress="enter_setWebsocketUrl(event)" placeholder="Websocket-Url (ws://...)" required style="height:30px; width: 70%">
-          <button id="btn:url" class ="flat passive buttontext" onclick="btn_setWebsocketUrl()" style="background-image: url('img/checked.svg'); width:35px; height:35px; margin-left: 5px;"></button>
+      <div class="settingsText" style="margin-right: 10px;font-size: 16px;margin-bottom: 5px;">URL: </div>
+      <input type="text" id="settings_urlInput" onkeypress="onEnter(event)" placeholder="Websocket-Url (ws://...)" required style="height:30px; width: 70%">
+      <button id="btn:url" class ="flat passive buttontext" onclick="btn_setWebsocketUrl()" style="background-image: url('img/checked.svg'); width:35px; height:35px; margin-left: 5px;"></button>
     </div>
     <hr>
 
@@ -508,14 +497,40 @@
       Reset UI + Re-stream (but keep ID)</button><hr>
     <p><button class="w100 button active item" style="height: 2.5em;" onclick="settings_clear_other_feeds()">
       Delete all logs except your own (but keep ID)</button><hr>
-    <p><button class="w100 button active item" style="height: 2.5em;">
-      <del>Import new secret key (also erases DB)</del></button><hr>
+    <p><button class="w100 button active item" style="height: 2.5em;" onclick="menu_import_id()">
+      Import new secret key (also erases DB)</button><hr>
     <p><button class="w100 button active item" style="height: 3em;" onclick="backend('exportSecret');">
       Export secret key</button><hr>
     <p>&nbsp;<br>&nbsp;<br>&nbsp;<br><button class="w100 button active item" style="height: 2.5em;" onclick="settings_wipe();">
       <span style="color: #e85132 /* var(--red) */;font-weight: 900;">WIPE EVERYTHING IMMEDIATELY</span></button><hr>
     &nbsp;
   </div></div>
+
+</div>
+
+<div id='div:footer' class=neutral style="height: 56px; align-content: center; border: 3px inset #ebf4fa /*var(--light)*/; border-radius: 2px; margin: 3px; width: calc(100% - 12px);">
+
+  <table width=100% cellpadding="2pt"><tr>
+    <td width=33%><button id='btn:chats'    class="w100 flat active buttontext" onclick="btnBridge(this);" style="background-image: url('img/chat.svg');">&nbsp;<!-- font size=+3>&#x1F4E8;</font><br><font size=small>Chats</font --></button>
+    <td width=33%><button id='btn:kanban'   class="w100 flat passive buttontext" onclick="btnBridge(this);" style="background-image: url('img/kanban.svg');">&nbsp;<!-- font size=+3>&#x1F5E3;</font><br><font size=small>Board</font --></button>
+    <td width=33%><button id='btn:contacts' class="w100 flat passive buttontext" onclick="btnBridge(this);" style="background-image: url('img/contacts.svg');">&nbsp;<!-- font size=+3>&#x1F465;</font><br><font size=small>Contacts</font --></button>
+  </table>
+
+</div>
+
+  <table id="div:textarea" class="neutral" style="height: 56px; width: calc(100% - 6pt); display: none; border: 3px inset #ebf4fa /*var(--light)*/; margin: 3pt;" width=100%>
+    <tr><td width=95%><textarea id='draft' rows=3 placeholder='Tap here to type'></textarea>
+      <!-- td width=5% height=100%><button id='btn:attach' class="flat passive buttontext"><font size=+2>&#x1F4CE;</font><br><font size=small>Attach</font></button></td -->
+      <td width=8% height=100%><button id='btn:attach' class="flat white buttontext" onclick="btnBridge(this);" style="background-image: url('img/record.svg'); fill: #fff; width: 50px; height: 50px; margin-bottom: 4px;"></button>
+      <td width=5% height=100%><button id='btn:preview' class="flat passive buttontext" onclick="showPreview();" style="background-image: url('img/send-button.svg'); width: 50px; height: 50px; margin-bottom: 4px;">&nbsp;<!-- font size=+2>&#x1F440;</font><br><font size=small>Preview</font --></button>
+  </table>
+
+  <div id='div:confirm-members' class=neutral style="height: 36px; align-content: center; border: 3px inset #ebf4fa /*var(--light)*/; border-radius: 2pt; margin: 3px; margin-top: 20px; display: none; flex-direction: row; justify-content: center; align-items: center;">
+    <!-- button class="flat passive buttontext" style="background-image: url('img/cancel.svg'); width: 50%; height: 50px; margin: 5px;" onclick="onBackPressed();">&nbsp;</--button -->
+    <button class="flat passive buttontext" style="background-image: url('img/checked.svg'); width: 100%; height: 30px; margin: 3px;" onclick="members_confirmed();">&nbsp;</button>
+  </div>
+
+
 
 </div>
 </body>

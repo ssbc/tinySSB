@@ -88,9 +88,20 @@ function menu_edit(target, title, text) {
     edit_target = target;
 }
 
-function edit_checkEnter(ev) {
+function onEnter(ev) {
+
     if (ev.key == "Enter") {
-        edit_confirmed()
+        switch(ev.target.id) {
+            case 'edit_text':
+                edit_confirmed()
+                break
+            case 'settings_urlInput':
+                btn_setWebsocketUrl()
+                break
+            case 'import-id-input':
+                btn_import_id()
+                break
+        }
     }
 }
 
@@ -218,8 +229,21 @@ function menu_forget_conv() {
 }
 
 function menu_import_id() {
-    // backend('secret: XXX');
     closeOverlay();
+    document.getElementById('import-id-overlay').style.display = 'initial'
+    document.getElementById('overlay-bg').style.display = 'initial'
+}
+
+function btn_import_id() {
+    var str = document.getElementById('import-id-input').value
+    if(str == "")
+        return
+    var r = import_id(str)
+    if(r) {
+        launch_snackbar("Successfully imported, restarting...")
+    } else {
+        launch_snackbar("wrong format")
+    }
 }
 
 function menu_process_msgs() {
@@ -745,6 +769,22 @@ function fid2display(fid) {
     return a;
 }
 
+function import_id(json_str) {
+    var json
+    try {
+        json = JSON.parse(json_str)
+    } catch (e) {
+        return false // argument is not a valid json string
+    }
+    if (Object.keys(json).length != 2 || !('curve' in json) || !('secret' in json)) {
+        return false // wrong format
+    }
+
+    backend("importSecret " + json['secret'])
+    return true
+}
+
+
 // --- Interface to Kotlin side and local (browser) storage
 
 function backend(cmdStr) { // send this to Kotlin (or simulate in case of browser-only testing)
@@ -1089,7 +1129,7 @@ function b2f_new_voice(voice_b64) {
 }
 
 function b2f_showSecret(json) {
-    setScenario(prev_scenario);
+    //setScenario(prev_scenario);
     generateQR(json)
 }
 

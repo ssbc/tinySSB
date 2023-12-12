@@ -82,17 +82,6 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
                 intentIntegrator.initiateScan()
                 return
             }
-            "secret:" -> {
-                if (importIdentity(args[1])) {
-                    /*
-                    tremolaState.logDAO.wipe()
-                    tremolaState.contactDAO.wipe()
-                    tremolaState.pubDAO.wipe()
-                    */
-                    act.finishAffinity()
-                }
-                return
-            }
             "exportSecret" -> {
                 val json = act.idStore.identity.toExportString()!!
                 eval("b2f_showSecret('${json}');")
@@ -102,10 +91,25 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
                 Toast.makeText(act, "secret key was also\ncopied to clipboard",
                     Toast.LENGTH_LONG).show()
             }
+            "importSecret" -> {
+                act.idStore.setNewIdentity(Base64.decode(args[1], Base64.NO_WRAP))
+                act.tinyRepo.repo_reset()
+
+                // restart App
+                if (act.websocket != null)
+                    act.websocket!!.stop()
+                if (act.ble != null)
+                    act.ble!!.stopBluetooth()
+                val ctx = act.applicationContext
+                ctx.startActivity(Intent.makeRestartActivityTask(act.applicationContext.packageManager.getLaunchIntentForPackage(ctx.packageName)!!.component))
+                Runtime.getRuntime().exit(0)
+            }
             "wipe" -> {
                 act.settings!!.resetToDefault()
                 act.idStore.setNewIdentity(null) // creates new identity
                 act.tinyRepo.repo_reset()
+
+                // restart App
                 if (act.websocket != null)
                     act.websocket!!.stop()
                 if (act.ble != null)
