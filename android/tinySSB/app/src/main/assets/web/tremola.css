@@ -675,4 +675,35 @@ input:checked + .slider:before {
   height: 40px;
   width: 35px
 }
+/* --------------------------------------------------------------------------- */
+/*                                Connect 4                             */
+/* --------------------------------------------------------------------------- */
+
+.game_board {
+    height: 40vh;
+    padding: 10px;
+    margin-right: 15px;
+
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    grid-template-rows: repeat(6, 1fr);
+    grid-column-gap: 5px;
+    grid-row-gap: 5px;
+
+    background-color: blue;
+    border: 2px solid gold;
+    border-radius: 10px;
+}
+
+.game_tile {
+    background-color: white;
+    border-radius: 50%;
+    border: 5px solid;
+}
+
+.game_button {
+    font-size: 1.5em;
+    padding: 0.5em;
+    width: 5em;
+}
 

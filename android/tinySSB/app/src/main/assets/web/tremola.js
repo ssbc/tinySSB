@@ -815,7 +815,8 @@ function resetTremola() { // wipes browser-side content
         "profile": {},
         "id": myId,
         "settings": get_default_settings(),
-        "board": {}
+        "board": {},
+        "game_connect4": {}
     }
     var n = recps2nm([myId])
 
@@ -1009,6 +1010,12 @@ function b2f_new_in_order_event(e) {
         case "KAN":
             console.log("New kanban event")
             kanban_new_event(e)
+            break
+        case "GME":
+            game_new_event(e);
+            break
+        case "GEE":
+            game_end_event(e);
             break
         default:
             return
