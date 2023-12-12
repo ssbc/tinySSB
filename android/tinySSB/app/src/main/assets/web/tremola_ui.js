@@ -459,7 +459,7 @@ function refresh_goset_progressbar(curr, max) {
     var delta = max - curr
 
     document.getElementById('connection-overlay-progressbar-goset').value = (curr / max) * 100
-    document.getElementById('connection-overlay-progressbar-label-goset').textContent = delta + " key" + (delta > 1 ? "s" : "") + " left"
+    document.getElementById('connection-overlay-progressbar-label-goset').textContent = "GoSet - " + delta + " key" + (delta > 1 ? "s" : "") + " left"
     if (delta > 0) {
         console.log("display progress")
         document.getElementById('goset-progress-container').style.display = "initial"

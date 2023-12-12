@@ -446,6 +446,14 @@ input:checked + .slider:before {
  background: #7fd9eb;
 }
 
+#connection-overlay-progressbar-goset::-webkit-progress-value {
+  background: #2ecc71;
+}
+
+#connection-overlay-progressbar-chnk::-webkit-progress-value {
+  background: #f2a641;
+}
+
 .connection-overlay-progressbar-label {
   position: absolute;
   top: 50%;
