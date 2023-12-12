@@ -534,26 +534,26 @@ function refresh_connection_progressbar(min_entries, old_min_entries, old_want_e
 
   if(curr_want_entries >= max_entries || old_want_entries == max_entries) {
     document.getElementById('connection-overlay-progressbar-want').value = 100
-    document.getElementById('connection-overlay-progressbar-label-want').textContent = "Requesting — Synchronized"
+    document.getElementById('connection-overlay-progressbar-label-want').textContent = "Missing — Synchronized"
   } else {
     var newPosReq = (curr_want_entries - old_want_entries) / (max_entries - old_want_entries) * 100
 
     console.log("newPosMax:", newPosReq)
 
     document.getElementById('connection-overlay-progressbar-want').value = newPosReq
-    document.getElementById('connection-overlay-progressbar-label-want').textContent = Math.trunc(newPosReq) + "% - " + (max_entries - curr_want_entries) + " entries left"
+    document.getElementById('connection-overlay-progressbar-label-want').textContent = "Missing - " + (max_entries - curr_want_entries) + " entries left"
 
   }
 
   // update gift progress
   if (curr_want_entries <= min_entries || old_min_entries == curr_want_entries) {
     document.getElementById('connection-overlay-progressbar-gift').value = 100
-    document.getElementById('connection-overlay-progressbar-label-gift').textContent = "Offering — Synchronized"
+    document.getElementById('connection-overlay-progressbar-label-gift').textContent = "Ahead — Synchronized"
   } else {
     var newPosOff = (min_entries - old_min_entries) / (curr_want_entries - old_min_entries) * 100
 
     document.getElementById('connection-overlay-progressbar-gift').value = newPosOff
-    document.getElementById('connection-overlay-progressbar-label-gift').textContent = Math.trunc(newPosOff) + "% - " + (curr_want_entries - min_entries) + " entries left"
+    document.getElementById('connection-overlay-progressbar-label-gift').textContent = "Ahead - " + (curr_want_entries - min_entries) + " entries left"
   }
 }
 

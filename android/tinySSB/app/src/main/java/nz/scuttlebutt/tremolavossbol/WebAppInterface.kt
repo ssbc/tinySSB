@@ -99,7 +99,7 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
             }
             "importSecret" -> {
                 act.idStore.setNewIdentity(Base64.decode(args[1], Base64.NO_WRAP))
-                act.tinyRepo.repo_reset()
+                act.tinyRepo.reset()
 
                 // restart App
                 if (act.websocket != null)

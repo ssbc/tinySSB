@@ -1177,6 +1177,7 @@ function b2f_new_event(e) { // incoming SSB log event: we get map with three ent
                 contact.alias = e.public[1] == "" ? id2b32(e.header.fid) : e.public[1]
                 contact.initial = contact.alias.substring(0, 1).toUpperCase()
                 load_contact_list()
+                load_board_list()
 
                 // update names in connected devices menu
                 for (var l in localPeers) {
