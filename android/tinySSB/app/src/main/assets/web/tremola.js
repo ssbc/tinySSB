@@ -1019,6 +1019,89 @@ function b2f_local_peer(type, identifier, displayname, status) {
         refresh_connection_entry(identifier)
 }
 
+/**
+ * This function is called, when the backend received a new log entry and successfully completed the corresponding sidechain.
+ * The backend assures, that the log entries are sent to the frontend in the exact same sequential order as in the append-only log.
+ *
+ * @param {Object} e     Object containing all information of the log_entry.
+ * @param {Object} e.hdr Contains basic information about the log entry.
+ * @param {number} e.hdr.tst Timestamp at which the message was created. (Number of milliseconds elapsed since midnight at the beginning of January 1970 00:00 UTC)
+ * @param {string} e.hdr.ref The message ID of this log entry.
+ * @param {string} e.hdr.fid The public key of the author encoded in base64.
+ * @param {[]} e.public The payload of the message. The first entry is a String that represents the application to which the message belongs. All additional entries are application-specific parameters.
+ *
+ */
+function b2f_new_in_order_event(e) {
+
+    console.log("b2f inorder event:", JSON.stringify(e.public))
+
+    if (!(e.header.fid in tremola.contacts)) {
+        var a = id2b32(e.header.fid);
+        tremola.contacts[e.header.fid] = {
+            "alias": a, "initial": a.substring(0, 1).toUpperCase(),
+            "color": colors[Math.floor(colors.length * Math.random())],
+            "iam": "", "forgotten": false
+        }
+        load_contact_list()
+    }
+
+    switch (e.public[0]) {
+        case "KAN":
+            console.log("New kanban event")
+            kanban_new_event(e)
+            break
+        default:
+            return
+    }
+    persist();
+    must_redraw = true;
+}
+
+/**
+ * This function is invoked whenever the backend receives a new log entry, regardless of whether the associated sidechain is fully loaded or not.
+ *
+ * @param {Object} e     Object containing all information of the log_entry.
+ * @param {Object} e.hdr Contains basic information about the log entry.
+ * @param {number} e.hdr.tst Timestamp at which the message was created. (Number of milliseconds elapsed since midnight at the beginning of January 1970 00:00 UTC)
+ * @param {string} e.hdr.ref The message ID of this log entry.
+ * @param {string} e.hdr.fid The public key of the author encoded in base64.
+ * @param {[]} e.public The payload of the logentry, without the content of the sidechain
+ *
+ */
+function b2f_new_incomplete_event(e) {
+
+    if (!(e.header.fid in tremola.contacts)) {
+        var a = id2b32(e.header.fid);
+        tremola.contacts[e.header.fid] = {
+            "alias": a, "initial": a.substring(0, 1).toUpperCase(),
+            "color": colors[Math.floor(colors.length * Math.random())],
+            "iam": "", "forgotten": false
+        }
+        load_contact_list()
+    }
+
+    switch (e.public[0]) {
+        default:
+            return
+    }
+    persist();
+    must_redraw = true;
+
+
+}
+
+/**
+ * This function is called, when the backend received a new log entry and successfully completed the corresponding sidechain.
+ * This callback does not ensure any specific order; the log entries are forwarded in the order they are received.
+ *
+ * @param {Object} e     Object containing all information of the log_entry.
+ * @param {Object} e.hdr Contains basic information about the log entry.
+ * @param {number} e.hdr.tst Timestamp at which the message was created. (Number of milliseconds elapsed since midnight at the beginning of January 1970 00:00 UTC)
+ * @param {string} e.hdr.ref The message ID of this log entry.
+ * @param {string} e.hdr.fid The public key of the author encoded in base64.
+ * @param {[]} e.public The payload of the message. The first entry is a String that represents the application to which the message belongs. All additional entries are application-specific parameters.
+ *
+ */
 function b2f_new_event(e) { // incoming SSB log event: we get map with three entries
                             // console.log('hdr', JSON.stringify(e.header))
     console.log('pub', JSON.stringify(e.public))
@@ -1081,8 +1164,6 @@ function b2f_new_event(e) { // incoming SSB log event: we get map with three ent
             // if (curr_scenario == "chats") // the updated conversation could bubble up
             load_chat_list();
         } else if (e.public[0] == "KAN") { // Kanban board event
-            console.log("New kanban event")
-            kanban_new_event(e)
         } else if (e.public[0] == "IAM") {
             var contact = tremola.contacts[e.header.fid]
             var old_iam = contact.iam
