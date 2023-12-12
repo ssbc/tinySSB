@@ -8,7 +8,7 @@ var display_or_not = [
     'div:qr', 'div:back',
     'core', 'lst:chats', 'lst:posts', 'lst:contacts', 'lst:members', 'the:connex',
     'lst:kanban', 'div:footer', 'div:textarea', 'div:confirm-members', 'plus',
-    'div:settings', 'div:board', 'the:game', 'lst:players', 'the:game-session'
+    'div:settings', 'div:board', 'lst:connect4-game', 'lst:connect4-players', 'the:connect4-game-session'
 ];
 
 var prev_scenario = 'chats';
@@ -23,9 +23,9 @@ var scenarioDisplay = {
     'settings': ['div:back', 'div:settings'],
     'kanban': ['div:qr', 'core', 'lst:kanban', 'div:footer', 'plus'],
     'board': ['div:back', 'core', 'div:board'],
-    'game': ['div:qr', 'core', 'the:game', 'div:footer', 'plus'],
-    'game-players': ['div:back', 'core', 'lst:players', 'div:confirm-player'],
-    'game-session': ['div:back', 'core', 'the:game-session']
+    'connect4-game': ['div:qr', 'core', 'lst:connect4-game', 'div:footer', 'plus'],
+    'connect4-game-players': ['div:back', 'core', 'lst:connect4-players', 'div:connect4-confirm-player'],
+    'connect4-game-session': ['div:back', 'core', 'the:connect4-game-session']
     }
 
 var scenarioMenu = {
@@ -79,7 +79,7 @@ var scenarioMenu = {
         ['(un)Forget', 'board_toggle_forget'],
         ['Debug', 'ui_debug']],
 
-    'game': [['New Game', 'menu_game_players'],
+    'connect4-game': [['New Game', 'connect4_menu_game_players'],
             ['Connected Devices', 'menu_connection'],
             ['Settings', 'menu_settings'],
             ['About', 'menu_about']]
@@ -90,7 +90,7 @@ function onBackPressed() {
         closeOverlay();
         return;
     }
-    if (['chats', 'contacts', 'connex', 'board', 'game'].indexOf(curr_scenario) >= 0) {
+    if (['chats', 'contacts', 'connex', 'board', 'connect4-game'].indexOf(curr_scenario) >= 0) {
         if (curr_scenario == 'chats')
             backend("onBackPressed");
         else if (curr_scenario == 'board')
@@ -104,7 +104,7 @@ function onBackPressed() {
             document.getElementById('div:footer').style.display = null;
         }
         setScenario(prev_scenario);
-        load_games_list();
+        connect4_load_games_list();
     }
 }
 
@@ -114,7 +114,7 @@ function setScenario(s) {
     var lst = scenarioDisplay[s];
     if (lst) {
         // if (s != 'posts' && curr_scenario != "members" && curr_scenario != 'posts') {
-        if (['chats', 'contacts', 'connex', 'kanban', 'game'].indexOf(curr_scenario) >= 0) {
+        if (['chats', 'contacts', 'connex', 'kanban', 'connect4-game'].indexOf(curr_scenario) >= 0) {
             var cl = document.getElementById('btn:' + curr_scenario).classList;
             cl.toggle('active', false);
             cl.toggle('passive', true);
@@ -148,7 +148,7 @@ function setScenario(s) {
             prev_scenario = s;
         }
         curr_scenario = s;
-        if (['chats', 'contacts', 'connex', 'kanban', 'game'].indexOf(curr_scenario) >= 0) {
+        if (['chats', 'contacts', 'connex', 'kanban', 'connect4-game'].indexOf(curr_scenario) >= 0) {
             var cl = document.getElementById('btn:' + curr_scenario).classList;
             cl.toggle('active', true);
             cl.toggle('passive', false);
@@ -177,7 +177,7 @@ function setScenario(s) {
 
 function btnBridge(e) {
     var e = e.id, m = '';
-    if (['btn:chats', 'btn:posts', 'btn:contacts', 'btn:connex', 'btn:kanban', 'btn:game'].indexOf(e) >= 0) {
+    if (['btn:chats', 'btn:posts', 'btn:contacts', 'btn:connex', 'btn:kanban', 'btn:connect4-game'].indexOf(e) >= 0) {
         setScenario(e.substring(4));
     }
     if (e == 'btn:menu') {
@@ -299,8 +299,8 @@ function plus_button() {
         menu_new_pub();
     } else if (curr_scenario == 'kanban') {
         menu_new_board();
-    } else if (curr_scenario == 'game' ) {
-        menu_game_players();
+    } else if (curr_scenario == 'connect4-game' ) {
+        connect4_menu_game_players();
     }
 }
 

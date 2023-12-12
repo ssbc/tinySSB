@@ -679,7 +679,7 @@ input:checked + .slider:before {
 /*                                Connect 4                             */
 /* --------------------------------------------------------------------------- */
 
-.game_board {
+#connect4-game-board {
     height: 40vh;
     padding: 10px;
     margin-right: 15px;
@@ -695,13 +695,13 @@ input:checked + .slider:before {
     border-radius: 10px;
 }
 
-.game_tile {
+.connect4-game_tile {
     background-color: white;
     border-radius: 50%;
     border: 5px solid;
 }
 
-.game_button {
+#connect4-game-end-button {
     font-size: 1.5em;
     padding: 0.5em;
     width: 5em;

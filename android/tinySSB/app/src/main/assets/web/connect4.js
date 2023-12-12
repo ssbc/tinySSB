@@ -1,12 +1,12 @@
-const GAME_COLUMNS = 7;
-const GAME_ROWS = 6;
+const CONNECT4_GAME_COLUMNS = 7;
+const CONNECT4_GAME_ROWS = 6;
 
-function menu_game_players() {
-    fill_players();
-    prev_scenario = 'game';
-    setScenario("game-players");
+function connect4_menu_game_players() {
+    connect4_fill_players();
+    prev_scenario = 'connect4-game';
+    setScenario("connect4-game-players");
     document.getElementById("div:textarea").style.display = 'none';
-    document.getElementById("div:confirm-player").style.display = 'flex';
+    document.getElementById("div:connect4-confirm-player").style.display = 'flex';
     document.getElementById("tremolaTitle").style.display = 'none';
     var c = document.getElementById("conversationTitle");
     c.style.display = null;
@@ -15,7 +15,7 @@ function menu_game_players() {
     closeOverlay();
 }
 
-function fill_players() {
+function connect4_fill_players() {
     var choices = '';
     for (var m in tremola.contacts) {
         choices += '<div style="margin-bottom: 10px;"><label><input type="radio" name="players" id="' + m;
@@ -24,15 +24,15 @@ function fill_players() {
         choices += '<div style="text-overflow: ellipis; overflow: hidden;"><font size=-2>' + m + '</font></div>';
         choices += '</div></label></div>\n';
     }
-    document.getElementById('lst:players').innerHTML = choices
+    document.getElementById('lst:connect4-players').innerHTML = choices
     document.getElementById(myId).disabled = true;
 }
 
 /**
  * Starts new game, creates it and stores it into the store.
- * Gives over to open_game_session().
+ * Gives over to connect4_open_game_session().
  */
-function new_game_start() {
+function connect4_new_game_start() {
     var opponent = {}
     for (var m in tremola.contacts) {
         if (document.getElementById(m).checked) {
@@ -57,21 +57,21 @@ function new_game_start() {
         };
     }
 
-    document.getElementById("div:confirm-player").style.display = 'none';
-    open_game_session(gameId);
+    document.getElementById("div:connect4-confirm-player").style.display = 'none';
+    connect4_open_game_session(gameId);
 
     persist();
-    send_board(gameId);
+    connect4_send_board(gameId);
 }
 
 /**
- * Clear all ongoing games within lst:games and builds the game button
+ * Clear all ongoing games within lst:connect4-games and builds the game button
  * for each ongoing game.
  */
-function load_games_list() {
-    document.getElementById("lst:games").innerHTML = '';
+function connect4_load_games_list() {
+    document.getElementById("lst:connect4-games").innerHTML = '';
     for (let gameId in tremola.game_connect4) {
-        build_game_item([gameId, tremola.game_connect4[gameId]]);
+        connect4_build_game_item([gameId, tremola.game_connect4[gameId]]);
     }
 }
 
@@ -79,24 +79,24 @@ function load_games_list() {
  * Create game button to resume ongoing game.
  *
  */
-function build_game_item(game) { // [ id, { "alias": "player1 vs player2", "moves": {}, members: [] } ] }
+function connect4_build_game_item(game) { // [ id, { "alias": "player1 vs player2", "moves": {}, members: [] } ] }
     var row, item = document.createElement('div'), bg;
     item.setAttribute('style', 'padding: 0px 5px 10px 5px;'); // old JS (SDK 23)
 
-    row = "<button class='chat_item_button light' style='overflow: hidden; width: calc(100% - 4em);' onclick='open_game_session(\"" + game[0] + "\");'>";
+    row = "<button class='chat_item_button light' style='overflow: hidden; width: calc(100% - 4em);' onclick='connect4_open_game_session(\"" + game[0] + "\");'>";
     row += "<div style='white-space: nowrap;'><div style='text-overflow: ellipsis; overflow: hidden;'>" + escapeHTML(game[1].alias) + "</div>";
     row += "<div style='text-overflow: clip; overflow: ellipsis;'><font size=-2>" + game[0] + "</font></div></div></button>";
 
     item.innerHTML = row;
-    document.getElementById('lst:games').appendChild(item);
+    document.getElementById('lst:connect4-games').appendChild(item);
 }
 
 /**
  * Is called after a new turn is received via the backend.
  * Based on the playerToMove it assigns all board tiles to their
- * respective owner and gives over to populate_game().
+ * respective owner and gives over to connect4_populate_game().
  */
-function game_new_event(e) {
+function connect4_game_new_event(e) {
     const gameId = e.public[1];
     const playerToMove = e.public[2];
     const members = e.public[3].split(',');
@@ -133,8 +133,8 @@ function game_new_event(e) {
     };
     persist();
 
-    populate_game(gameId);
-    load_games_list();
+    connect4_populate_game(gameId);
+    connect4_load_games_list();
 }
 
 /**
@@ -143,7 +143,7 @@ function game_new_event(e) {
  * game as over in the store.
  *
  */
-function game_end_event(e) {
+function connect4_game_end_event(e) {
     const gameId = e.public[1];
     const loser = e.public[2];
 
@@ -151,27 +151,27 @@ function game_end_event(e) {
     persist();
 
     if (loser != myId) {
-        document.getElementById("game-turn-indicator").innerHTML = "You WON!";
+        document.getElementById("connect4-game-turn-indicator").innerHTML = "You WON!";
     } else {
-        document.getElementById("game-turn-indicator").innerHTML = "You LOST!";
+        document.getElementById("connect4-game-turn-indicator").innerHTML = "You LOST!";
     }
 
-    document.getElementById("game-end-button").innerHTML = "End!";
-    load_games_list();
+    document.getElementById("connect4-game-end-button").innerHTML = "End!";
+    connect4_load_games_list();
 }
 
 /**
  * Sets game-session scenario, title and button.
- * Gives over to populate_game() afterwards.
+ * Gives over to connect4_populate_game() afterwards.
  */
-function open_game_session(gameId) {
-    setScenario('game-session');
+function connect4_open_game_session(gameId) {
+    setScenario('connect4-game-session');
 
-    document.getElementById("game-session-title").innerHTML = tremola.game_connect4[gameId].alias;
-    document.getElementById("game-end-button").onclick = () => end_game(gameId);
-    set_turn_indicator(gameId);
+    document.getElementById("connect4-game-session-title").innerHTML = tremola.game_connect4[gameId].alias;
+    document.getElementById("connect4-game-end-button").onclick = () => connect4_end_game(gameId);
+    connect4_set_turn_indicator(gameId);
 
-    populate_game(gameId);
+    connect4_populate_game(gameId);
 }
 
 /**
@@ -179,17 +179,17 @@ function open_game_session(gameId) {
  * Color of tiles is given based on owner of the tile.
  * Can also be used when game is not shown currently.
  */
-function populate_game(gameId) {
-    document.getElementById('game-board').innerHTML = '';
+function connect4_populate_game(gameId) {
+    document.getElementById('connect4-game-board').innerHTML = '';
 
     const { board, members } = tremola.game_connect4[gameId];
     const opponent = members.find(member => member != myId);
 
-    for (let y = 0; y < GAME_ROWS; y++) {
-        for (let x = 0; x < GAME_COLUMNS; x++) {
+    for (let y = 0; y < CONNECT4_GAME_ROWS; y++) {
+        for (let x = 0; x < CONNECT4_GAME_COLUMNS; x++) {
             let tile = document.createElement('div');
-            tile.className = 'game_tile';
-            tile.onclick = () => add_stone(gameId, x);
+            tile.className = 'connect4-game_tile';
+            tile.onclick = () => connect4_add_stone(gameId, x);
 
             const { owner } = board[x][y];
             if (owner == myId) {
@@ -198,21 +198,21 @@ function populate_game(gameId) {
                 tile.style.backgroundColor = "red";
             }
 
-            document.getElementById('game-board').appendChild(tile);
+            document.getElementById('connect4-game-board').appendChild(tile);
             board[x][y].tile = tile;
 
         }
     }
 
-    set_turn_indicator(gameId);
+    connect4_set_turn_indicator(gameId);
 }
 
 /**
  * Tries to add a playing stone to the game field.
  * After the stone is placed, checks if game is over and if so,
- * informs the backend. If not gives over to end_turn().
+ * informs the backend. If not gives over to connect4_end_turn().
  */
-function add_stone(gameId, column) {
+function connect4_add_stone(gameId, column) {
     const { board, currentPlayer, members, gameOver } = tremola.game_connect4[gameId];
 
     if (currentPlayer != myId || gameOver) {
@@ -225,7 +225,7 @@ function add_stone(gameId, column) {
         boardElement.owner = myId;
         boardElement.tile.style.backgroundColor = "yellow";
 
-        const gameover = check_gameover(gameId);
+        const gameover = connect4_check_gameover(gameId);
         if (gameover) {
             const loser = members.find(member => member != myId);
             tremola.game_connect4[gameId].gameOver = true;
@@ -234,7 +234,7 @@ function add_stone(gameId, column) {
             return;
         }
 
-        end_turn(gameId);
+        connect4_end_turn(gameId);
     }
 }
 
@@ -242,41 +242,41 @@ function add_stone(gameId, column) {
  * Checks if game is over by checking if stones align so
  * that 4 stones are adjacent to each other.
  */
-function check_gameover(gameId) {
+function connect4_check_gameover(gameId) {
     const { board: b } = tremola.game_connect4[gameId];
 
     // Check down
     for (let y = 0; y < 3; y++)
         for (let x = 0; x < 7; x++)
-            if (check_line(b[x][y], b[x][y+1], b[x][y+2], b[x][y+3]))
+            if (connect4_check_line(b[x][y], b[x][y+1], b[x][y+2], b[x][y+3]))
                 return true;
 
     // Check right
     for (let y = 0; y < 6; y++)
         for (let x = 0; x < 4; x++)
-            if (check_line(b[x][y], b[x+1][y], b[x+2][y], b[x+3][y]))
+            if (connect4_check_line(b[x][y], b[x+1][y], b[x+2][y], b[x+3][y]))
                 return true;
 
     // Check down-right
     for (let y = 0; y < 3; y++)
         for (let x = 0; x < 4; x++)
-            if (check_line(b[x][y], b[x+1][y+1], b[x+2][y+2], b[x+3][y+3]))
+            if (connect4_check_line(b[x][y], b[x+1][y+1], b[x+2][y+2], b[x+3][y+3]))
                 return true;
 
     // Check down-left
     for (let y = 3; y < 6; y++)
         for (let x = 0; x < 4; x++)
-            if (check_line(b[x][y], b[x+1][y-1], b[x+2][y-2], b[x+3][y-3]))
+            if (connect4_check_line(b[x][y], b[x+1][y-1], b[x+2][y-2], b[x+3][y-3]))
                 return true;
 
     return false;
 }
 
 /**
- * Helper function for check_gameover() to check if 4 stones
+ * Helper function for connect4_check_gameover() to check if 4 stones
  * are adjacent.
  */
-function check_line(a, b, c, d) {
+function connect4_check_line(a, b, c, d) {
     // Check first cell non-zero and all cells match
     return a.owner != null &&
             a.owner == b.owner &&
@@ -289,7 +289,7 @@ function check_line(a, b, c, d) {
  * the UI accordingly with the turn indicator.
  * Sends board information after turn is over via backend.
  */
-function end_turn(gameId) {
+function connect4_end_turn(gameId) {
     const { currentPlayer } = tremola.game_connect4[gameId];
     const opponent = tremola.game_connect4[gameId].members.find(member => member != myId);
 
@@ -299,15 +299,15 @@ function end_turn(gameId) {
         tremola.game_connect4[gameId].currentPlayer = myId;
     }
     persist();
-    set_turn_indicator(gameId);
-    send_board(gameId);
+    connect4_set_turn_indicator(gameId);
+    connect4_send_board(gameId);
 }
 
 /**
  * Converts board state to a string encoding and sends
  * game information via backend.
  */
-function send_board(gameId) {
+function connect4_send_board(gameId) {
     const { board, currentPlayer: playerToMove } = tremola.game_connect4[gameId];
     let boardString = ""
 
@@ -333,22 +333,22 @@ function send_board(gameId) {
 /**
  * Sets UI turn indicator accoring to currentPlayer.
  */
-function set_turn_indicator(gameId) {
+function connect4_set_turn_indicator(gameId) {
     if (tremola.game_connect4[gameId].currentPlayer == myId) {
-        document.getElementById("game-turn-indicator").innerHTML = "Your turn!";
+        document.getElementById("connect4-game-turn-indicator").innerHTML = "Your turn!";
     } else {
-        document.getElementById("game-turn-indicator").innerHTML = "Wait for your opponent.";
+        document.getElementById("connect4-game-turn-indicator").innerHTML = "Wait for your opponent.";
     }
 }
 
 /**
  * Ends game, either by Giving up or if game is over.
  */
-function end_game(gameId) {
-    document.getElementById("game-end-button").innerHTML = "Give up";
+function connect4_end_game(gameId) {
+    document.getElementById("connect4-game-end-button").innerHTML = "Give up";
     backend(`connect_four_end ${gameId} ${myId}`);
     delete tremola.game_connect4[gameId];
     setScenario('game');
     persist();
-    load_games_list();
+    connect4_load_games_list();
 }

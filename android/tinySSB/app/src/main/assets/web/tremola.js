@@ -1012,10 +1012,10 @@ function b2f_new_in_order_event(e) {
             kanban_new_event(e)
             break
         case "GME":
-            game_new_event(e);
+            connect4_game_new_event(e);
             break
         case "GEE":
-            game_end_event(e);
+            connect4_game_end_event(e);
             break
         default:
             return
