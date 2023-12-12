@@ -477,6 +477,48 @@ function refresh_connection_entry(id) {
 
 }
 
+function refresh_goset_progressbar(curr, max) {
+
+    console.log("refresh_goset_progressbar", curr, max)
+
+    var delta = max - curr
+
+    document.getElementById('connection-overlay-progressbar-goset').value = (curr / max) * 100
+    document.getElementById('connection-overlay-progressbar-label-goset').textContent = "GoSet - " + delta + " key" + (delta > 1 ? "s" : "") + " left"
+    if (delta > 0) {
+        console.log("display progress")
+        document.getElementById('goset-progress-container').style.display = "initial"
+        document.getElementById('progress-container').style.display = "none"
+    } else {
+        document.getElementById('goset-progress-container').style.display = "none"
+        document.getElementById('progress-container').style.display = "initial"
+    }
+
+}
+
+var max_chnks = 0
+function refresh_chunk_progressbar(remaining) {
+
+    if(remaining != 0) {
+        max_chnks = Math.max(max_chnks, remaining)
+    } else {
+        max_chnks = 0 // reset
+    }
+
+    console.log("refresh_chunk_progressbar", remaining, max_chnks)
+
+
+    if(remaining > 0) {
+        var percentage = (1 - ((remaining - 0) / (max_chnks - 0))) * 100
+        document.getElementById('connection-overlay-progressbar-chnk').value = percentage
+        document.getElementById('connection-overlay-progressbar-label-chnk').textContent = remaining + " Chunks left"
+    } else {
+        document.getElementById('connection-overlay-progressbar-chnk').value = 100
+        document.getElementById('connection-overlay-progressbar-label-chnk').textContent = "Chunks — Synchronized"
+    }
+
+}
+
 function refresh_connection_progressbar(min_entries, old_min_entries, old_want_entries, curr_want_entries, max_entries) {
 
     console.log("min:", min_entries)

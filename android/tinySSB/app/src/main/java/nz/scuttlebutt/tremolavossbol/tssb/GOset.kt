@@ -91,8 +91,11 @@ class GOset(val context: MainActivity) {
         if (buf.size != CLAIM_LEN || buf[0] != 'c'.toByte())
             return;
         val cl = mkClaim(buf)
+
         if (cl.sz > largest_claim_span)
             largest_claim_span = cl.sz
+        if (context.tinyRepo.isLoaded())
+            context.wai.eval("refresh_goset_progressbar(${keys.size}, ${largest_claim_span})") // notify frontend
         // Log.d("rx", "state = ${state.toHex()}, cl.sz=${cl.sz}, k.sz=${keys.size}")
         if (cl.sz == keys.size && byteArrayCmp(state, cl.xo) == 0) {
             Log.d("goset", "seems we are synced (with at least someone), |GOset|=${keys.size}")
@@ -138,7 +141,7 @@ class GOset(val context: MainActivity) {
         }
         */
         // Log.d("GOset", "beacon")
-        if (keys.size == 0) return
+        if (keys.size == 0 || !context.tinyRepo.isLoaded()) return
         while (novelty_credit-- > 0 && pending_novelty.size > 0)
             context.tinyIO.enqueue(pending_novelty.removeFirst().wire, goset_dmx, null)
         novelty_credit = NOVELTY_PER_ROUND

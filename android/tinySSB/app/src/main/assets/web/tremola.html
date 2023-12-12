@@ -252,16 +252,32 @@
 
   <div id='connection-overlay' class='qr-overlay'>
     <div style='font-size:18px; padding-bottom: 10px;'><b>Replication Status</b></div>
-    <div style="position: relative; margin-bottom: 10px;">
-      <img src='img/fountain.png' alt="Icon" class="progress-icon">
-      <progress id='connection-overlay-progressbar-gift' class='connection-overlay-progressbar' value="0" max="100"></progress>
-      <div id='connection-overlay-progressbar-label-gift' class="connection-overlay-progressbar-label"></div>
+    <div id='progress-container'>
+      <div style="position: relative; margin-bottom: 10px;">
+        <img src='img/fountain.png' alt="Icon" class="progress-icon">
+        <progress id='connection-overlay-progressbar-gift' class='connection-overlay-progressbar' value="0" max="100"></progress>
+        <div id='connection-overlay-progressbar-label-gift' class="connection-overlay-progressbar-label"></div>
+      </div>
+      <div style="position: relative; margin-bottom: 10px;">
+        <img src='img/receive.png' alt="Icon" class="progress-icon">
+        <progress id='connection-overlay-progressbar-want' class='connection-overlay-progressbar' value="0" max="100"></progress>
+        <div id='connection-overlay-progressbar-label-want' class="connection-overlay-progressbar-label"></div>
+      </div>
+      <div style="position: relative; margin-bottom: 10px;">
+        <img src='img/chnk-icon.svg' alt="Icon" class="progress-icon">
+        <progress id='connection-overlay-progressbar-chnk' class='connection-overlay-progressbar' value="0" max="100"></progress>
+        <div id='connection-overlay-progressbar-label-chnk' class="connection-overlay-progressbar-label"></div>
+      </div>
     </div>
-    <div style="position: relative; margin-bottom: 10px;">
-      <img src='img/receive.png' alt="Icon" class="progress-icon">
-      <progress id='connection-overlay-progressbar-want' class='connection-overlay-progressbar' value="0" max="100"></progress>
-      <div id='connection-overlay-progressbar-label-want' class="connection-overlay-progressbar-label"></div>
+
+    <div id='goset-progress-container' style="display: none;">
+      <div style="position: relative; margin-bottom: 10px;">
+        <img src='img/goset-icon.svg' alt="Icon" class="progress-icon">
+        <progress id='connection-overlay-progressbar-goset' class='connection-overlay-progressbar' value="0" max="100"></progress>
+        <div id='connection-overlay-progressbar-label-goset' class="connection-overlay-progressbar-label"></div>
+      </div>
     </div>
+
     <div id='connection-overlay-hdr' style='font-size:18px; padding-bottom: 10px;'><b>Connected Devices</b></div>
     <div id='connection-overlay-content'></div>
   </div>

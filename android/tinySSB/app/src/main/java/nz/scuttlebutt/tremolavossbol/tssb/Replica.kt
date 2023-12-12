@@ -168,6 +168,7 @@ class Replica(val context: MainActivity, val datapath: File, val fid: ByteArray)
         if (chunk_cnt > 0) {
             val ptr = pkt.sliceArray(36 until 56)
             state.pend_sc[seq] = Pending(0, chunk_cnt, ptr, state.max_pos + TINYSSB_PKT_LEN)
+            context.tinyRepo.addNumberOfPendingChunks(chunk_cnt)
             val chunk_fct = { chunk: ByteArray, fid: ByteArray?, seq: Int -> context.tinyNode.incoming_chunk(chunk,fid,seq) }
             context.tinyDemux.arm_blb(ptr, chunk_fct, fid, seq, 0)
         } else { // no sidechain, entry is complete
@@ -230,6 +231,7 @@ class Replica(val context: MainActivity, val datapath: File, val fid: ByteArray)
             val chunk_fct = { chunk: ByteArray, fid: ByteArray?, seq: Int -> context.tinyNode.incoming_chunk(chunk,fid,seq) }
             context.tinyDemux.arm_blb(pend.hptr, chunk_fct, fid, seq, pend.cnr)
         }
+        context.tinyRepo.addNumberOfPendingChunks(-1)
         val f = fnt.startWrite()
         f.write(state.toWire())
         fnt.finishWrite(f)
