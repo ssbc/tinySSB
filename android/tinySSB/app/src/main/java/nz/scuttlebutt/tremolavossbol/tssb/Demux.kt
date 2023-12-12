@@ -10,7 +10,7 @@ import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_PKT_LEN
 import nz.scuttlebutt.tremolavossbol.utils.HelperFunctions.Companion.toHex
 
 typealias Dmx_callback = ((ByteArray,ByteArray?,String?) -> Unit)?
-typealias Chk_callback = ((ByteArray, Int) -> Unit)?
+typealias Chk_callback = ((ByteArray,ByteArray?,Int) -> Unit)?
 
 class Dmx { // dmx entry
     var dmx = ByteArray(DMX_LEN)
@@ -56,11 +56,12 @@ class Demux(val context: MainActivity) {
         }
         if (d == null) {
             d = Dmx()
+            d.dmx = dmx
+            d.fct = fct
+            d.aux = aux;
             dmxt.add(d)
         }
-        d.dmx = dmx
-        d.fct = fct
-        d.aux = aux;
+
     }
 
     fun arm_blb(h: ByteArray, fct: Chk_callback =null, fid: ByteArray? =null, seq: Int =-1, bnr: Int =-1): Int {
@@ -95,7 +96,7 @@ class Demux(val context: MainActivity) {
         var rc = false
         val d = dmxt_find(buf.sliceArray(0..DMX_LEN-1))
         if (d != null && d.fct != null) {
-            Log.d("demux", "calling dmx=${d.dmx.toHex()} fct=[${d.fct}] aux=${d.aux} sender=$sender")
+            Log.d("demux", "calling dmx=${d.dmx.toHex()} fct=[${d.fct}] aux=${d.aux?.toHex()} sender=$sender")
             d.fct!!.invoke(buf, d.aux, sender)
                 rc = true
         }
@@ -103,7 +104,7 @@ class Demux(val context: MainActivity) {
             Log.d("demux", "buf.size == TINYSSB_PKT_LEN")
             val chnks = blbt_find(h)
             for (c in chnks) {
-                c.fct!!.invoke(buf, chkt.indexOf(c))
+                c.fct!!.invoke(buf, c.fid, c.seq)
                 rc = true
             }
         }
@@ -118,7 +119,7 @@ class Demux(val context: MainActivity) {
             arm_dmx(context.tinyDemux.want_dmx!!, null, null)
 
         if(context.tinyDemux.chnk_dmx != null)
-            arm_blb(context.tinyDemux.chnk_dmx!!, null, null, 0, 0)
+            arm_dmx(context.tinyDemux.chnk_dmx!!, null, null)
 
         want_dmx = compute_dmx("want".encodeToByteArray() + goset_state)
         chnk_dmx = compute_dmx("blob".encodeToByteArray() + goset_state)

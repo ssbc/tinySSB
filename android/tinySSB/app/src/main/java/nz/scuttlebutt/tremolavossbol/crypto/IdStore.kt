@@ -28,7 +28,7 @@ class IdStore(val context: MainActivity) {
         val fdir = File(context.getDir(Constants.TINYSSB_DIR, Context.MODE_PRIVATE), context.tinyRepo.FEED_DIR)
         if (!File(fdir, "${identity.verifyKey.toHex()}").exists()) {
             Log.d("idstore","create new feed repo")
-            context.tinyRepo.new_feed(identity.verifyKey)
+            context.tinyRepo.add_replica(identity.verifyKey)
         } else
             Log.d("idstore","no need to create new feed repo")
     }
