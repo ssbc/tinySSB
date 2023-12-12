@@ -9,7 +9,7 @@ import java.io.File
 class Settings(val context: MainActivity) {
     private val sharedPreferences = context.getSharedPreferences("tinyssbSettings", Context.MODE_PRIVATE)
 
-    private val WEBSOCKET_ENABLED_BY_DEFAULT = false
+    private val WEBSOCKET_ENABLED_BY_DEFAULT = true
     private val BLE_ENABLED_BY_DEFAULT = true
     private val UDP_MULTICAST_ENABLED_BY_DEFAULT = true
 
