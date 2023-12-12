@@ -37,6 +37,7 @@ class Constants{
 
         val TINYSSB_BLE_REPL_SERVICE_2022 = UUID.fromString("6e400001-7646-4b5b-9a50-71becce51558")
         val TINYSSB_BLE_RX_CHARACTERISTIC = UUID.fromString("6e400002-7646-4b5b-9a50-71becce51558") // for writing to the remote device
+        val TINYSSB_BLE_RX_NAME_DESCRIPTOR = UUID.fromString("6e400002-7646-4b5b-9a50-71becce51559")
         val TINYSSB_BLE_TX_CHARACTERISTIC = UUID.fromString("6e400003-7646-4b5b-9a50-71becce51558") // for receiving from the remote device
 
         val TINYSSB_SIMPLEPUB_URL = "ws://meet.dmi.unibas.ch:8080"
