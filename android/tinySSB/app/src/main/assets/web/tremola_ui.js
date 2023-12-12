@@ -20,7 +20,7 @@ var scenarioDisplay = {
     'posts': ['div:back', 'core', 'lst:posts', 'div:textarea'],
     'connex': ['div:qr', 'core', 'the:connex', 'div:footer', 'plus'],
     'members': ['div:back', 'core', 'lst:members', 'div:confirm-members'],
-    'settings': ['div:back', 'div:settings'],
+    'settings': ['div:back', 'div:settings', 'core'],
     'kanban': ['div:qr', 'core', 'lst:kanban', 'div:footer', 'plus'],
     'board': ['div:back', 'core', 'div:board']
 }
@@ -76,6 +76,13 @@ var scenarioMenu = {
         ['(un)Forget', 'board_toggle_forget'],
         ['Debug', 'ui_debug']]
 }
+
+const QR_SCAN_TARGET = {
+    ADD_CONTACT: 0,
+    IMPORT_ID: 1
+}
+
+var curr_qr_scan_target = QR_SCAN_TARGET.ADD_CONTACT
 
 function onBackPressed() {
     if (overlayIsActive) {
@@ -235,6 +242,7 @@ function closeOverlay() {
     document.getElementById('attach-menu').style.display = 'none';
     document.getElementById('div:modal_img').style.display = 'none';
     document.getElementById('connection-overlay').style.display = 'none';
+    document.getElementById('import-id-overlay').style.display = 'none';
 
     // kanban overlays
     document.getElementById('div:menu_history').style.display = 'none';
@@ -331,37 +339,54 @@ function generateQR(s) {
     overlayIsActive = true;
 }
 
-function qr_scan_start() {
+
+function qr_scan_start(target) {
     // test if Android is defined ...
+    curr_qr_scan_target = target
     backend("qrscan.init");
     closeOverlay();
 }
 
 function qr_scan_success(s) {
     closeOverlay();
-    var t = "did:ssb:ed25519:";
-    if (s.substring(0, t.length) == t) {
-        s = '@' + s.substring(t.length) + '.ed25519';
+    switch (curr_qr_scan_target) {
+        case QR_SCAN_TARGET.ADD_CONTACT:
+            var t = "did:ssb:ed25519:";
+            if (s.substring(0, t.length) == t) {
+                s = '@' + s.substring(t.length) + '.ed25519';
+            }
+            var b = '';
+            try {
+                b = atob(s.substr(1, s.length - 9));
+                // FIXME we should also test whether it is a valid ed25519 public key ...
+            } catch (err) {
+            }
+            if (b.length != 32) {
+                launch_snackbar("unknown format or invalid identity");
+                return;
+            }
+            new_contact_id = s;
+            // console.log("tremola:", tremola)
+            if (new_contact_id in tremola.contacts) {
+                launch_snackbar("This contact already exists");
+                return;
+            }
+            // FIXME: do sanity tests
+            menu_edit('new_contact_alias', "Assign alias to new contact:<br>(only you can see this alias)", "");
+            break
+        case QR_SCAN_TARGET.IMPORT_ID:
+            r = import_id(s)
+            if (r) {
+                launch_snackbar("Successfully imported, restarting...")
+            } else {
+                launch_snackbar("wrong format")
+            }
+            break
     }
-    var b = '';
-    try {
-        b = atob(s.substr(1, s.length - 9));
-        // FIXME we should also test whether it is a valid ed25519 public key ...
-    } catch (err) {
-    }
-    if (b.length != 32) {
-        launch_snackbar("unknown format or invalid identity");
-        return;
-    }
-    new_contact_id = s;
-    // console.log("tremola:", tremola)
-    if (new_contact_id in tremola.contacts) {
-        launch_snackbar("This contact already exists");
-        return;
-    }
-    // FIXME: do sanity tests
-    menu_edit('new_contact_alias', "Assign alias to new contact:<br>(only you can see this alias)", "");
 }
+
+
+
 
 function qr_scan_failure() {
     launch_snackbar("QR scan failed")
