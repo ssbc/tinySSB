@@ -557,4 +557,10 @@ function refresh_connection_progressbar(min_entries, old_min_entries, old_want_e
   }
 }
 
+function chat_open_attachments_menu() {
+    closeOverlay()
+    document.getElementById('overlay-bg').style.display = 'initial'
+    document.getElementById('attach-menu').style.display = 'initial'
+}
+
 // ---
