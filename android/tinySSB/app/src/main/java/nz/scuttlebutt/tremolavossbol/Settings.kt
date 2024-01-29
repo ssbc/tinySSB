@@ -1,132 +1,106 @@
 package nz.scuttlebutt.tremolavossbol
 
 import android.content.Context
-import androidx.core.content.withStyledAttributes
-import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_DIR
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_SIMPLEPUB_URL
-import java.io.File
+import org.json.JSONObject
 
 class Settings(val context: MainActivity) {
     private val sharedPreferences = context.getSharedPreferences("tinyssbSettings", Context.MODE_PRIVATE)
 
-    private val WEBSOCKET_ENABLED_BY_DEFAULT = true
-    private val BLE_ENABLED_BY_DEFAULT = true
-    private val UDP_MULTICAST_ENABLED_BY_DEFAULT = true
-
-    private val PREVIEW_ENABLED_BY_DEFAULT = false
-    private val BACKGROUD_MAP_ENABLED_BY_DEFAULT = false
-    private val HIDE_FORGOTTEN_CONVERSATIONS_BY_DEFAULT = true
-    private val HIDE_FORGOTTEN_CONTACTS_BY_DEFAULT = true
-    private val HIDE_FORGOTTEN_KANBAN_BY_DEFAULT = true
-    private val SHOW_SHORTNAME_BY_DEFAULT = true
-
-    private val WEBSOCKET_URL_DEFAULT = "ws://meet.dmi.unibas.ch:8989"
-
-
-
-    // put for different data types
-    private fun put(key: String, value: Boolean) {
-        sharedPreferences.edit().putBoolean(key, value).apply()
+    // These settings are only used in the frontend and will not affect the backend
+    // The settingID must match the one used in the frontend (tremola.settings).
+    private var defaultSettings = mapOf<String, String>(
+        "show_chat_preview" to "false",
+        "show_background_map" to "true",
+        "show_shortnames" to "true",
+        "hide_forgotten_conv" to "true",
+        "hide_forgotten_contacts" to "true",
+        "hide_forgotten_kanbans" to "true",
+        // backend settings
+        "ble_enabled" to "true",
+        "udp_multicast_enabled" to "true",
+        "websocket_enabled" to "true",
+        "websocket_url" to TINYSSB_SIMPLEPUB_URL
+    )
+    fun getSettings(): String {
+        val currentSettings = mutableMapOf<String, Any>()
+        for ( (settingID, default) in defaultSettings) {
+            val value = sharedPreferences.getString(settingID, default)!!
+            // convert string back to boolean
+            if (value.lowercase() == "true") {
+                currentSettings[settingID] = true
+            } else if (value.lowercase() == "false"){
+                currentSettings[settingID] = false
+            } else {
+                currentSettings[settingID] = value
+            }
+        }
+        return JSONObject(currentSettings.toMap()).toString()
     }
 
-    private fun put(key: String, value: Float) {
-        sharedPreferences.edit().putFloat(key, value).apply()
+    // Sets a value for the provided settingID and executes necessary backend actions to align with the updated setting.
+    fun set(settingID: String, value: String): Boolean {
+        if (!defaultSettings.keys.contains(settingID)) {
+            return false // default of setting id must be defined
+        }
+        val success = sharedPreferences.edit().putString(settingID, value).commit()
+        if (!success)
+            return false
+
+        when (settingID) {
+            "websocket_enabled" -> handleWebsocketEnabled(value.toBoolean())
+            "ble_enabled" -> handleBleEnabled(value.toBoolean())
+            "udp_multicast_enabled" -> handleUdpMulticastEnabled(value.toBoolean())
+            "websocket_url" -> handleWebsocketUrl(value)
+        }
+        return true
     }
 
-    private fun put(key: String, value:Int) {
-        sharedPreferences.edit().putInt(key, value).apply()
-    }
-
-    private fun put(key: String, value: Long) {
-        sharedPreferences.edit().putLong(key, value).apply()
-    }
-
-    private fun put(key: String, value: String) {
-        sharedPreferences.edit().putString(key, value).apply()
-    }
-
-    private fun put(key: String, value: Set<String>) {
-        sharedPreferences.edit().putStringSet(key, value).apply()
-    }
-
-    private fun delete() {
-        sharedPreferences.edit().clear().apply()
-    }
-
-    fun getAll(): MutableMap<String, *>? {
-        return sharedPreferences.all
-    }
-
-    fun resetToDefault() {
-        delete()
+    fun resetToDefault(): Boolean {
+        return  sharedPreferences.edit().clear().commit()
     }
 
     // ------------------------------------------------------------------------------------//
+    //                          Getter (backend settings)                                  //
+    // ------------------------------------------------------------------------------------//
     fun isWebsocketEnabled(): Boolean {
-        return sharedPreferences.getBoolean("websocket", WEBSOCKET_ENABLED_BY_DEFAULT)
+        return sharedPreferences.getString("websocket_enabled", defaultSettings["websocket_enabled"]).toBoolean()
     }
 
     fun isBleEnabled(): Boolean {
-        return sharedPreferences.getBoolean("ble", BLE_ENABLED_BY_DEFAULT)
+        return sharedPreferences.getString("ble_enabled", defaultSettings["ble_enabled"]).toBoolean()
     }
 
     fun isUdpMulticastEnabled(): Boolean {
-        return  sharedPreferences.getBoolean("udp_multicast", UDP_MULTICAST_ENABLED_BY_DEFAULT)
-    }
-
-    fun isHideForgottenConversationsEnabled(): Boolean {
-        return sharedPreferences.getBoolean("hide_forgotten_conv", HIDE_FORGOTTEN_CONVERSATIONS_BY_DEFAULT)
-    }
-
-    fun isHideForgottenContactsEnabled(): Boolean {
-        return sharedPreferences.getBoolean("hide_forgotten_contacts", HIDE_FORGOTTEN_CONTACTS_BY_DEFAULT)
-    }
-
-    fun isHideForgottenKanbanEnabled(): Boolean {
-        return sharedPreferences.getBoolean("hide_forgotten_boards", HIDE_FORGOTTEN_KANBAN_BY_DEFAULT)
-    }
-
-    fun isPreviewBeforeSendingEnabled(): Boolean {
-        return sharedPreferences.getBoolean("enable_preview", PREVIEW_ENABLED_BY_DEFAULT)
-    }
-
-    fun isBackgroundMapEnabled(): Boolean {
-        return sharedPreferences.getBoolean("background_map", BACKGROUD_MAP_ENABLED_BY_DEFAULT)
-    }
-
-    fun isShowShortnameEnabled(): Boolean {
-        return sharedPreferences.getBoolean("show_shortnames", SHOW_SHORTNAME_BY_DEFAULT)
+        return  sharedPreferences.getString("udp_multicast_enabled", defaultSettings["udp_multicast_enabled"]).toBoolean()
     }
 
     fun getWebsocketUrl(): String {
-        return sharedPreferences.getString("websocket_url", WEBSOCKET_URL_DEFAULT)!!
+        return sharedPreferences.getString("websocket_url", defaultSettings["websocket_url"])!!
     }
 
     // ------------------------------------------------------------------------------------------//
-
-    fun setWebsocketEnabled(value: Boolean) {
-        put("websocket", value)
+    //                       Backend settings handler (called from set())                        //
+    // ------------------------------------------------------------------------------------------//
+    fun handleWebsocketEnabled(value: Boolean) {
         if (!value)
             context.websocket?.stop()
         context.websocket?.start()
     }
 
-    fun setBleEnabled(value: Boolean) {
-        put("ble", value)
+    fun handleBleEnabled(value: Boolean) {
         if(!value)
             context.ble?.stopBluetooth()
         context.ble?.startBluetooth()
     }
 
-    fun setUdpMulticastEnabled(value: Boolean) {
-        put("udp_multicast", value)
+    fun handleUdpMulticastEnabled(value: Boolean) {
         if (!value)
             context.rmSockets()
         context.mkSockets()
     }
 
-    fun setWebsocketUrl(value: String) {
-        put("websocket_url", value)
+    fun handleWebsocketUrl(value: String) {
         context.websocket?.updateUrl(value)
     }
 

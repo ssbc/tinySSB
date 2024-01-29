@@ -16,6 +16,7 @@ var colors = ["#d9ceb2", "#99b2b7", "#e6cba5", "#ede3b4", "#8b9e9b", "#bd7578", 
 var curr_img_candidate = null;
 var pubs = []
 var wants = {}
+var loaded_settings = {} // the settings provided bz the backend, will overwrite tremola.settings after initialization
 
 var restream = false // whether the backend is currently restreaming all posts
 
@@ -877,7 +878,7 @@ function resetTremola() { // wipes browser-side content
         "contacts": {},
         "profile": {},
         "id": myId,
-        "settings": get_default_settings(),
+        "settings": {},
         "board": {}
     }
     var n = recps2nm([myId])
@@ -941,63 +942,6 @@ function b2f_ble_disabled() {
     }
     //ble_status = "disabled"
 }
-
-/*
-var want = {} // all received want vectors, id: [[want vector], timestamp], want vectors older than 90 seconds are discarded
-var max_want = [] // current max vector
-var old_curr = [] // own want vector at the time when the maximum want vector was last updated
-
-function b2f_want_update(identifier, wantVector) {
-
-    console.log("b2f received want:", wantVector, "from: ", identifier)
-
-    // remove old want vectors
-    var deleted = false;
-    for (var id in want) {
-        var ts = want[id][1]
-        if(Date.now() - ts > 90000) {
-            console.log("removed want of", id)
-            delete want[id]
-            deleted = true
-        }
-
-    }
-
-    // if the want vector didn't change, no further updates are required
-    if(identifier in want) {
-        if( equalArrays(want[identifier][0], wantVector)) {
-            console.log("update only")
-            want[identifier][1] = Date.now()
-            if(!deleted)  //if a want vector was previously removed, the max_want needs to be recalculated otherwise it is just an update without an effect
-                return
-        }
-    }
-
-    want[identifier] = [wantVector, Date.now()]
-
-    // calculate new max want vector
-    var all_vectors = Object.values(want).map(val => val[0])
-    var new_max_want = all_vectors.reduce((accumulator, curr) => accumulator.len >= curr.len ? accumulator : curr) //return want vector with most entries
-
-    for (var vec of all_vectors) {
-        for(var i in vec) {
-            if (vec[i] > new_max_want[i])
-                new_max_want[i] = vec[i]
-        }
-    }
-
-    // update
-    if (!equalArrays(max_want,new_max_want)) {
-        old_curr = want['me'][0]
-        max_want = new_max_want
-        console.log("new max")
-    }
-
-    refresh_connection_progressbar()
-
-    console.log("max:", max_want)
-}
-*/
 
 function b2f_local_peer_remaining_updates(identifier, remaining) {
     //TODO
@@ -1253,7 +1197,7 @@ function b2f_new_image_blob(ref) {
     overlayIsActive = true;
 }
 
-function b2f_initialize(id) {
+function b2f_initialize(id, settings) {
     myId = id
     if (window.localStorage.tremola) {
         tremola = JSON.parse(window.localStorage.getItem('tremola'));
@@ -1265,11 +1209,13 @@ function b2f_initialize(id) {
     if (tremola == null) {
         resetTremola();
         console.log("reset tremola")
+        if (typeof Android == 'undefined')
+            tremola.settings = BrowserOnlySettings // browser-only testing
     }
     if (typeof Android == 'undefined')
         console.log("loaded ", JSON.stringify(tremola))
-    if (!('settings' in tremola))
-        tremola.settings = {}
+    else
+        tremola.settings = JSON.parse(settings)
     var nm, ref;
     for (nm in tremola.settings)
         setSetting(nm, tremola.settings[nm])
@@ -1281,5 +1227,8 @@ function b2f_initialize(id) {
     setScenario('chats');
     // load_chat("ALL");
 }
+
+
+
 
 // --- eof
