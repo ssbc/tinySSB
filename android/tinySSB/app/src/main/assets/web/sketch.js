@@ -153,6 +153,7 @@ function chat_openSketch() {
     var lastX = 0;
     var lastY = 0;
     var colChoice = true;
+    var currentColor = '#000000'
 
     canvas.addEventListener('touchstart', startDrawing);
     canvas.addEventListener('touchmove', draw);
@@ -190,6 +191,7 @@ function chat_openSketch() {
     function setStrokeColor(color) {
         ctx.globalCompositeOperation = 'source-over';
         strokeColor = color;
+        currentColor = color
     }
 
     //function to either add or remove the color Palette depending on if  it exists
@@ -213,13 +215,14 @@ function chat_openSketch() {
 
     //eraser function
     function toggleEraser() {
-        ctx.globalCompositeOperation = 'destination-out';
-        ctx.strokeStyle = "rgba(255,255,255,1)";
         isEraserEnabled = !isEraserEnabled;
         if (isEraserEnabled) {
+          ctx.globalCompositeOperation = 'destination-out';
+          ctx.strokeStyle = "rgba(255,255,255,1)";
           ctx.lineWidth = 30;
           eraserSign.style.border = '1px solid red';
         } else {
+          setStrokeColor(currentColor)
           ctx.lineWidth = currentWidth;
           eraserSign.style.border = '';
         }
