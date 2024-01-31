@@ -1,5 +1,13 @@
 "use strict";
 
+// the maximal dimensions of the sketches in px.
+const SKETCH_MAX_HEIGHT = 500
+const SKETCH_MAX_WIDTH = 500
+
+const SKETCH_SIZE_UPDATE_INTERVAL = 5000
+
+var sketch_size_update_timer = null // reference to size update interval
+
 function chat_openSketch() {
     closeOverlay()
     // Create a canvas element
@@ -15,11 +23,34 @@ function chat_openSketch() {
     canvas.style.backgroundColor = '#ffffff';
     document.body.appendChild(canvas);
 
+    var currSize = 0;
+    var sizeDiv = document.createElement('div')
+    sizeDiv.id = 'div:sketch_size'
+    sizeDiv.style.position = 'fixed';
+    sizeDiv.style.left = '10px';
+    sizeDiv.style.top = '18px';
+    sizeDiv.innerHTML = 'Size: '
+
+    async function sketch_updateSize() {
+        var new_size = await sketch_get_current_size()
+        if (new_size == currSize) {
+            return
+        }
+        currSize = new_size
+        var sizeKB = new_size / 1000
+        sizeDiv.innerHTML = 'Size: ' + sizeKB + ' kB'
+    }
+
+    sketch_updateSize()
+    sketch_size_update_timer = setInterval(async () => {
+                                                await sketch_updateSize()
+                                            }, SKETCH_SIZE_UPDATE_INTERVAL);
+    document.body.appendChild(sizeDiv)
 
     // Create a close button and style it
     var closeButton = document.createElement('button');
     closeButton.id = 'btn:closeSketch';
-    closeButton.innerHTML = 'Close';
+    closeButton.innerHTML = 'Cancel';
     closeButton.style.position = 'fixed';
     closeButton.style.top = '10px';
     closeButton.style.right = '10px';
@@ -147,6 +178,7 @@ function chat_openSketch() {
     //ctx.fillStyle = "white";
     //ctx.fillRect(0 , 0, canvas.width, canvas.height)
     var currentWidth = 2;
+
     var strokeColor = '#000000';
     var isDrawing = false;
     var isEraserEnabled = false;
@@ -154,6 +186,9 @@ function chat_openSketch() {
     var lastY = 0;
     var colChoice = true;
     var currentColor = '#000000'
+
+
+
 
     canvas.addEventListener('touchstart', startDrawing);
     canvas.addEventListener('touchmove', draw);
@@ -231,9 +266,17 @@ function chat_openSketch() {
 
 //function called by the close button to end the sketch
 function chat_closeSketch() {
+  if (sketch_size_update_timer) {
+    clearInterval(sketch_size_update_timer) // stop updating size
+    sketch_size_update_timer = null
+  }
+
   // Remove the canvas element
   var canvas = document.getElementById('sketchCanvas');
   canvas.parentNode.removeChild(canvas);
+
+  var sizeDiv = document.getElementById('div:sketch_size')
+  sizeDiv.parentNode.removeChild(sizeDiv)
 
   // Remove the close button
   var closeButton = document.getElementById('btn:closeSketch');
@@ -269,26 +312,47 @@ function chat_closeSketch() {
   }
 }
 
-//function called by the drawing submit button
-//gets the data uri of the drawing in the canvas and sends it to new_drawing_post
-function chat_sendDrawing() {
-    var drawingUrl = document.getElementById("sketchCanvas").toDataURL('image/png');
-    chat_new_drawing_post(drawingUrl);
-    chat_closeSketch();
+function sketch_reduceResolution(base64String, reductionFactor) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.src = base64String;
+
+        // Wait for the image to load
+        img.onload = function () {
+          const canvas = document.createElement("canvas");
+
+          const reducedWidth = img.width / reductionFactor;
+          const reducedHeight = img.height / reductionFactor;
+          canvas.width = reducedWidth;
+          canvas.height = reducedHeight;
+
+          const ctx = canvas.getContext("2d");
+
+          ctx.drawImage(img, 0, 0, reducedWidth, reducedHeight);
+          const resultBase64String = canvas.toDataURL("image/png");
+          resolve(resultBase64String);
+        };
+
+        img.onerror = function () {
+          reject(new Error("Sketch - Failed to reduce resolution"));
+        };
+      });
 }
 
-function chat_new_drawing_post(s) {
-    if (s.length == 0) {
-        return;
+// returns the size of the base64 string that represents the sketch
+async function sketch_get_current_size() {
+    let sketch = await sketch_getImage()
+    return sketch.length
+}
+
+// return the current sketch as a base64 string (including the preceding data type descriptor)
+async function sketch_getImage() {
+    let canvas = document.getElementById("sketchCanvas")
+    var drawingUrl = canvas.toDataURL('image/png');
+    var reductionFactor = Math.max(canvas.width / SKETCH_MAX_WIDTH, canvas.height / SKETCH_MAX_HEIGHT)
+    if (reductionFactor > 1) {
+        drawingUrl = await sketch_reduceResolution(drawingUrl, reductionFactor)
     }
-    //var canvas = document.getElementById('sketchCanvas')
-    //var ctx = canvas.getContext('2d');
-    //ctx.scale(canvas.width / 10000,  canvas.height / 10000)
-
-    var drawingUrl = document.getElementById('sketchCanvas').toDataURL('image/png');
-    // drawingUrl = resizeBase64Img(drawingUrl, canvas.width / 5, canvas.height / 5)
-
-    console.log("NOTCOMPRESSED", drawingUrl.length)
 
     var data = drawingUrl.split(',')[1];
 
@@ -309,19 +373,32 @@ function chat_new_drawing_post(s) {
     // We Create a new data URL with the compressed data
     var shortenedDataURL = 'data:image/png;base64,' + compressedBase64;
 
-    console.log("COMPRESSED", shortenedDataURL.length)
 
+    return shortenedDataURL
+}
+
+//function called by the drawing submit button
+async function chat_sendDrawing() {
+    var sketch = await sketch_getImage()
+    if (sketch.length == 0) {
+            return;
+    }
+
+    // send to backend
     var recps;
     if (curr_chat == "ALL") {
         recps = "ALL";
-        backend("publ:post [] " + btoa(shortenedDataURL) + " null"); //  + recps)
+        backend("publ:post [] " + btoa(base64Image) + " null"); //  + recps)
     } else {
         recps = tremola.chats[curr_chat].members.join(' ');
-        backend("priv:post [] " + btoa(shortenedDataURL) + " null " + recps);
+        backend("priv:post [] " + btoa(base64Image) + " null " + recps);
     }
     closeOverlay();
     setTimeout(function () { // let image rendering (fetching size) take place before we scroll
         var c = document.getElementById('core');
         c.scrollTop = c.scrollHeight;
     }, 100);
+
+    // close sketch
+    chat_closeSketch();
 }
