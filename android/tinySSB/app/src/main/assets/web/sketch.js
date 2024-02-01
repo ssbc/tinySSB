@@ -131,6 +131,7 @@ function chat_openSketch() {
     changeSmallLine.style.height = '10px';
     changeSmallLine.style.display = 'inline-block';
     changeSmallLine.style.backgroundColor = 'black';
+    changeSmallLine.style.border = '1px solid red'
     changeSmallLine.onclick =  () => {changeThickness(2);};
     document.body.appendChild(changeSmallLine);
 
@@ -244,6 +245,28 @@ function chat_openSketch() {
 
     //function to change thickness of the pinsel, called by the thickness buttons above
     function changeThickness(x) {
+       if (currentWidth == x)
+         return
+       let small = document.getElementById("changeSmallLine")
+       let medium = document.getElementById("changeMediumLine")
+       let large = document.getElementById("changeLargeLine")
+
+       small.style.border = ""
+       medium.style.border = ""
+       large.style.border = ""
+
+       switch (x) {
+         case 2:
+            small.style.border = '1px solid red'
+            break
+         case 5:
+            medium.style.border = '1px solid red'
+            break
+         case 10:
+            large.style.border = '1px solid red'
+            break
+       }
+
        ctx.lineWidth = x;
        currentWidth = x;
     }
@@ -388,10 +411,10 @@ async function chat_sendDrawing() {
     var recps;
     if (curr_chat == "ALL") {
         recps = "ALL";
-        backend("publ:post [] " + btoa(base64Image) + " null"); //  + recps)
+        backend("publ:post [] " + btoa(sketch) + " null"); //  + recps)
     } else {
         recps = tremola.chats[curr_chat].members.join(' ');
-        backend("priv:post [] " + btoa(base64Image) + " null " + recps);
+        backend("priv:post [] " + btoa(sketch) + " null " + recps);
     }
     closeOverlay();
     setTimeout(function () { // let image rendering (fetching size) take place before we scroll
