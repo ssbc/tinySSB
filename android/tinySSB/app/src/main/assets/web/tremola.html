@@ -426,7 +426,7 @@
     <div class="settings">
       <div class="settingsText">Connect to Peers via BLE</div>
       <div style="float: right;"><label class="switch">
-        <input id="ble" type="checkbox" onchange="toggle_changed(this);">
+        <input id="ble_enabled" type="checkbox" onchange="toggle_changed(this);">
         <span class="slider round"></span></label></div>
     </div>
     <hr>
@@ -434,7 +434,7 @@
     <div class="settings">
       <div class="settingsText">Connect to Peers via UDP Multicast</div>
       <div><label class="switch">
-        <input id="udp_multicast" type="checkbox" onchange="toggle_changed(this);">
+        <input id="udp_multicast_enabled" type="checkbox" onchange="toggle_changed(this);">
         <span class="slider round"></span>
       </label></div>
     </div>
@@ -443,7 +443,7 @@
     <div class="settings">
       <div class="settingsText">Connect to Pub via Websocket</div>
       <div style="float: right;"><label class="switch">
-        <input id="websocket" type="checkbox" onchange="toggle_changed(this);">
+        <input id="websocket_enabled" type="checkbox" onchange="toggle_changed(this);">
         <span class="slider round"></span></label></div>
     </div>
     <div id="container:settings_ws_url" class="websocket_url_settings" style="display:none;">
@@ -456,7 +456,7 @@
     <div class="settings">
       <div class="settingsText">Preview before sending</div>
       <div style="float: right;"><label class="switch">
-        <input id="enable_preview" type="checkbox" onchange="toggle_changed(this);">
+        <input id="show_chat_preview" type="checkbox" onchange="toggle_changed(this);">
         <span class="slider round"></span></label></div>
     </div>
     <hr>
@@ -472,7 +472,7 @@
     <div class="settings">
       <div class="settingsText">Hide forgotten Kanban Boards</div>
       <div style="float: right;"><label class="switch">
-        <input id="hide_forgotten_boards" type="checkbox" onchange="toggle_changed(this);">
+        <input id="hide_forgotten_kanbans" type="checkbox" onchange="toggle_changed(this);">
         <span class="slider round"></span></label></div>
     </div>
     <hr>
@@ -496,7 +496,7 @@
     <div class="settings">
       <div class="settingsText">Background map</div>
       <div style="float: right;"><label class="switch">
-        <input id="background_map" type="checkbox" onchange="toggle_changed(this);">
+        <input id="show_background_map" type="checkbox" onchange="toggle_changed(this);">
         <span class="slider round"></span></label></div>
     </div>
     <hr>

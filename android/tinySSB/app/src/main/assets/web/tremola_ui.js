@@ -267,7 +267,7 @@ function closeOverlay() {
 function showPreview() {
     var draft = escapeHTML(document.getElementById('draft').value);
     if (draft.length == 0) return;
-    if (!getSetting("enable_preview")) {
+    if (!getSetting("show_chat_preview")) {
         new_text_post(draft);
         return;
     }

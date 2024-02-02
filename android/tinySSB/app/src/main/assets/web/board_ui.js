@@ -88,7 +88,7 @@ function load_board_list() {
             var board = tremola.board[bid]
             var date = new Date(bidTimestamp[i][1])
             date = date.toDateString() + ' ' + date.toTimeString().substring(0, 5);
-            if (board.forgotten && tremola.settings.hide_forgotten_boards)
+            if (board.forgotten && tremola.settings.hide_forgotten_kanbans)
                 continue
             var cl, mem, item, bg, row, badge, badgeId, cnt;
             cl = document.getElementById('lst:kanban');
