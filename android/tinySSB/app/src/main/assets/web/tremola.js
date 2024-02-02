@@ -1139,6 +1139,11 @@ function b2f_new_event(e) { // incoming SSB log event: we get map with three ent
     }
 }
 
+// backend callback method when calling backend("settings:get")
+function b2f_get_settings(settings) {
+    tremola.settings = settings
+}
+
 function b2f_new_contact(fid) {
     if ((fid in tremola.contacts)) // do not overwrite existing entry
         return

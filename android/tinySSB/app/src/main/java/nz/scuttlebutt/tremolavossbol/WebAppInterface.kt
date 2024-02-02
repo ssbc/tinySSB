@@ -242,6 +242,10 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
             "settings:set" -> {
                 act.settings!!.set(args[1], args[2])
             }
+            "settings:get" -> {
+                val settings = act.settings!!.getSettings()
+                act.wai.eval("b2f_get_settings('${settings}')")
+            }
             else -> {
                 Log.d("onFrontendRequest", "unknown")
             }
