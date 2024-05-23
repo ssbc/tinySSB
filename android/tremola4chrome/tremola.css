@@ -1,0 +1,690 @@
+:root { // note: Chrome <49 (bundled with SDK23) does not support var()
+    --background: #ebf4fa; // never used?
+    --passive: #51a4d2;
+    --active: #a4cbe2;
+    --light: #ebf4fa;
+    --neutral: #cbd4da;
+    --gray: #d0d0d0;
+    --red: #e85132;
+    --lightGreen: #bddb88;
+}
+
+  html, body {
+    height: 100%;
+    width: 100%;
+    margin: 0px;
+    font-family: "Helvetica Neue", sans-serif;
+    font-size: medium;
+  }
+  table {
+    border-spacing: 0px;
+  }
+  button {
+    border-radius: 5px;
+  }
+  .active {
+    background-color: #a4cbe2; // var(--active);
+  }
+  .passive {
+    background-color: #51a4d2; // var(--passive);
+  }
+  .neutral {
+    background-color: var(--neutral);
+  }
+  .light {
+    background-color: #ebf4fa; // var(--light);
+  }
+  .green {
+    background-color: #9dbb68; // var(--lightGreen);
+  }
+  .red {
+    background-color: #ff3300;
+  }
+  .gray {
+    background-color: var(--gray);
+  }
+  .flat {
+    border: none;
+    font-size: small;
+    user-select: none;
+    height: 100%;
+  }
+  .flat:focus {
+    outline: none;
+  }
+  .flat:active {
+    color: red;
+  }
+  .w100 {
+    width: 100%;
+  }
+  .buttontext {
+    font-size: small;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    height: 50px;
+    padding: 3px;
+  }
+.item {
+    border: none;
+    text-align: left;
+    vertical-align: top;
+    height: 4em;
+    font-size: medium;
+}
+
+textarea {
+  -webkit-box-sizing: border-box;
+  -moz-box-sizing: border-box;
+  box-sizing: border-box;
+  font-size: medium;
+  resize: none;
+  width: 100%;
+}
+
+.menu-overlay {
+  display: none;
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  background: #fff;
+  padding: 0.5em;
+  z-index: 10002; /* high z-index */
+  border-radius: 5px;
+  box-shadow: 0 0 25px rgba(0,0,0,0.9);
+}
+
+.qr-overlay {
+  display: none;
+  background: #fff;
+  padding: 0.5em;
+  width: calc(80% - 16px);
+  position: fixed;
+  top: 10%;
+  left: 10%;
+  cursor: default;
+  z-index: 10001;
+  border-radius: 4px;
+  box-shadow: 0 0 25px rgba(0,0,0,0.9);
+  overflow-wrap: break-word;
+}
+
+.overlay-bg {
+  display: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 100%;
+  cursor: pointer;
+  z-index: 1000; /* high z-index */
+  background: rgba(1,1,1,0.3);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.overlay-trans {
+  display: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 100%;
+  cursor: pointer;
+  z-index: 1000; /* high z-index */
+  background: trans;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.overlay-trans-core {
+  display: none;
+  position: absolute;
+  top: 20;
+  left: 0;
+  height: 85%;
+  width: 100%;
+  cursor: pointer;
+  z-index: 1000; /* high z-index */
+  background: trans;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.overlay-bg-core {
+  display: none;
+  position: absolute;
+  top: 20;
+  left: 0;
+  height: 85%;
+  width: 100%;
+  cursor: pointer;
+  z-index: 1000; /* high z-index */
+  background: rgba(1,1,1,0.3);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.float_button {
+  position: absolute;
+    top: calc(100% - 110pt);
+    left: calc(100% - 50pt);
+    height: 50px;
+    width: 50px;
+    cursor: pointer;
+    z-index: 999; /* high z-index */
+    background: #000; /* fallback */
+    background-color: #fff;
+    border: solid 1px #000;
+    border-radius: 50%;
+    font-size: xx-large;
+    line-height: 36pt;
+    font-family: HelveticaNeue-Light;
+  box-shadow: 0 0 30px rgba(0,0,0,0.7);
+}
+
+.chat_item_button {
+  border: none;
+  text-align: left;
+  vertical-align: top;
+  height: 3em;
+  font-size: medium;
+  border-radius: 4pt;
+  box-shadow: 0 0 5px rgba(0,0,0,0.7);
+}
+
+.chat_item_div {
+  padding: 0px 5px 10px 5px;
+  margin: 3px 3px 6px 3px;
+}
+
+.contact_picture {
+  height: 3em;
+  width: 3em;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  font-size: medium;
+  box-shadow: 0 0 5px rgba(0,0,0,0.7);
+}
+
+.contact_item_button {
+  border: none;
+  text-align: left;
+  vertical-align: top;
+  width: calc(100%-10em);
+  height: 3em;
+  font-size: medium;
+  border-radius: 4pt;
+  box-shadow: 0 0 5px rgba(0,0,0,0.7);
+  text-overflow: ellipis;
+  overflow: hidden;
+  display: inline-block;
+}
+
+.menu_item_button {
+  border: none;
+  text-align: left;
+  vertical-align: top;
+  height: 3em;
+  width: 100%;
+  font-size: medium;
+  background-color: white;
+}
+
+.attach-menu-item-button {
+  border: none;
+  text-align: left;
+  vertical-align: top;
+  height: 3em;
+  width: 100%;
+  font-size: medium;
+  background-color: white;
+}
+
+.attach-menu {
+    border: none;
+    text-align: center;
+    vertical-align: bottom;
+    height: 3em;
+    width: 100%;
+    font-size: medium;
+    background-color: white;
+}
+
+.attach-menu-overlay {
+  display: none;
+  position: absolute;
+  right: 10px;
+  bottom: 70px;
+  background: #fff;
+  padding: 0.5em;
+  z-index: 1001; /* high z-index */
+  border-radius: 5px;
+  box-shadow: 0 0 25px rgba(0,0,0,0.9);
+}
+
+.settings {
+  height: 2em;
+  padding: 6px;
+  background: rgba(255,255,255,0.75);
+  display: flex;
+  justify-content: space-between;
+}
+
+.settingsText {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: clip;
+  margin-top: 6px;
+  font-weight: 500;
+}
+
+/* --------------------------------------------------------------------------- */
+
+#snackbar {
+  visibility: hidden; /* Hidden by default. Visible on click */
+  min-width: 250px; /* Set a default minimum width */
+  margin-left: -125px; /* Divide value of min-width by 2 */
+  background-color: #333; /* Black background color */
+  color: #fff; /* White text color */
+  text-align: center; /* Centered text */
+  border-radius: 2px; /* Rounded borders */
+  padding: 16px; /* Padding */
+  position: fixed; /* Sit on top of the screen */
+  z-index: 1; /* Add a z-index if needed */
+  left: 50%; /* Center the snackbar */
+  bottom: 30px; /* 30px from the bottom */
+}
+
+/* Show the snackbar when clicking on a button (class added with JavaScript) */
+#snackbar.show {
+  visibility: visible; /* Show the snackbar */
+  /* Add animation: Take 0.5 seconds to fade in and out the snackbar.
+  However, delay the fade out process for 2.5 seconds */
+  -webkit-animation: fadein 0.5s, fadeout 0.5s 2.5s;
+  animation: fadein 0.5s, fadeout 0.5s 2.5s;
+}
+
+/* Animations to fade the snackbar in and out */
+@-webkit-keyframes fadein {
+  from {bottom: 0; opacity: 0;}
+  to {bottom: 30px; opacity: 1;}
+}
+
+@keyframes fadein {
+  from {bottom: 0; opacity: 0;}
+  to {bottom: 30px; opacity: 1;}
+}
+
+@-webkit-keyframes fadeout {
+  from {bottom: 30px; opacity: 1;}
+  to {bottom: 0; opacity: 0;}
+}
+
+@keyframes fadeout {
+  from {bottom: 30px; opacity: 1;}
+  to {bottom: 0; opacity: 0;}
+}
+
+/* --------------------------------------------------------------------------- */
+/* https://www.w3schools.com/howto/howto_css_switch.asp */
+
+ /* The switch - the box around the slider */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 60px;
+  height: 34px;
+}
+
+/* Hide default HTML checkbox */
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+/* The slider */
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #a4cbe2; // var(--active);
+  -webkit-transition: .4s;
+  transition: .4s;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 26px;
+  width: 26px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  -webkit-transition: .4s;
+  transition: .4s;
+}
+
+input:checked + .slider {
+  background-color: #51a4d2; // var(--passive);
+}
+
+input:focus + .slider {
+  /* box-shadow: 0 0 1px #2196F3; */
+  box-shadow: transparent;
+}
+
+input:checked + .slider:before {
+  -webkit-transform: translateX(26px);
+  -ms-transform: translateX(26px);
+  transform: translateX(26px);
+}
+
+/* Rounded sliders */
+.slider.round {
+  border-radius: 34px;
+}
+
+.slider.round:before {
+  border-radius: 50%;
+}
+
+.connection_entry_container {
+  display: grid;
+  /*grid-template-columns: 1fr 1fr 1fr;*/
+  /*grid-template-rows: 1fr 1fr 1fr;*/
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr;
+  gap: 0px 0px;
+  /*grid-template-areas:
+    "name name ."
+    ". . remaining"
+    "type type .";
+    */
+  grid-template-areas:
+    "info remaining";
+  width:100%;
+  box-shadow: 0 0 5px rgba(0,0,0,0.7);
+  border-radius: 4pt;
+  height: 3em;
+  margin-bottom: 10px;
+}
+
+.connection_entry_info_container {
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr 1fr;
+  grid-template-areas:
+    "name"
+    "type";
+  grid-area: info;
+}
+
+.connection-overlay-progressbar {
+  width: 100%;
+  height: 25px;
+  background-color: lightgray;
+  border-radius: 5px;
+}
+
+.connection-overlay-progressbar::-webkit-progress-bar {
+  border-radius: 5px;
+}
+
+.connection-overlay-progressbar::-webkit-progress-value {
+  transition: width 1s ease;
+  border-radius: 5px;
+}
+
+#connection-overlay-progressbar-want::-webkit-progress-value {
+  background: #2ecc71;
+}
+
+#connection-overlay-progressbar-gift::-webkit-progress-value {
+ background: #7fd9eb;
+}
+
+#connection-overlay-progressbar-goset::-webkit-progress-value {
+  background: #2ecc71;
+}
+
+#connection-overlay-progressbar-chnk::-webkit-progress-value {
+  background: #f2a641;
+}
+
+.connection-overlay-progressbar-label {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 15px;
+  color: black;
+  white-space: nowrap;
+}
+
+.progress-icon {
+  position: absolute;
+  left: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+}
+
+.invalid {
+    border: 2px solid red;
+}
+
+.valid {
+    border: 2px solid green;
+    transition: border-color 0.2s ease-in-out;
+}
+
+.websocket_url_settings {
+  background: rgba(255,255,255,0.75);
+  padding:6px;
+  display: flex;
+  align-items: center;
+}
+
+.img-gray-filter {
+    filter: invert(62%) sepia(8%) saturate(116%) hue-rotate(145deg) brightness(89%) contrast(89%);
+}
+
+/* --------------------------------------------------------------------------- */
+/*                                Kanban Board                                 */
+/* --------------------------------------------------------------------------- */
+
+.board_item_button {
+  border: none;
+  text-align: left;
+  vertical-align: top;
+  height: 3em;
+  font-size: medium;
+  border-radius: 4pt;
+  box-shadow: 0 0 5px rgba(0,0,0,0.7);
+  /*background-color: #c1e1c1;*/
+}
+
+.columns_container {
+  position: relative;
+  width: 100%;
+  /*height: 100%;*/
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-start;
+  gap: 10px;
+}
+
+.column {
+  display: flex;
+  justify-content: flex-start;
+  flex-direction: column;
+  border-radius: 5pt;
+}
+
+.column_wrapper{
+  flex: 0 0 36vw;
+  width: 36vw;
+}
+
+.column_content{
+  display: flex;
+  justify-content: flex-start;
+  flex-direction: column;
+  gap: 10px;
+  padding-bottom: 10px;
+  padding-top: 10px;
+}
+
+.column_hdr {
+  width: 100%;
+  margin: 0 auto;
+  padding-top:5px;
+  padding-bottom:5px;
+  overflow-wrap: break-word;
+  background-color: #c1e1c1;
+  border-bottom-color: gray;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-radius: 5pt;
+}
+
+/*
+.column_options{
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+}
+*/
+
+.context_options_btn {
+  border: none;
+  text-align: left;
+  height: 3em;
+  width: 100%;
+  font-size: medium;
+  background-color: white;
+}
+
+
+.context_menu {
+  display: none;
+  width: 10%;
+  max-height: 80vh;
+  position: absolute;
+  background-color: #f9f9f9;
+  min-width: 160px;
+  box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+  z-index: 1001;
+  overflow-x: hidden;
+  overflow-y:scroll;
+}
+
+.column_item {
+  width:95%;
+  margin: auto;
+  font-size: medium;
+  border-radius: 4pt;
+  box-shadow: 0 0 5px rgb(0 0 0 / 70%);
+  min-height: 3em;
+}
+
+.item_button {
+  width:100%;
+  border: none;
+  text-align: left;
+  vertical-align: top;
+  font-size: medium;
+  border-radius: 4pt;
+  box-shadow: 0 0 5px rgba(0,0,0,0.7);
+  white-space: normal;
+  word-wrap: break-word;
+  min-height: 3em;
+}
+
+.item_menu_content {
+  padding-top: 10px;
+  float: left;
+  width: 70%;
+}
+
+.item_menu_desc {
+  margin-top: 10px;
+  border: none;
+  outline: none;
+  background-color: rgb(211,211,211);
+}
+
+.item_menu_buttons{
+  padding-top: 10px;
+  float: right;
+  width: 30%;
+}
+
+.item_menu_button {
+  width: 90%;
+  float: right;
+  margin:5px auto;
+  display:block;
+}
+
+.div:item_menu_assignees_container {
+  padding-top: 5px;
+  width: 100%;
+  display: flex;
+  justify-content: flex-start;
+  flex-direction: column;
+}
+
+.column_footer {
+  width: 100%;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  border-top-color: gray;
+  border-top-style: solid;
+  border-top-width: 2px;
+}
+
+
+.kanban_invitation_container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr;
+  gap: 0px 0px;
+  grid-template-areas:
+    "text btns";
+  width:100%;
+  box-shadow: 0 0 5px rgba(0,0,0,0.7);
+  border-radius: 4pt;
+  height: 3em;
+  margin-top: 5px;
+}
+
+.kanban_invitation_text_container {
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 0px 0px;
+  grid-template-areas:
+    "name"
+    "author";
+  grid-area: text;
+}
+
+.kanban_create_personal_btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  margin: 0 10px;
+  background-color: #51a4d2;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  height: 40px;
+  width: 35px
+}
+
