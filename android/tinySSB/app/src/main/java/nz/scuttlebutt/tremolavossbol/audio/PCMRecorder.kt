@@ -23,7 +23,8 @@ class PCMRecorder(val audioSrc: Int) {
                 AudioFormat.ENCODING_PCM_16BIT, bufSize)
             audioRecorder!!.startRecording()
         } catch (e: SecurityException) {
-            Log.d("PCM", "SecurityException")
+            //Will never occur because permission is already checked in RecordActivity
+            Log.e("PCM", "SecurityException", e)
         }
     }
 
