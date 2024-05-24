@@ -355,6 +355,27 @@ function load_post_item(p) { // { 'key', 'from', 'when', 'body', 'to' (if group 
     var txt = ""
     if (p["body"] != null) {
         txt = escapeHTML(p["body"]).replace(/\n/g, "<br>\n");
+        // Sketch app
+        if (txt.startsWith("data:image/png;base64")) { // check if the string is a data url
+                var compressedBase64 = txt.split(',')[1];
+                // We Convert the compressed data from a base64 string to a Uint8Array
+                var compressedData = atob(compressedBase64)
+                  .split('')
+                  .map(function (char) {
+                    return char.charCodeAt(0);
+                  });
+                var uint8Array = new Uint8Array(compressedData);
+
+                // We to decompress the Uint8Array
+                var decompressedData = pako.inflate(uint8Array);
+                // We Convert the decompressed data back to a base64 string
+                var decompressedBase64 = btoa(String.fromCharCode.apply(null, decompressedData));
+                // We Create a new data URL with the decompressed data
+                var decompressedDataURL = 'data:image/png;base64,' + decompressedBase64;
+                //display the data url as an image element
+                box += "<img src='" + decompressedDataURL + "' alt='Drawing' style='width: 50vw;'>";
+                txt = "";
+              }
         var re = /!\[.*?\]\((.*?)\)/g;
         txt = txt.replace(re, " &nbsp;<object type='image/jpeg' style='width: 95%; display: block; margin-left: auto; margin-right: auto; cursor: zoom-in;' data='http://appassets.androidplatform.net/blobs/$1' ondblclick='modal_img(this)'></object>&nbsp; ");
         // txt = txt + " &nbsp;<object type='image/jpeg' width=95% data='http://appassets.androidplatform.net/blobs/25d444486ffb848ed0d4f1d15d9a165934a02403b66310bf5a56757fec170cd2.jpg'></object>&nbsp; (!)";

@@ -6,7 +6,7 @@ var overlayIsActive = false;
 
 var display_or_not = [
     'div:qr', 'div:back',
-    'core', 'lst:chats', 'lst:posts', 'lst:contacts', 'lst:members', 'the:connex',
+    'core', 'lst:chats', 'div:posts', 'lst:contacts', 'lst:members', 'the:connex',
     'lst:kanban', 'div:footer', 'div:textarea', 'div:confirm-members', 'plus',
     'div:settings', 'div:board'
 ];
@@ -17,7 +17,7 @@ var curr_scenario = 'chats';
 var scenarioDisplay = {
     'chats': ['div:qr', 'core', 'lst:chats', 'div:footer'], // 'plus' TODO reactivate when encrypted chats are implemented
     'contacts': ['div:qr', 'core', 'lst:contacts', 'div:footer', 'plus'],
-    'posts': ['div:back', 'core', 'lst:posts', 'div:textarea'],
+    'posts': ['div:back', 'core', 'div:posts', 'div:textarea'],
     'connex': ['div:qr', 'core', 'the:connex', 'div:footer', 'plus'],
     'members': ['div:back', 'core', 'lst:members', 'div:confirm-members'],
     'settings': ['div:back', 'div:settings', 'core'],
@@ -555,6 +555,12 @@ function refresh_connection_progressbar(min_entries, old_min_entries, old_want_e
     document.getElementById('connection-overlay-progressbar-gift').value = newPosOff
     document.getElementById('connection-overlay-progressbar-label-gift').textContent = "Ahead - " + (curr_want_entries - min_entries) + " entries left"
   }
+}
+
+function chat_open_attachments_menu() {
+    closeOverlay()
+    document.getElementById('overlay-bg').style.display = 'initial'
+    document.getElementById('attach-menu').style.display = 'initial'
 }
 
 // ---

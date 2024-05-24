@@ -11,6 +11,8 @@
   <script type="text/javascript" charset="UTF-8" src="pinch-zoom.min.js"></script>
   <script type="text/javascript" charset="UTF-8" src="board.js"></script>
   <script type="text/javascript" charset="UTF-8" src="board_ui.js"></script>
+  <script type="text/javascript" charset="UTF-8" src="pako.min.js"></script>
+  <script type="text/javascript" charset="UTF-8" src="sketch.js"></script>
 </head>
 <body style="background-image: url('img/splash-as-background.jpg'); background-size: cover; background-color: white; overflow: hidden" onload="backend('ready');">
 <div style="width: 100%; height: 100%; margin: 0px">
@@ -22,8 +24,11 @@
 </div>
 
   <div id='attach-menu' class='attach-menu-overlay'>
+    <button class="attach-menu-item-button" onclick="chat_openSketch();">Send sketch</button>
+    <!--
     <button class="attach-menu-item-button" onclick="menu_take_picture();">Take picture</button>
     <button class="attach-menu-item-button" onclick="menu_pick_image();">Attach file</button>
+    -->
   </div>
 
   <div id="div:modal_img" style="display: none; position: fixed; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.9);">
@@ -44,17 +49,19 @@
 
   <div id='lst:chats' class=w100 style='overflow: hidden'></div>
 
-  <table id='lst:posts' style="width: 100%; display: none; table-layout: auto;">
-    <colgroup>
-      <col span="1" style="width: 2%;"/>
-      <col span="1" style="width: 10%;"/>
-      <col span="1" style="width: 76%;"/>
-      <col span="1" style="width: 10%;"/>
-      <col span="1" style="width: 2%;"/>
-    </colgroup>
-    <tr><td align=center colspan=5>-- oldest --
-    <tr><td align=center colspan=5>-- newest --
-  </table>
+  <div id='div:posts' style="height: 100%; overflow-x: auto; display: none;">
+    <table id='lst:posts' style="width: 100%; table-layout: auto;">
+      <colgroup>
+        <col span="1" style="width: 2%;"/>
+        <col span="1" style="width: 10%;"/>
+        <col span="1" style="width: 76%;"/>
+        <col span="1" style="width: 10%;"/>
+        <col span="1" style="width: 2%;"/>
+      </colgroup>
+      <tr><td align=center colspan=5>-- oldest --
+      <tr><td align=center colspan=5>-- newest --
+    </table>
+  </div>
 
   <div id='lst:contacts' class=w100 style="display: none;margin-top: 6px;"></div>
 
@@ -535,7 +542,13 @@
 </div>
 
   <table id="div:textarea" class="neutral" style="height: 56px; width: calc(100% - 6pt); display: none; border: 3px inset #ebf4fa /*var(--light)*/; margin: 3pt;" width=100%>
-    <tr><td width=95%><textarea id='draft' rows=3 placeholder='Tap here to type'></textarea>
+
+      <tr><td width=95%>
+        <div style="position: relative;">
+
+        <textarea id='draft' rows=3 placeholder='Tap here to type' style="padding-right: 40px;"></textarea>
+        <button id="attachmentButton" onclick="chat_open_attachments_menu()" class="flat buttontext img-gray-filter" style="background-image: url('img/paperclip.svg'); background-color: transparent; width: 35px; height: 35px; position: absolute; right: 2px; top: 46%; transform: translateY(-50%);"></button>
+        </div>
       <!-- td width=5% height=100%><button id='btn:attach' class="flat passive buttontext"><font size=+2>&#x1F4CE;</font><br><font size=small>Attach</font></button></td -->
       <td width=8% height=100%><button id='btn:attach' class="flat white buttontext" onclick="btnBridge(this);" style="background-image: url('img/record.svg'); fill: #fff; width: 50px; height: 50px; margin-bottom: 4px;"></button>
       <td width=5% height=100%><button id='btn:preview' class="flat passive buttontext" onclick="showPreview();" style="background-image: url('img/send-button.svg'); width: 50px; height: 50px; margin-bottom: 4px;">&nbsp;<!-- font size=+2>&#x1F440;</font><br><font size=small>Preview</font --></button>

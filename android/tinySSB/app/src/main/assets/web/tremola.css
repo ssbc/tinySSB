@@ -489,6 +489,10 @@ input:checked + .slider:before {
   align-items: center;
 }
 
+.img-gray-filter {
+    filter: invert(62%) sepia(8%) saturate(116%) hue-rotate(145deg) brightness(89%) contrast(89%);
+}
+
 /* --------------------------------------------------------------------------- */
 /*                                Kanban Board                                 */
 /* --------------------------------------------------------------------------- */
