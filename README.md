@@ -6,9 +6,12 @@
 
 ### Tutorial for first build under Windows
 #### Prerequisites
-- CMake version 3.18.1 or higher
+- CMake version 3.18.1 or higher, with the folder added to the PATH environment variable
+  - [Download CMake](https://cmake.org/download/)
 - gcc
-- ninja-build
+    - [Download MinGW](https://sourceforge.net/projects/mingw-w64/)
+- ninja-build with the folder added to the PATH environment variable
+    - [Download ninja-build](https://github.com/ninja-build/ninja/releases)
 
 #### Steps
 1. Clone the repository
