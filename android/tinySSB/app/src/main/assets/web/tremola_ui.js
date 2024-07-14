@@ -22,6 +22,7 @@ var scenarioDisplay = {
     'members': ['div:back', 'core', 'lst:members', 'div:confirm-members'],
     'settings': ['div:back', 'div:settings', 'core'],
     'kanban': ['div:qr', 'core', 'lst:kanban', 'div:footer', 'plus'],
+    'blackjack': ['div:qr', 'core', 'lst:blackjack', 'div:footer'],
     'board': ['div:back', 'core', 'div:board']
 }
 
@@ -112,7 +113,7 @@ function setScenario(s) {
     var lst = scenarioDisplay[s];
     if (lst) {
         // if (s != 'posts' && curr_scenario != "members" && curr_scenario != 'posts') {
-        if (['chats', 'contacts', 'connex', 'kanban'].indexOf(curr_scenario) >= 0) {
+        if (['chats', 'contacts', 'connex', 'kanban', 'blackjack'].indexOf(curr_scenario) >= 0) {
             var cl = document.getElementById('btn:' + curr_scenario).classList;
             cl.toggle('active', false);
             cl.toggle('passive', true);
@@ -146,7 +147,7 @@ function setScenario(s) {
             prev_scenario = s;
         }
         curr_scenario = s;
-        if (['chats', 'contacts', 'connex', 'kanban'].indexOf(curr_scenario) >= 0) {
+        if (['chats', 'contacts', 'connex', 'kanban', 'blackjack'].indexOf(curr_scenario) >= 0) {
             var cl = document.getElementById('btn:' + curr_scenario).classList;
             cl.toggle('active', true);
             cl.toggle('passive', false);
@@ -170,12 +171,16 @@ function setScenario(s) {
             }
         }
 
+        if(s == 'blackjack') {
+            menu_start_game_of_blackjack()
+        }
+
     }
 }
 
 function btnBridge(e) {
     var e = e.id, m = '';
-    if (['btn:chats', 'btn:posts', 'btn:contacts', 'btn:connex', 'btn:kanban'].indexOf(e) >= 0) {
+    if (['btn:chats', 'btn:posts', 'btn:contacts', 'btn:connex', 'btn:kanban', 'btn:blackjack'].indexOf(e) >= 0) {
         setScenario(e.substring(4));
     }
     if (e == 'btn:menu') {
