@@ -261,6 +261,9 @@ function closeOverlay() {
     document.getElementById('div:debug').style.display = 'none'
     document.getElementById("div:invite_menu").style.display = 'none'
 
+    // Blackjack Overlays
+    document.getElementById('blackjack-start-game').style.display = 'none';
+
     overlayIsActive = false;
 
     if (curr_img_candidate != null) {
