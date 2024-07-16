@@ -11,6 +11,7 @@
   <script type="text/javascript" charset="UTF-8" src="pinch-zoom.min.js"></script>
   <script type="text/javascript" charset="UTF-8" src="board.js"></script>
   <script type="text/javascript" charset="UTF-8" src="board_ui.js"></script>
+  <script type="text/javascript" charset="UTF-8" src="blackjack.js"></script>
   <script type="text/javascript" charset="UTF-8" src="blackjack_ui.js"></script>
 </head>
 <body style="background-image: url('img/splash-as-background.jpg'); background-size: cover; background-color: white; overflow: hidden" onload="backend('ready');">
@@ -98,10 +99,45 @@
             <path d="M4 1c2.21 0 4 1.755 4 3.92C8 2.755 9.79 1 12 1s4 1.755 4 3.92c0 3.263-3.234 4.414-7.608 9.608a.513.513 0 0 1-.784 0C3.234 9.334 0 8.183 0 4.92 0 2.755 1.79 1 4 1"/>
           </svg>
         </div>
-        <img src="img/blackjack-logo.png" alt="bj-logo" class="bj-logo"/>
-        <button class="blackjack_start_game_button" onclick="">Start as Dealer</button>
-        <button class="blackjack_start_game_button" onclick="">Join Game</button>
-        <div class="top-bottom-decoration">
+
+        <!-- Initial Display -->
+        <div id="initial-display" class="initial-display">
+          <img src="img/blackjack-logo.png" alt="bj-logo" class="bj-logo"/>
+            <button class="blackjack_start_game_button" onclick="start_game_as_dealer_button_pressed()">Start as Dealer</button>
+            <button class="blackjack_start_game_button" onclick="start_game_as_player_button_pressed()">Join Game</button>
+        </div>
+
+
+        <!-- Button Pressed Display -->
+        <div id="button-pressed-display" style="display:none;">
+          <div id="game-state" class="game-state">
+            <div id="dealer-hand-container" class="card-container">
+              <h4 style="color: white;">Dealers Hand</h4>
+              <div id="dealer-card-container" class="dealer-card-container">
+                <img src="img/bj_cards/KC.svg" alt="card" class="card-img" width="100" height="auto" />
+                <img class="card-img"  src="img/bj_cards/KC.svg" alt="card" width="100" height="auto" />
+              </div>
+            </div>
+            <div id="player-hand-container" class="card-container">
+              <h4 style="color: white;">Your Hand</h4>
+              <div id="player-card-container" class="player-card-container">
+                <img src="img/bj_cards/AH.svg" alt="card" class="card-img"  width="100" height="auto"/>
+                <img class="card-img"  src="img/bj_cards/5C.svg" alt="card" width="100" height="auto" />
+                <img class="card-img"  src="img/bj_cards/KC.svg" alt="card" width="100" height="auto" />
+                <img class="card-img"  src="img/bj_cards/7H.svg" alt="card" width="100" height="auto" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="player-option-bar" class="player-option-bar" style="display: none;">
+          <button class="player-option-button">Hit</button>
+          <button class="player-option-button">Stand</button>
+          <button class="player-option-button">Double Down</button>
+          <button class="player-option-button">Split</button>
+        </div>
+
+        <div id="bottom-decoration" class="top-bottom-decoration">
           <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" fill="black" viewBox="0 0 16 16">
             <path d="M11.5 12.5a3.5 3.5 0 0 1-2.684-1.254 20 20 0 0 0 1.582 2.907c.231.35-.02.847-.438.847H6.04c-.419 0-.67-.497-.438-.847a20 20 0 0 0 1.582-2.907 3.5 3.5 0 1 1-2.538-5.743 3.5 3.5 0 1 1 6.708 0A3.5 3.5 0 1 1 11.5 12.5"/>
           </svg>
@@ -592,7 +628,7 @@
     <td width=25%><button id='btn:chats'    class="w100 flat active buttontext" onclick="btnBridge(this);" style="background-image: url('img/chat.svg');">&nbsp;<!-- font size=+3>&#x1F4E8;</font><br><font size=small>Chats</font --></button>
     <td width=25%><button id='btn:kanban'   class="w100 flat passive buttontext" onclick="btnBridge(this);" style="background-image: url('img/kanban.svg');">&nbsp;<!-- font size=+3>&#x1F5E3;</font><br><font size=small>Board</font --></button>
     <td width=25%><button id='btn:contacts' class="w100 flat passive buttontext" onclick="btnBridge(this);" style="background-image: url('img/contacts.svg');">&nbsp;<!-- font size=+3>&#x1F465;</font><br><font size=small>Contacts</font --></button>
-    <td width='25%'><button id='btn:blackjack' class="w100 flat passive buttontext" onclick="btnBridge(this)" style="background-image: url('img/KH.svg');"></button>
+    <td width='25%'><button id='btn:blackjack' class="w100 flat passive buttontext" onclick="btnBridge(this)" style="background-image: url('img/icon.svg');"></button>
   </table>
 
 </div>

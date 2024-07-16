@@ -18,6 +18,7 @@ import org.json.JSONObject
 
 import nz.scuttlebutt.tremolavossbol.utils.Bipf
 import nz.scuttlebutt.tremolavossbol.utils.Bipf.Companion.BIPF_LIST
+import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_BLACKJACK
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_IAM
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_TEXTANDVOICE
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_KANBAN
@@ -245,6 +246,16 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
                     "udp_multicast" -> {act.settings!!.setUdpMulticastEnabled(args[2].toBooleanStrict())}
                     "websocket" -> {act.settings!!.setWebsocketEnabled(args[2].toBooleanStrict())}
                     "websocket_url" -> {act.settings!!.setWebsocketUrl(args[2])}
+                }
+            }
+            "blackjack:send" -> {
+                val message = Bipf.mkList()
+                Bipf.list_append(message, TINYSSB_APP_BLACKJACK)
+                Bipf.list_append(message, Bipf.mkString(args[1]))
+                val encodedMessage = Bipf.encode(message)
+
+                if (encodedMessage != null) {
+                    act.tinyNode.publish_public_content(encodedMessage)
                 }
             }
             else -> {

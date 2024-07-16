@@ -1052,6 +1052,8 @@ function b2f_new_in_order_event(e) {
             console.log("New kanban event")
             kanban_new_event(e)
             break
+        case "BJ":
+            display_message(e.public[1])
         default:
             return
     }
