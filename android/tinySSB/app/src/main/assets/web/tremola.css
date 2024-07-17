@@ -838,3 +838,63 @@ input:checked + .slider:before {
     margin-left: -80px; /* Adjust as needed for additional cards */
 }
 
+/* CONFIRMATION-DIALOG */
+.confirmation-dialog {
+    width: 80%;
+    height: auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: white;
+}
+
+.confirmation-dialog-button-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    height: auto;
+}
+
+.confirmation-dialog-button {
+    width: 40%;
+    min-height: 40px;
+    color: white;
+    background-color: rgba(0, 103, 105, 0.4);
+    border: 2px solid #40A578;
+}
+
+/* DEALER WAITING LOBBY */
+.dealer-waiting-lobby {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    width: 80%;
+    color: white;
+}
+
+#game-id-display {
+    font-size: 64px;
+}
+
+/* PLAYER WAITING LOBBY */
+.player-waiting-lobby {
+    color: white;
+    height: 90%;
+}
+
+.games-list div {
+    width: fill-available;
+    height: 40px;
+    margin: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-evenly;
+    border: 1px solid white;
+}
+
+.games-list {
+    height: 80%;
+}

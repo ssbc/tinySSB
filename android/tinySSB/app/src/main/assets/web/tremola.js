@@ -1053,7 +1053,7 @@ function b2f_new_in_order_event(e) {
             kanban_new_event(e)
             break
         case "BJ":
-            display_message(e.public[1])
+            handleMessage(e.public)
         default:
             return
     }

@@ -107,9 +107,24 @@
             <button class="blackjack_start_game_button" onclick="start_game_as_player_button_pressed()">Join Game</button>
         </div>
 
+        <!-- Dealer Option Bar -->
+        <div id="dealer-option-bar" style="display: none; ">
+
+          <div id="chat-messages">
+
+          </div>
+
+
+          <label for="dealer-message-input">Send a message to the player</label>
+          <input type="text" id="dealer-message-input" class="message-input" placeholder="Type your message...">
+
+
+          <button id="dealer-message-button" onclick="dealer_sends_current_status_to_player()">Send</button>
+        </div>
+
 
         <!-- Button Pressed Display -->
-        <div id="button-pressed-display" style="display:none;">
+        <div id="current-game-screen" style="display:none;">
           <div id="game-state" class="game-state">
             <div id="dealer-hand-container" class="card-container">
               <h4 style="color: white;">Dealers Hand</h4>
@@ -119,7 +134,7 @@
               </div>
             </div>
             <div id="player-hand-container" class="card-container">
-              <h4 style="color: white;">Your Hand</h4>
+              <h4 style="color: white;">Players Hand</h4>
               <div id="player-card-container" class="player-card-container">
                 <img src="img/bj_cards/AH.svg" alt="card" class="card-img"  width="100" height="auto"/>
                 <img class="card-img"  src="img/bj_cards/5C.svg" alt="card" width="100" height="auto" />
@@ -130,12 +145,47 @@
           </div>
         </div>
 
+        <!-- Confirmation Dialog -->
+        <diV id="confirmation-dialog" class="confirmation-dialog" style="display: none;">
+          <p>Are you sure that you want to start a new game as dealer?</p>
+          <br/>
+          <br/>
+          <div class="confirmation-dialog-button-container">
+            <button class="confirmation-dialog-button" onClick="dealer_confirmed_pressed()">YES</button>
+            <button class="confirmation-dialog-button" onClick="dealer_canceled_pressed()">CANCEL</button>
+          </div>
+        </diV>
+
+        <!-- Dealer Waiting Lobby -->
+        <div id="dealer-waiting-lobby" class="dealer-waiting-lobby" style="display: none;">
+          <p>You successfully started a new game. Pls wait for a player to enter</p>
+          <p>GAME ID: </p>
+          <p id="game-id-display" ></p>
+        </div>
+
+        <!-- Player Waiting Lobby -->
+        <div id="player-waiting-lobby" class="player-waiting-lobby" style="display: none;">
+          <h3>Player Waiting Lobby</h3>
+          <p>Games in your area: </p>
+          <div id="games-list">
+
+          </div>
+          <button class="confirmation-dialog-button" onClick="leave_player_lobby_pressed()">Back</button>
+        </div>
+
+        <!-- Player Game Screen -->
+        <div id="player-game-screen" style="display: none;">
+          <h3>Player Game Screen</h3>
+        </div>
+
+        <!-- Player Option Bar -->
         <div id="player-option-bar" class="player-option-bar" style="display: none;">
           <button class="player-option-button">Hit</button>
           <button class="player-option-button">Stand</button>
           <button class="player-option-button">Double Down</button>
           <button class="player-option-button">Split</button>
         </div>
+
 
         <div id="bottom-decoration" class="top-bottom-decoration">
           <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" fill="black" viewBox="0 0 16 16">

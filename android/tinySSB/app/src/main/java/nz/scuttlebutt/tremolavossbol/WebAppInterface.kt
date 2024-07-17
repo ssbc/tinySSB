@@ -251,7 +251,13 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
             "blackjack:send" -> {
                 val message = Bipf.mkList()
                 Bipf.list_append(message, TINYSSB_APP_BLACKJACK)
-                Bipf.list_append(message, Bipf.mkString(args[1]))
+                Bipf.list_append(message, Bipf.mkString(args[1])) // gameId
+                Bipf.list_append(message, Bipf.mkString(args[2])) // gameStatus
+                Bipf.list_append(message, Bipf.mkString(args[3])) // turn
+                Bipf.list_append(message, Bipf.mkString(args[4])) // dealerCards
+                Bipf.list_append(message, Bipf.mkString(args[5])) // playerCards
+                Bipf.list_append(message, Bipf.mkString(args[6])) // playerAction
+                Bipf.list_append(message, Bipf.mkString(args[7])) // dealerMessage
                 val encodedMessage = Bipf.encode(message)
 
                 if (encodedMessage != null) {
