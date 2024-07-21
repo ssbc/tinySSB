@@ -1,0 +1,91 @@
+:root {
+    --card-overlap: 80px; /* Adjust this value to increase or decrease overlap */
+}
+
+.player-game-screen {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: white;
+}
+
+.player-game-screen-card-container {
+    width: auto;
+    height: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 20px;
+    position: relative; /* Ensure container is positioned relative for overlapping cards */
+}
+
+.card-img {
+    max-width: 100px;
+    aspect-ratio: 2 / 3;
+    border: 1px solid #FFC94A;
+    object-fit: cover;
+    border-radius: 6px;
+    margin-left: calc(-1 * var(--card-overlap)); /* Initial overlap for the first card */
+    z-index: 1; /* Ensure cards stack on top of each other */
+    transition: margin-left 0.2s ease-in-out; /* Smooth transition */
+}
+
+/* Apply increased overlap for subsequent cards */
+.card-img:nth-child(n+2) {
+    margin-left: calc(-1 * var(--card-overlap));
+}
+
+/* Optional: Ensure the first card is centered correctly */
+.card-img:first-child {
+    margin-left: 0;
+}
+
+.dealer-message-display {
+    width: 100%;
+    height: auto;
+    display: flex;
+    justify-content: space-evenly;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.speech-bubble {
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    padding: 10px;
+    width: 200px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.2);
+    text-align: left;
+    font-size: 14px;
+    color: #333;
+    position: relative; /* Required for positioning the arrow */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Create the arrow on the left side of the bubble */
+.speech-bubble::after {
+    content: "";
+    position: absolute;
+    top: 50%; /* Center vertically */
+    left: -15px; /* Adjust as needed to position the arrow */
+    transform: translateY(-50%); /* Center the arrow vertically */
+    border-width: 10px;
+    border-style: solid;
+    border-color: transparent #fff transparent transparent; /* Arrow color should match bubble background */
+    z-index: 1; /* Ensure the arrow is above other elements */
+}
+
+.avatar-img {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    overflow: hidden;
+    object-fit: cover;
+    border: 2px solid white;
+}

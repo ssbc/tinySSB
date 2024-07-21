@@ -3,6 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <link rel="stylesheet" type="text/css" href="tremola.css" media="screen" />
+  <link rel="stylesheet" type="text/css" href="blackjackStyling/blackjack.css" media="screen" />
+  <link rel="stylesheet" type="text/css" href="blackjackStyling/playerGameScreen.css" media="screen" />
+  <link rel="stylesheet" type="text/css" href="blackjackStyling/waitingScreen.css" media="screen" />
+  <link rel="stylesheet" type="text/css" href="blackjackStyling/playerWaitingLobby.css" media="screen" />
   <script type="text/javascript" charset="UTF-8" src="scuttlesort.js"></script>
   <script type="text/javascript" charset="UTF-8" src="tremola.js"></script>
   <script type="text/javascript" charset="UTF-8" src="tremola_settings.js"></script>
@@ -105,21 +109,7 @@
           <img src="img/blackjack-logo.png" alt="bj-logo" class="bj-logo"/>
             <button class="blackjack_start_game_button" onclick="start_game_as_dealer_button_pressed()">Start as Dealer</button>
             <button class="blackjack_start_game_button" onclick="start_game_as_player_button_pressed()">Join Game</button>
-        </div>
-
-        <!-- Dealer Option Bar -->
-        <div id="dealer-option-bar" style="display: none; ">
-
-          <div id="chat-messages">
-
-          </div>
-
-
-          <label for="dealer-message-input">Send a message to the player</label>
-          <input type="text" id="dealer-message-input" class="message-input" placeholder="Type your message...">
-
-
-          <button id="dealer-message-button" onclick="dealer_sends_current_status_to_player()">Send</button>
+            <button class="blackjack_start_game_button" onclick="debugPlayerGameScreen()">Debug Screen</button>
         </div>
 
 
@@ -156,13 +146,6 @@
           </div>
         </diV>
 
-        <!-- Dealer Waiting Lobby -->
-        <div id="dealer-waiting-lobby" class="dealer-waiting-lobby" style="display: none;">
-          <p>You successfully started a new game. Pls wait for a player to enter</p>
-          <p>GAME ID: </p>
-          <p id="game-id-display" ></p>
-        </div>
-
         <!-- Player Waiting Lobby -->
         <div id="player-waiting-lobby" class="player-waiting-lobby" style="display: none;">
           <h3>Player Waiting Lobby</h3>
@@ -174,16 +157,76 @@
         </div>
 
         <!-- Player Game Screen -->
-        <div id="player-game-screen" style="display: none;">
-          <h3>Player Game Screen</h3>
+        <div id="player-game-screen" style="display: none;" class="player-game-screen">
+          <div id="player-game-screen-dealer-card-container" class="player-game-screen-card-container">
+
+          </div>
+          <div id="player-game-screen-player-card-container" class="player-game-screen-card-container">
+
+          </div>
+          <div id="dealer-message-display" class="dealer-message-display">
+
+          </div>
+          <!-- Player Option Bar -->
+          <div id="player-option-bar" class="player-option-bar" style="display: none;">
+            <button class="player-option-button" onclick="sendDecisionToDealer('Hit')">Hit</button>
+            <button class="player-option-button" onclick="sendDecisionToDealer('Stand')">Stand</button>
+            <button class="player-option-button" onclick="sendDecisionToDealer('DoubleDown')">Double Down</button>
+            <button class="player-option-button" onclick="sendDecisionToDealer('Split')">Split</button>
+          </div>
         </div>
 
-        <!-- Player Option Bar -->
-        <div id="player-option-bar" class="player-option-bar" style="display: none;">
-          <button class="player-option-button">Hit</button>
-          <button class="player-option-button">Stand</button>
-          <button class="player-option-button">Double Down</button>
-          <button class="player-option-button">Split</button>
+        <!-- Dealer Game Screen -->
+        <div id="dealer-game-screen" style="display: none;" class="player-game-screen">
+          <!-- Dealer Option Bar -->
+          <div id="dealer-option-bar" style="display: none; " class="dealer-option-bar">
+
+            <label for="dealer-message-input">Press Send to continue the game! ... and maybe give the player a hint ;)</label>
+            <div>
+              <input type="text" id="dealer-message-input" class="message-input" placeholder="Type your message...">
+              <button id="dealer-message-button" onclick="dealer_sends_current_status_to_player()">Send</button>
+            </div>
+
+          </div>
+          <div id="dealer-game-screen-dealer-card-container" class="player-game-screen-card-container">
+
+          </div>
+          <div id="dealer-game-screen-player-card-container" class="player-game-screen-card-container">
+
+          </div>
+        </div>
+
+
+        <!-- Waiting Screen -->
+        <div id="waiting-screen" class="waiting-screen" style="display: none;">
+          <div class="waiting-content">
+            <svg class="spinner" width="174px" height="174px" viewBox="0 0 66 66" xmlns="http://www.w3.org/2000/svg">
+              <circle class="path" fill="transparent" stroke-width="2" cx="33" cy="33" r="30" stroke="url(#gradient)"/>
+                <linearGradient id="gradient">
+                  <stop offset="50%" stop-color="#42d179" stop-opacity="1"/>
+                  <stop offset="65%" stop-color="#42d179" stop-opacity=".5"/>
+                  <stop offset="100%" stop-color="#42d179" stop-opacity="0"/>
+                </linearGradient>
+              <svg class="spinner-dot dot" width="5px" height="5px" viewBox="0 0 66 66" xmlns="http://www.w3.org/2000/svg" x="37" y="1.5">
+                <circle class="path" fill="#42d179" cx="33" cy="33" r="30"/>
+              </svg>
+            </svg>
+            <div id="waiting-text" class="waiting-text">Please Wait...</div>
+          </div>
+        </div>
+
+        <!-- Player Win Screen -->
+        <div id="player-win-screen" style="display: none;" class="win-screen">
+          <img src="img/player-win.png" alt="playerwins">
+          <p>The player wins! Yay!</p>
+          <button class="player-option-button" onclick="backToMainMenu()">Back to Main Menu</button>
+        </div>
+
+        <!-- Dealer Win Screen -->
+        <div id="dealer-win-screen" style="display: none;" class="win-screen">
+          <img src="img/dealer-win.png" alt="dealerwins">
+          <p>The dealer wins! Which he will the majority of times in the long run :)</p>
+          <button class="player-option-button" onclick="backToMainMenu()">Back to Main Menu</button>
         </div>
 
 

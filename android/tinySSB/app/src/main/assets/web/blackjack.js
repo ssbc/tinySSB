@@ -21,6 +21,7 @@ var myCurrentGameID = "1234"
 var dealerCards = []
 var playerCards = []
 var deck = shuffle(cards)
+var gameStatusENV = "";
 
 
 // Function to shuffle the cards
@@ -73,11 +74,177 @@ function handleMessage(message) {
         displayGameListItem(gameId, gameStatus);
     } else if(myRole === "dealer" && myCurrentGameID.toString() === gameId && gameStatus === "ongoing") {
         initializeGame()
-    } else if(myRole === "player" && myCurrentGameID.toString() === gameId && turn === "player") {
+    } else if(myRole === "player" && myCurrentGameID.toString() === gameId && turn === "player" && gameStatus === "initialCards") {
         console.log("0. Player if-else branch reached")
         initializePlayerGame(dealerCards, playerCards, dealerMessage)
+    } else if(myRole === "dealer" && myCurrentGameID.toString() === gameId && turn === "dealer" && gameStatus === "playerDecision") {
+        // Dealer receives a decision from the player
+        console.log("Handling player decision")
+        handlePlayerDecision(playerAction)
+    } else if(myRole === "player" && myCurrentGameID.toString() === gameId && turn === "player" && gameStatus === "ongoingCards") {
+        console.log("Player gets to have another decision");
+        initializePlayerGame(dealerCards, playerCards, dealerMessage)
+    } else if(myRole === "player" && myCurrentGameID.toString() === gameId && turn === "player" && gameStatus === "PlayerWins") {
+        console.log("Player won the game");
+        displayWinScreen()
+    } else if(myRole === "player" && myCurrentGameID.toString() === gameId && turn === "player" && gameStatus === "DealerWins") {
+        console.log("Dealer won the game");
+        displayLooseScreen()
+    } else {
+        console.log("No matching condition found.")
     }
 
 }
 
+function handlePlayerDecision(decision) {
+    switch (decision) {
+        case 'Hit':
+            // Add a card to the player's hand
+            dealCard(playerCards);
+            console.log('Player hits. New hand:', playerCards);
+            const playerScore = calculateHandScore(playerCards)
+            console.log("Player score: ", playerScore )
 
+            // Checking if player busted
+            if (playerScore > 21) {
+                console.log("Player score over 21, Player busted")
+                sendMessage(gameID + " " + "DealerWins " + "player " + dealerCards + " " + playerCards + " " + "_ " + "XXX" )
+                displayLooseScreen();
+                return "dealerWin"
+            } else {
+                gameStatusENV = "playerHitNoBust"
+                initializeGame();
+            }
+
+
+            break;
+
+        case 'Stand':
+            // Player chooses to stand, so nothing needs to be done for the player
+            console.log('Player stands. Hand remains:', playerCards);
+            // In a complete game, the dealer's turn would follow
+            let dealerStandScore = dealerTurn(dealerCards);
+            console.log("Dealer Hand: ", dealerCards)
+            console.log("Dealer Score: ", dealerStandScore)
+            const winner = compareScores(calculateHandScore(playerCards), dealerStandScore)
+            sendMessage(gameID + " " + winner  + " " + "player " + dealerCards + " " + playerCards + " " + "_ " + "XXX" )
+            if (winner === "DealerWins") {
+                displayLooseScreen();
+            } else {
+                displayWinScreen();
+            }
+
+            break;
+
+        case 'DoubleDown':
+            // Add a card to the player's hand and double the bet (betting logic not shown here)
+            dealCard(playerCards);
+            console.log('Player doubles down. New hand:', playerCards);
+            let doubleDownPlayerScore = calculateHandScore(playerCards);
+            console.log("Player score after double down:", doubleDownPlayerScore);
+            if (doubleDownPlayerScore > 21) {
+                console.log("Player Busts")
+                sendMessage(gameID + " " + "DealerWins"  + " " + "player " + dealerCards + " " + playerCards + " " + "_ " + "XXX" )
+            }
+            // Player's turn ends after this, so no further actions for the player
+            let dealerScoreAfterDoubleDown = dealerTurn(dealerCards);
+            console.log("Dealer Hand: ", dealerCards)
+            console.log("Dealer Score: ", dealerScoreAfterDoubleDown)
+            const result = compareScores(calculateHandScore(playerCards), dealerScoreAfterDoubleDown)
+            sendMessage(gameID + " " + result  + " " + "player " + dealerCards + " " + playerCards + " " + "_ " + "XXX" )
+
+            break;
+
+        case 'Split':
+            // Assuming the player can only split pairs
+            // Split the player's hand into two hands
+            /*
+
+            if (playerHand.length >= 2 && playerHand[0] === playerHand[1]) {
+                const newHand1 = [playerHand.shift()]; // First hand
+                const newHand2 = [playerHand.shift()]; // Second hand
+                dealCard(newHand1); // Deal a card to the first new hand
+                dealCard(newHand2); // Deal a card to the second new hand
+                console.log('Player splits. New hands:', newHand1, newHand2);
+            } else {
+                console.log('Cannot split. Player hand does not contain a pair.');
+            }
+            */
+            console.log("Split not implemented yet.")
+            break;
+
+        default:
+            console.error('Unknown decision:', decision);
+            break;
+    }
+}
+
+/*
+* This function calculates the score of a given hand in Blackjack, considering the value of the
+* cards and handling the special case of aces.
+*/
+function calculateHandScore(hand) {
+    let score = 0;
+    let numberOfAces = 0;
+
+    // Define card values
+    const cardValues = {
+        '2': 2, '3': 3, '4': 4, '5': 5, '6': 6,
+        '7': 7, '8': 8, '9': 9, 'T': 10, 'J': 10,
+        'Q': 10, 'K': 10, 'A': 11
+    };
+
+    // Calculate score and count aces
+    hand.forEach(card => {
+        const cardValue = cardValues[card[0]]; // card[0] is the rank of the card
+        score += cardValue;
+        if (card[0] === 'A') {
+            numberOfAces++;
+        }
+    });
+
+    // Adjust for aces if score is over 21
+    while (score > 21 && numberOfAces > 0) {
+        score -= 10; // Convert an ace from 11 to 1
+        numberOfAces--;
+    }
+
+    return score;
+}
+
+/**
+* This function handles the dealer's actions according to Blackjack rules, which typically
+* involve hitting until the dealer's score is at least 17.
+*/
+function dealerTurn(dealerHand) {
+    let dealerScore = calculateHandScore(dealerHand);
+
+    // Dealer's turn logic
+    while (dealerScore < 17) {
+        dealCard(dealerHand); // Draw a card from the deck to the dealer's hand
+        dealerScore = calculateHandScore(dealerHand);
+    }
+
+    return dealerScore;
+}
+
+// Helper function to compare scores
+function compareScores(playerScore, dealerScore) {
+    if (playerScore > 21) {
+        return 'DealerWins';
+    } else if (dealerScore > 21) {
+        return 'PlayerWins';
+    } else if (playerScore > dealerScore) {
+        return 'PlayerWins';
+    } else if (dealerScore > playerScore) {
+        return 'DealerWins';
+    } else {
+        return 'Push'; // Tie
+    }
+}
+
+function resetGame() {
+    dealerCards = []
+    playerCards = []
+    deck = shuffle(cards)
+}
