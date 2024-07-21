@@ -7,6 +7,7 @@
   <link rel="stylesheet" type="text/css" href="blackjackStyling/playerGameScreen.css" media="screen" />
   <link rel="stylesheet" type="text/css" href="blackjackStyling/waitingScreen.css" media="screen" />
   <link rel="stylesheet" type="text/css" href="blackjackStyling/playerWaitingLobby.css" media="screen" />
+  <link rel="stylesheet" type="text/css" href="blackjackStyling/wrapUp.css" media="screen" />
   <script type="text/javascript" charset="UTF-8" src="scuttlesort.js"></script>
   <script type="text/javascript" charset="UTF-8" src="tremola.js"></script>
   <script type="text/javascript" charset="UTF-8" src="tremola_settings.js"></script>
@@ -174,6 +175,7 @@
             <button class="player-option-button" onclick="sendDecisionToDealer('DoubleDown')">Double Down</button>
             <button class="player-option-button" onclick="sendDecisionToDealer('Split')">Split</button>
           </div>
+
         </div>
 
         <!-- Dealer Game Screen -->
@@ -193,6 +195,9 @@
           </div>
           <div id="dealer-game-screen-player-card-container" class="player-game-screen-card-container">
 
+          </div>
+          <div id="continue-to-finish-screen-button-container" class="finish-screen-button-container" style="display: none;">
+            <button id="continue-to-finish-screen" class="finish-screen-button" onclick="displayLooseScreen()">Finish</button>
           </div>
         </div>
 
@@ -226,6 +231,13 @@
         <div id="dealer-win-screen" style="display: none;" class="win-screen">
           <img src="img/dealer-win.png" alt="dealerwins">
           <p>The dealer wins! Which he will the majority of times in the long run :)</p>
+          <button class="player-option-button" onclick="backToMainMenu()">Back to Main Menu</button>
+        </div>
+
+        <!-- Tie Screen -->
+        <div id="tie-screen" style="display: none;" class="win-screen">
+          <img src="img/Tie.png" alt="tie">
+          <p>The game ended in a tie! That doesn't happen very often. Maybe ask your statistics professor how likely that is</p>
           <button class="player-option-button" onclick="backToMainMenu()">Back to Main Menu</button>
         </div>
 

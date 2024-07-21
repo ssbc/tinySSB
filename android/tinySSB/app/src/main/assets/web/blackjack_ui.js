@@ -197,6 +197,21 @@ function initializeGame() {
             cardImg.classList.add('card-img');
             dealerCardContainer.appendChild(cardImg);
         })
+    const dealerLabelAndScoreContainer = document.createElement("div");
+    dealerLabelAndScoreContainer.classList.add("label-and-score-container");
+    const dealerLabel = document.createElement("div");
+    dealerLabel.innerHTML = "Dealer"
+    const scoreLabel = document.createElement("div");
+    const dealerScore = calculateHandScore(dealerCards)
+    scoreLabel.innerHTML = dealerScore
+    if(dealerScore > 21) {
+        scoreLabel.classList.add("busted")
+    } else {
+        scoreLabel.classList.add("not-busted")
+    }
+    dealerLabelAndScoreContainer.appendChild(dealerLabel)
+    dealerLabelAndScoreContainer.appendChild(scoreLabel)
+    dealerCardContainer.appendChild(dealerLabelAndScoreContainer)
 
     console.log("6. Started displaying Player Cards")
         const playerCardContainer = document.getElementById('dealer-game-screen-player-card-container');
@@ -215,11 +230,32 @@ function initializeGame() {
                 playerCardContainer.appendChild(cardImg);
             })
 
+    const playerLabelAndScoreContainer = document.createElement("div");
+    playerLabelAndScoreContainer.classList.add("label-and-score-container");
+    const playerLabel = document.createElement("div");
+    playerLabel.innerHTML = "Player"
+    const playerScoreLabel = document.createElement("div");
+    const playerScore = calculateHandScore(playerCards)
+    playerScoreLabel.innerHTML = playerScore
+    if(playerScore > 21) {
+        playerScoreLabel.classList.add("busted")
+    } else {
+        playerScoreLabel.classList.add("not-busted")
+    }
+    playerLabelAndScoreContainer.appendChild(playerLabel)
+    playerLabelAndScoreContainer.appendChild(playerScoreLabel)
+    playerCardContainer.appendChild(playerLabelAndScoreContainer)
+
     // Dealer gets prompted to type in a message and hit send button
     const dealerOptionBar = document.getElementById("dealer-option-bar")
     if(dealerOptionBar) {
         console.log("7.Displaying Dealer Option Bar")
         dealerOptionBar.style.display = "flex"
+    }
+
+    const finishButton = document.getElementById("continue-to-finish-screen-button-container");
+    if (finishButton) {
+        finishButton.style.display = "none"
     }
 
 
@@ -306,6 +342,22 @@ function initializePlayerGame(dealerCards, playerCards, dealerMessage) {
     cardImgBackside.classList.add('card-img');
     dealerCardsDisplay.appendChild(cardImgBackside);
 
+    const dealerLabelAndScoreContainer = document.createElement("div");
+    dealerLabelAndScoreContainer.classList.add("label-and-score-container");
+    const dealerLabel = document.createElement("div");
+    dealerLabel.innerHTML = "Dealer"
+    const scoreLabel = document.createElement("div");
+    const dealerScore = "?"
+    scoreLabel.innerHTML = dealerScore
+    if(dealerScore > 21) {
+        scoreLabel.classList.add("busted")
+    } else {
+        scoreLabel.classList.add("not-busted")
+    }
+    dealerLabelAndScoreContainer.appendChild(dealerLabel)
+    dealerLabelAndScoreContainer.appendChild(scoreLabel)
+    dealerCardsDisplay.appendChild(dealerLabelAndScoreContainer)
+
     /*
     *   DISPLAYING THE CARDS OF THE PLAYER
     */
@@ -326,6 +378,22 @@ function initializePlayerGame(dealerCards, playerCards, dealerMessage) {
     } else {
         console.log("Player Cards is not an array")
     }
+
+    const playerLabelAndScoreContainer = document.createElement("div");
+    playerLabelAndScoreContainer.classList.add("label-and-score-container");
+    const playerLabel = document.createElement("div");
+    playerLabel.innerHTML = "Player"
+    const playerScoreLabel = document.createElement("div");
+    const playerScore = calculateHandScore(playerCardsArray)
+    playerScoreLabel.innerHTML = playerScore
+    if(playerScore > 21) {
+        playerScoreLabel.classList.add("busted")
+    } else {
+        playerScoreLabel.classList.add("not-busted")
+    }
+    playerLabelAndScoreContainer.appendChild(playerLabel)
+    playerLabelAndScoreContainer.appendChild(playerScoreLabel)
+    playerCardsDisplay.appendChild(playerLabelAndScoreContainer)
 
     /*
     * DISPLAYING THE MESSAGE THE DEALER SENT TO THE PLAYER
@@ -390,29 +458,122 @@ function sendDecisionToDealer(decision) {
     
 }
 
-function displayWinScreen() {
+function displayFinalCards() {
 
     const waitingScreen = document.getElementById("waiting-screen");
-        if (waitingScreen) {
-            waitingScreen.style.display = "none"
-        }
-
-    const playerWinScreen = document.getElementById("player-win-screen");
-    if(playerWinScreen) {
-        playerWinScreen.style.display = "flex"
+    if (waitingScreen) {
+        waitingScreen.style.display = "none"
     }
+
+    const dealerGameScreen = document.getElementById('dealer-game-screen');
+    if(dealerGameScreen) {
+        console.log("3. CurrentGameScreen has been found")
+        dealerGameScreen.style.display = "initial"
+    }
+
+    const dealerOptionsBar = document.getElementById('dealer-option-bar');
+    if(dealerOptionsBar) {
+        dealerOptionsBar.style.display = "none"
+    }
+
+    // Game screen starts getting displayed - The dealer can see the cards now
+    const dealerCardContainer = document.getElementById('dealer-game-screen-dealer-card-container');
+    if (!dealerCardContainer) {
+        console.error('Element with id "dealer-card-container" not found.');
+        return;
+    }
+    dealerCardContainer.innerHTML = "";
+
+    console.log("5. Started displaying Dealer Cards")
+    dealerCards.forEach(card => {
+        console.log(card);
+        const cardImg = document.createElement('img');
+        cardImg.src = `img/bj_cards/${card}.svg`;
+        cardImg.alt = 'card';
+        cardImg.classList.add('card-img');
+        dealerCardContainer.appendChild(cardImg);
+    })
+
+    const dealerLabelAndScoreContainer = document.createElement("div");
+    dealerLabelAndScoreContainer.classList.add("label-and-score-container");
+    const dealerLabel = document.createElement("div");
+    dealerLabel.innerHTML = "Dealer"
+    const scoreLabel = document.createElement("div");
+    const dealerScore = calculateHandScore(dealerCards)
+    scoreLabel.innerHTML = dealerScore
+    if(dealerScore > 21) {
+        scoreLabel.classList.add("busted")
+    } else {
+        scoreLabel.classList.add("not-busted")
+    }
+    dealerLabelAndScoreContainer.appendChild(dealerLabel)
+    dealerLabelAndScoreContainer.appendChild(scoreLabel)
+    dealerCardContainer.appendChild(dealerLabelAndScoreContainer)
+
+
+    const playerCardContainer = document.getElementById('dealer-game-screen-player-card-container');
+    if (!playerCardContainer) {
+        console.error('Element with id "player-card-container" not found.');
+        return;
+    }
+    playerCardContainer.innerHTML = "";
+
+    playerCards.forEach(card => {
+        console.log(card);
+        const cardImg = document.createElement('img');
+        cardImg.src = `img/bj_cards/${card}.svg`;
+        cardImg.alt = 'card';
+        cardImg.classList.add('card-img');
+        playerCardContainer.appendChild(cardImg);
+    })
+
+    const playerLabelAndScoreContainer = document.createElement("div");
+    playerLabelAndScoreContainer.classList.add("label-and-score-container");
+    const playerLabel = document.createElement("div");
+    playerLabel.innerHTML = "Player"
+    const playerScoreLabel = document.createElement("div");
+    const playerScore = calculateHandScore(playerCards)
+    playerScoreLabel.innerHTML = playerScore
+    if(playerScore > 21) {
+        playerScoreLabel.classList.add("busted")
+    } else {
+        playerScoreLabel.classList.add("not-busted")
+    }
+    playerLabelAndScoreContainer.appendChild(playerLabel)
+    playerLabelAndScoreContainer.appendChild(playerScoreLabel)
+    playerCardContainer.appendChild(playerLabelAndScoreContainer)
+
+    const finishButton = document.getElementById("continue-to-finish-screen-button-container");
+    if (finishButton) {
+        finishButton.style.display = "flex"
+    }
+
 }
 
 function displayLooseScreen() {
-    const waitingScreen = document.getElementById("waiting-screen");
-            if (waitingScreen) {
-                waitingScreen.style.display = "none"
-            }
+    const dealerGameScreen = document.getElementById('dealer-game-screen');
+    if(dealerGameScreen) {
+        console.log("3. CurrentGameScreen has been found")
+        dealerGameScreen.style.display = "none"
+    }
 
-        const playerLooseScreen = document.getElementById("dealer-win-screen");
-        if(playerLooseScreen) {
-            playerLooseScreen.style.display = "flex"
+    if (gameStatusENV === "DealerWins") {
+        const dealerWinScreen = document.getElementById('dealer-win-screen');
+        if (dealerWinScreen) {
+            dealerWinScreen.style.display = "flex"
         }
+    } else if (gameStatusENV === "PlayerWins") {
+        const playerWinScreen = document.getElementById('player-win-screen');
+        if (playerWinScreen) {
+            playerWinScreen.style.display = "flex"
+        }
+    } else {
+        const tieScreen = document.getElementById('tie-screen');
+        if (tieScreen) {
+            tieScreen.style.display = "flex"
+        }
+    }
+
 }
 
 function backToMainMenu() {
@@ -424,6 +585,12 @@ function backToMainMenu() {
     if(playerLooseScreen) {
         playerLooseScreen.style.display = "none"
     }
+
+    const tieScreen = document.getElementById('tie-screen');
+    if (tieScreen) {
+        tieScreen.style.display = "none"
+    }
+
     const initialDisplay = document.getElementById('initial-display');
     if (initialDisplay) {
         initialDisplay.style.display = 'flex';
@@ -445,6 +612,11 @@ function debugPlayerGameScreen() {
         initialDisplay.style.display = 'none';
     }
 
-    initializePlayerGame("4C,4C", "4D,4D", "Hello")
+    dealerCards = ["QS", "QS"]
+    playerCards = ["QS", "QS"]
+    gameStatusENV = "Tie"
+
+    // initializeGame()
+    displayFinalCards()
 
 }

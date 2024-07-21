@@ -57,8 +57,8 @@ function handleMessage(message) {
     var gameId = message[1]
     var gameStatus = message[2]
     var turn = message[3]
-    var dealerCards = message[4]
-    var playerCards = message[5]
+    var incomingDealerCards = message[4]
+    var incomingPlayerCards = message[5]
     var playerAction = message[6]
     var dealerMessage = message[7]
 
@@ -66,8 +66,8 @@ function handleMessage(message) {
     console.log("myCurrentGameID: " + myCurrentGameID)
     console.log("gameStatus: " + gameStatus)
     console.log("turn: " + turn)
-    console.log("dealerCards: " + dealerCards)
-    console.log("playerCards: " + playerCards)
+    console.log("incomingDealerCards: " + incomingDealerCards)
+    console.log("incomingPlayerCards: " + incomingPlayerCards)
     console.log("dealerMessage: " + dealerMessage)
 
     if(myRole === "player" && dealerMessage === "_") {
@@ -76,20 +76,32 @@ function handleMessage(message) {
         initializeGame()
     } else if(myRole === "player" && myCurrentGameID.toString() === gameId && turn === "player" && gameStatus === "initialCards") {
         console.log("0. Player if-else branch reached")
-        initializePlayerGame(dealerCards, playerCards, dealerMessage)
+        initializePlayerGame(incomingDealerCards, incomingPlayerCards, dealerMessage)
     } else if(myRole === "dealer" && myCurrentGameID.toString() === gameId && turn === "dealer" && gameStatus === "playerDecision") {
         // Dealer receives a decision from the player
         console.log("Handling player decision")
         handlePlayerDecision(playerAction)
     } else if(myRole === "player" && myCurrentGameID.toString() === gameId && turn === "player" && gameStatus === "ongoingCards") {
         console.log("Player gets to have another decision");
-        initializePlayerGame(dealerCards, playerCards, dealerMessage)
+        initializePlayerGame(incomingDealerCards, incomingPlayerCards, dealerMessage)
     } else if(myRole === "player" && myCurrentGameID.toString() === gameId && turn === "player" && gameStatus === "PlayerWins") {
         console.log("Player won the game");
-        displayWinScreen()
+        gameStatusENV = "PlayerWins"
+        playerCards = incomingPlayerCards.split(",")
+        dealerCards = incomingDealerCards.split(",")
+        displayFinalCards()
     } else if(myRole === "player" && myCurrentGameID.toString() === gameId && turn === "player" && gameStatus === "DealerWins") {
         console.log("Dealer won the game");
-        displayLooseScreen()
+        gameStatusENV = "DealerWins"
+        playerCards = incomingPlayerCards.split(",")
+        dealerCards = incomingDealerCards.split(",")
+        displayFinalCards()
+    } else if (myRole === "player" && myCurrentGameID.toString() === gameId && turn === "player" && gameStatus === "Tie") {
+        console.log("Game tied");
+        gameStatusENV = "Tie"
+        playerCards = incomingPlayerCards.split(",")
+        dealerCards = incomingDealerCards.split(",")
+        displayFinalCards()
     } else {
         console.log("No matching condition found.")
     }
@@ -108,8 +120,9 @@ function handlePlayerDecision(decision) {
             // Checking if player busted
             if (playerScore > 21) {
                 console.log("Player score over 21, Player busted")
+                gameStatusENV = "DealerWins"
                 sendMessage(gameID + " " + "DealerWins " + "player " + dealerCards + " " + playerCards + " " + "_ " + "XXX" )
-                displayLooseScreen();
+                displayFinalCards();
                 return "dealerWin"
             } else {
                 gameStatusENV = "playerHitNoBust"
@@ -129,9 +142,14 @@ function handlePlayerDecision(decision) {
             const winner = compareScores(calculateHandScore(playerCards), dealerStandScore)
             sendMessage(gameID + " " + winner  + " " + "player " + dealerCards + " " + playerCards + " " + "_ " + "XXX" )
             if (winner === "DealerWins") {
-                displayLooseScreen();
+                gameStatusENV = "DealerWins"
+                displayFinalCards();
+            } else if(winner === "PlayerWins") {
+                gameStatusENV = "PlayerWins"
+                displayFinalCards();
             } else {
-                displayWinScreen();
+                gameStatusENV = "Tie"
+                displayFinalCards();
             }
 
             break;
@@ -144,14 +162,18 @@ function handlePlayerDecision(decision) {
             console.log("Player score after double down:", doubleDownPlayerScore);
             if (doubleDownPlayerScore > 21) {
                 console.log("Player Busts")
+                gameStatusENV = "DealerWins"
                 sendMessage(gameID + " " + "DealerWins"  + " " + "player " + dealerCards + " " + playerCards + " " + "_ " + "XXX" )
+                displayFinalCards()
             }
             // Player's turn ends after this, so no further actions for the player
             let dealerScoreAfterDoubleDown = dealerTurn(dealerCards);
             console.log("Dealer Hand: ", dealerCards)
             console.log("Dealer Score: ", dealerScoreAfterDoubleDown)
             const result = compareScores(calculateHandScore(playerCards), dealerScoreAfterDoubleDown)
+            gameStatusENV = result
             sendMessage(gameID + " " + result  + " " + "player " + dealerCards + " " + playerCards + " " + "_ " + "XXX" )
+            displayFinalCards()
 
             break;
 

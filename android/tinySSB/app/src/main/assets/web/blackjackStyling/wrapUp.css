@@ -1,0 +1,16 @@
+.finish-screen-button-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: auto;
+    margin-top: 40px;
+}
+
+.finish-screen-button {
+    width: 40%;
+    min-height: 40px;
+    color: white;
+    background-color: rgba(0, 103, 105, 0.4);
+    border: 2px solid #40A578;
+}
