@@ -142,6 +142,16 @@
     color: white;
 }
 
+.player-option-button-disabled {
+    height: 40px;
+    padding: 10px;
+    border: dimgrey;
+    cursor: pointer;
+    font-size: 16px;
+    background-color: lightgray;
+    color: dimgrey;
+}
+
 .dealer-card-container {
     position: relative;
     width: max-content;

@@ -16,12 +16,16 @@ const cards = [
         'KC', 'KD', 'KH', 'KS',
         'AC', 'AD', 'AH', 'AS'
     ];
-var myRole = "Undefined"
-var myCurrentGameID = "1234"
-var dealerCards = []
-var playerCards = []
-var deck = shuffle(cards)
-var gameStatusENV = "";
+let myRole = "Undefined"
+let myCurrentGameID = "1234"
+let dealerCards = []
+let playerCards = []
+let deck = shuffle(cards)
+let gameStatusENV = "";
+let playerMoney = 1000
+let playerWager = 0
+let gamesInMyArea = []
+
 
 
 // Function to shuffle the cards
@@ -102,6 +106,8 @@ function handleMessage(message) {
         playerCards = incomingPlayerCards.split(",")
         dealerCards = incomingDealerCards.split(",")
         displayFinalCards()
+    } else if(myRole === "dealer" && gameStatus === "searching") {
+        sendMessage(myCurrentGameID + " " + "open " + "_ " + "_ " + "_ " + "_ " + "_ ")
     } else {
         console.log("No matching condition found.")
     }
@@ -192,7 +198,7 @@ function handlePlayerDecision(decision) {
                 console.log('Cannot split. Player hand does not contain a pair.');
             }
             */
-            console.log("Split not implemented yet.")
+            console.log("Split not implemented.")
             break;
 
         default:
@@ -261,7 +267,7 @@ function compareScores(playerScore, dealerScore) {
     } else if (dealerScore > playerScore) {
         return 'DealerWins';
     } else {
-        return 'Push'; // Tie
+        return 'Tie'; // Tie
     }
 }
 

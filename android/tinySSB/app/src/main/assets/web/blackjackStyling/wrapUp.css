@@ -14,3 +14,23 @@
     background-color: rgba(0, 103, 105, 0.4);
     border: 2px solid #40A578;
 }
+
+.player-money-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.player-money-container img {
+    margin-right: 40px;
+    height: 50px;
+    width: 50px;
+    border: none;
+    border-radius: 0;
+    margin-bottom: 0;
+}
+
+.player-money-container p {
+    font-size: 22px;
+    font-weight: bold;
+}
