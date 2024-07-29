@@ -80,10 +80,6 @@ class MainActivity : Activity() {
         // tremolaState = TremolaState(this)
         idStore = IdStore(this)
 
-        // upgrades repo filesystem if necessary
-        tinyRepo.upgrade_repo()
-
-
         // wifiManager = applicationContext.getSystemService(WIFI_SERVICE) as WifiManager
         // mlock = wifiManager?.createMulticastLock("lock")
         // if (!mlock!!.isHeld) mlock!!.acquire()
@@ -93,6 +89,8 @@ class MainActivity : Activity() {
 
         val webView = findViewById<WebView>(R.id.webView)
         wai = WebAppInterface(this, webView)
+        // upgrades repo filesystem if necessary
+        tinyRepo.upgrade_repo()
         tinyIO = IO(this, wai)
         tinyGoset._include_key(idStore.identity.verifyKey) // make sure our local key is in
         tinyRepo.load()

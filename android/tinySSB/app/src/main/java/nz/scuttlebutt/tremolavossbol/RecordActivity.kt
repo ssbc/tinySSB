@@ -12,18 +12,19 @@ import android.provider.MediaStore
 import android.text.method.ScrollingMovementMethod
 import android.util.Log
 import android.view.View
-import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
-import kotlinx.android.synthetic.main.activity_record.*
 import nz.scuttlebutt.tremolavossbol.audio.Codec2
 import nz.scuttlebutt.tremolavossbol.audio.PCMRecorder
 import nz.scuttlebutt.tremolavossbol.audio.Timer
 import tremolavossbol.R
+import tremolavossbol.databinding.ActivityRecordBinding
 import java.io.ByteArrayOutputStream
 
 
 class RecordActivity : AppCompatActivity(), Timer.OnTimerUpdateListener {
+    private lateinit var binding: ActivityRecordBinding
+
     private val PERMISSION_REQUEST = 789
     private val CHOOSEFILE_REQUEST = 987
 
@@ -42,10 +43,13 @@ class RecordActivity : AppCompatActivity(), Timer.OnTimerUpdateListener {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_record)
+        binding = ActivityRecordBinding.inflate(layoutInflater)
+        val view = binding.root
+        setContentView(view)
+        // setContentView(R.layout.activity_record)
 
-        aboutView.setMovementMethod(ScrollingMovementMethod())
-        aboutView.text = """
+        binding.aboutView.setMovementMethod(ScrollingMovementMethod())
+        binding.aboutView.text = """
 -- About Codec2 Recorder --
 
 This app records voice and compresses it using Codec2: You can listen to the compression result before saving the file. This app also permits to play back Codec2 files.
@@ -67,26 +71,26 @@ Save icon by Zwoelf, http://www.zwoelf.hu/, free for commercial use license, con
 
         handler = Handler(Looper.myLooper()!!)
 
-        titleTextView.setOnClickListener {
-            mainLayout.visibility = View.GONE
-            aboutView.visibility = View.VISIBLE
+        binding.titleTextView.setOnClickListener {
+            binding.mainLayout.visibility = View.GONE
+            binding.aboutView.visibility = View.VISIBLE
         }
 
-        recordBtn.setOnClickListener {
+        binding.recordBtn.setOnClickListener {
             if (recording)
                 stopRecording()
             else
                 startRecording()
         }
 
-        btnLoad.setOnClickListener {
+        binding.btnLoad.setOnClickListener {
             if (recording)
                 stopRecording()
             reset()
             load_file()
         }
 
-        doneBtn.setOnClickListener {
+        binding.doneBtn.setOnClickListener {
             stopRecording()
             val _result = intent // Intent(this, MainActivity::class.java) // intent
             val c2mode = Codec2.CODEC2_MODE_1300
@@ -98,13 +102,13 @@ Save icon by Zwoelf, http://www.zwoelf.hu/, free for commercial use license, con
             // reset()
         }
 
-        deleteBtn.setOnClickListener {
+        binding.deleteBtn.setOnClickListener {
             stopRecording()
             reset()
         }
 
         timer = Timer(this)
-        timerView.text = "00:00.0"
+        binding.timerView.text = "00:00.0"
 
         Log.d("recorder", "start recording now")
     }
@@ -117,17 +121,17 @@ Save icon by Zwoelf, http://www.zwoelf.hu/, free for commercial use license, con
     private fun reset() {
         pcmData = ShortArray(0)
 
-        doneBtn.visibility = View.INVISIBLE
-        doneBtn.isClickable = false
-        deleteBtn.visibility = View.INVISIBLE
-        deleteBtn.isClickable = false
-        recordBtn.setImageResource(R.drawable.ic_record)
+        binding.doneBtn.visibility = View.INVISIBLE
+        binding.doneBtn.isClickable = false
+        binding.deleteBtn.visibility = View.INVISIBLE
+        binding.deleteBtn.isClickable = false
+        binding.recordBtn.setImageResource(R.drawable.ic_record)
 
         try {
             timer.stop()
         } catch (e: Exception){}
         timer = Timer(this)
-        timerView.text = "00:00.0"
+        binding.timerView.text = "00:00.0"
     }
 
     override fun onRequestPermissionsResult(
@@ -152,11 +156,11 @@ Save icon by Zwoelf, http://www.zwoelf.hu/, free for commercial use license, con
             return
         }
 
-        doneBtn.visibility = View.VISIBLE
-        doneBtn.isClickable = true
-        deleteBtn.visibility = View.VISIBLE
-        deleteBtn.isClickable = true
-        recordBtn.setImageResource(R.drawable.ic_pause)
+        binding.doneBtn.visibility = View.VISIBLE
+        binding.doneBtn.isClickable = true
+        binding.deleteBtn.visibility = View.VISIBLE
+        binding.deleteBtn.isClickable = true
+        binding.recordBtn.setImageResource(R.drawable.ic_pause)
 
         recording = true
         timer.start()
@@ -179,7 +183,7 @@ Save icon by Zwoelf, http://www.zwoelf.hu/, free for commercial use license, con
     private fun animatePlayerView(){
         if(recording){
             var amp = recorder!!.maxAmplitude.toInt()
-            recorderView.updateAmps(amp/4)
+            binding.recorderView.updateAmps(amp/4)
             handler.postDelayed(
                 Runnable {
                     kotlin.run { animatePlayerView() }
@@ -195,9 +199,9 @@ Save icon by Zwoelf, http://www.zwoelf.hu/, free for commercial use license, con
             // release()
         }
         recorder = null
-        recordBtn.setImageResource(R.drawable.ic_record)
+        binding.recordBtn.setImageResource(R.drawable.ic_record)
 
-        recorderView.reset()
+        binding.recorderView.reset()
         timer.pause()
     }
 
@@ -287,14 +291,14 @@ Save icon by Zwoelf, http://www.zwoelf.hu/, free for commercial use license, con
     override fun onTimerUpdate(duration: String) {
         runOnUiThread {
             if (recording)
-                timerView.text = duration.subSequence(0..6)
+                binding.timerView.text = duration.subSequence(0..6)
         }
     }
 
     override fun onBackPressed() {
-        if (aboutView.visibility == View.VISIBLE) {
-            aboutView.visibility = View.GONE
-            mainLayout.visibility = View.VISIBLE
+        if (binding.aboutView.visibility == View.VISIBLE) {
+            binding.aboutView.visibility = View.GONE
+            binding.mainLayout.visibility = View.VISIBLE
             return
         }
         super.onBackPressed()
