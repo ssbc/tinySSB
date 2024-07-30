@@ -13,19 +13,19 @@ import android.content.IntentFilter
 import android.content.pm.ActivityInfo
 import android.net.*
 import android.net.wifi.WifiManager
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.util.Log
 import android.view.View
 import android.view.Window
-import android.webkit.WebStorage
 import android.webkit.WebView
+import androidx.annotation.RequiresApi
 import com.google.zxing.integration.android.IntentIntegrator
 import nz.scuttlebutt.tremolavossbol.crypto.IdStore
 import nz.scuttlebutt.tremolavossbol.tssb.ble.BlePeers
 import nz.scuttlebutt.tremolavossbol.tssb.*
 import nz.scuttlebutt.tremolavossbol.tssb.ble.BluetoothEventListener
-import nz.scuttlebutt.tremolavossbol.utils.Bipf
 import nz.scuttlebutt.tremolavossbol.utils.Constants
 import tremolavossbol.R
 import java.net.*
@@ -68,9 +68,10 @@ class MainActivity : Activity() {
     */
     // var wifiManager: WifiManager? = null
     // private var mlock: WifiManager.MulticastLock? = null
-    lateinit var currentPhotoPath: String
+    // lateinit var currentPhotoPath: String
     // private var old_ip_addr: Int = 0 // wifiManager?.connectionInfo!!.ipAddress
 
+    @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         settings = Settings(this)
         super.onCreate(savedInstanceState)
@@ -89,7 +90,7 @@ class MainActivity : Activity() {
         Log.d("IDENTITY", "is ${idStore.identity.toRef()} (${idStore.identity.verifyKey})")
 
         val webView = findViewById<WebView>(R.id.webView)
-        webView.setLayerType(View.LAYER_TYPE_SOFTWARE,null); // disable acceleration, needed for older WebViews
+        webView.setLayerType(View.LAYER_TYPE_SOFTWARE,null) // disable acceleration, needed for older WebViews
         wai = WebAppInterface(this, webView)
         // upgrades repo filesystem if necessary
         tinyRepo.upgrade_repo()
@@ -124,7 +125,7 @@ class MainActivity : Activity() {
             }
         }
         */
-        val webStorage = WebStorage.getInstance()
+        // val webStorage = WebStorage.getInstance()
         webView.addJavascriptInterface(wai, "Android")
         webView.settings.javaScriptEnabled = true
         webView.settings.domStorageEnabled = true
@@ -218,13 +219,15 @@ class MainActivity : Activity() {
 
         val t3 = thread(isDaemon=true) {
             try {
-                tinyIO!!.senderLoop()
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    tinyIO.senderLoop()
+                }
             } catch (e: Exception) {
                 Log.d("tssb sender thread", "died ${e}")
             }
         }
         val t4 = thread(isDaemon=true) {
-            tinyIO!!.mcReceiverLoop(ioLock)
+            tinyIO.mcReceiverLoop(ioLock)
         }
         val t5 = thread(isDaemon=true) {
             tinyGoset.loop()
@@ -344,9 +347,6 @@ class MainActivity : Activity() {
         */
     }
 
-    fun onSaveInstanceState() {
-        Log.d("onSaveInstanceState", "")
-    }
     override fun onStop() {
         Log.d("onStop", "")
         super.onStop()
@@ -366,7 +366,7 @@ class MainActivity : Activity() {
             websocket!!.stop()
         }
 
-        unregisterReceiver(broadcastReceiver);
+        unregisterReceiver(broadcastReceiver)
         unregisterReceiver(ble_event_listener)
     }
 
@@ -393,14 +393,14 @@ class MainActivity : Activity() {
 
         rmSockets()
         try {
-            mc_group = InetAddress.getByName(Constants.SSB_VOSSBOL_MC_ADDR);
+            mc_group = InetAddress.getByName(Constants.SSB_VOSSBOL_MC_ADDR)
             mc_socket= MulticastSocket(Constants.SSB_VOSSBOL_MC_PORT)
             // mc_socket?.reuseAddress = true
             // mc_socket?.broadcast = true // really necessary ?
             // val any = InetAddress.getByAddress(ByteArray(4))
             // mc_socket?.bind(InetSocketAddress(any, Constants.SSB_VOSSBOL_MC_PORT)) // where to listen
             mc_socket?.loopbackMode = true
-            mc_socket?.joinGroup(mc_group);
+            mc_socket?.joinGroup(mc_group)
         } catch (e: Exception) {
             Log.d("mkSockets exc", e.toString())
             rmSockets()
