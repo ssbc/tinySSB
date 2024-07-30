@@ -26,19 +26,16 @@ var sketch_size_update_timer = null; // reference to size update interval
 function chat_openSketch() {
     closeOverlay()
     // Create a canvas element
-    let canvas = document.createElement('canvas');
-    canvas.id = 'sketchCanvas';
-    canvas.style.position = 'fixed';
-    canvas.style.top = '0';
-    canvas.style.left = '0';
-    canvas.width = window.innerWidth; // Full screen width
-    canvas.height = window.innerHeight; // Full screen height
-    /* on API 26, the canvas is not showing. Perhaps
-      https://stackoverflow.com/questions/24586530/android-canvas-drawing-not-visible#24586531
-    canvas.drawARGB(0, 225, 225, 255);
-    */
-    canvas.style.backgroundColor = '#ffffff';
-    document.body.appendChild(canvas);
+
+    sketch.canvas = document.getElementById("sketchCanvas")
+    sketch.canvas.width  = window.screen.width;
+    sketch.canvas.height = window.screen.height;
+    sketch.canvas.style.display = 'initial';
+    sketch.canvas.style.backgroundColor = '#ffffff';
+    sketch.ctx = sketch.canvas.getContext('2d');
+    sketch.ctx.globalCompositeOperation = "source-over";
+    sketch.ctx.fillStyle = "white";
+    sketch.ctx.fillRect(0 , 0, sketch.canvas.width, sketch.canvas.height);
 
     let sizeDiv = document.createElement('div')
     sizeDiv.id = 'div:sketch_size'
@@ -212,10 +209,7 @@ function chat_openSketch() {
     eraserSign.onclick = toggleEraser;
     document.body.appendChild(eraserSign);
 
-    //get the context of the canvas and set initial drawing settings
-    sketch.ctx = canvas.getContext('2d');
-    sketch.ctx.fillStyle = "white";
-    sketch.ctx.fillRect(0 , 0, canvas.width, canvas.height);
+    // set initial drawing settings
     sketch.currSize = 0;
     sketch.currentWidNdx = 0;
     sketch.strokeColor = '#000000';
@@ -225,12 +219,12 @@ function chat_openSketch() {
     sketch.lastY = 0;
     sketch.colChoice = true;
     sketch.currentColNdx = 0;
-    sketch.svg = [1,['s',canvas.width,canvas.height]]
+    sketch.svg = [1,['s',sketch.canvas.width,sketch.canvas.height]]
 
-    canvas.addEventListener('touchstart', startDrawing);
-    canvas.addEventListener('touchmove', draw);
-    canvas.addEventListener('touchend', endDrawing);
-    canvas.addEventListener('touchcancel', endDrawing);
+    sketch.canvas.addEventListener('touchstart', startDrawing);
+    sketch.canvas.addEventListener('touchmove', draw);
+    sketch.canvas.addEventListener('touchend', endDrawing);
+    sketch.canvas.addEventListener('touchcancel', endDrawing);
 
     //Drawing function when user starts drawing (on touchstart)
     function startDrawing(e) {
@@ -353,8 +347,9 @@ function chat_closeSketch() {
   }
 
   // Remove the canvas element
-  let canvas = document.getElementById('sketchCanvas');
-  canvas.parentNode.removeChild(canvas);
+  // let canvas = document.getElementById('sketchCanvas');
+  // canvas.parentNode.removeChild(canvas);
+  sketch.canvas.style.display = 'none';
 
   let sizeDiv = document.getElementById('div:sketch_size')
   sizeDiv.parentNode.removeChild(sizeDiv)

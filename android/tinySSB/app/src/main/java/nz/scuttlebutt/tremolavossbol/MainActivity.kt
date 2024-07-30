@@ -16,6 +16,7 @@ import android.net.wifi.WifiManager
 import android.os.Bundle
 import android.os.Handler
 import android.util.Log
+import android.view.View
 import android.view.Window
 import android.webkit.WebStorage
 import android.webkit.WebView
@@ -88,6 +89,7 @@ class MainActivity : Activity() {
         Log.d("IDENTITY", "is ${idStore.identity.toRef()} (${idStore.identity.verifyKey})")
 
         val webView = findViewById<WebView>(R.id.webView)
+        webView.setLayerType(View.LAYER_TYPE_SOFTWARE,null); // disable acceleration, needed for older WebViews
         wai = WebAppInterface(this, webView)
         // upgrades repo filesystem if necessary
         tinyRepo.upgrade_repo()
@@ -424,9 +426,6 @@ class MainActivity : Activity() {
             )
         }
         */
-    }
-    fun isWaiInitialized(): Boolean {
-        return this::wai.isInitialized;
     }
 
     fun rmSockets() {
