@@ -358,25 +358,63 @@ function load_post_item(p) { // { 'key', 'from', 'when', 'body', 'to' (if group 
         txt = escapeHTML(p["body"]).replace(/\n/g, "<br>\n");
         // Sketch app
         if (txt.startsWith("data:image/png;base64")) { // check if the string is a data url
-                var compressedBase64 = txt.split(',')[1];
+                let compressedBase64 = txt.split(',')[1];
                 // We Convert the compressed data from a base64 string to a Uint8Array
-                var compressedData = atob(compressedBase64)
+                let compressedData = atob(compressedBase64)
                   .split('')
                   .map(function (char) {
                     return char.charCodeAt(0);
                   });
-                var uint8Array = new Uint8Array(compressedData);
+                let uint8Array = new Uint8Array(compressedData);
 
                 // We to decompress the Uint8Array
-                var decompressedData = pako.inflate(uint8Array);
+                let decompressedData = pako.inflate(uint8Array);
                 // We Convert the decompressed data back to a base64 string
-                var decompressedBase64 = btoa(String.fromCharCode.apply(null, decompressedData));
+                let decompressedBase64 = btoa(String.fromCharCode.apply(null, decompressedData));
                 // We Create a new data URL with the decompressed data
-                var decompressedDataURL = 'data:image/png;base64,' + decompressedBase64;
+                let decompressedDataURL = 'data:image/png;base64,' + decompressedBase64;
                 //display the data url as an image element
                 box += "<img src='" + decompressedDataURL + "' alt='Drawing' style='width: 50vw;'>";
                 txt = "";
+        } else if (txt.startsWith("data:image/svg+bipf;base64")) {
+            let b64 = txt.split(',')[1];
+            var binStr = atob(b64)
+            var buf = new ArrayBuffer(binStr.length);
+            var ui8 = new Uint8Array(buf);
+            for (var i = 0; i < binStr.length; i++)
+               ui8[i] = binStr.charCodeAt(i);
+            let img = bipf_decode(buf, 0);
+            // console.log('got svg', JSON.stringify(img));
+            // img[0] -- version of this svg encoding, currently 1, ignored
+            if (Number.isInteger(img[0]))
+              img = img.slice(1)
+            var svg = `<svg version="1.1" width="${img[0][1]}" height="${img[0][2]}"`
+            svg += ' style="background-color:white" xmlns="http://www.w3.org/2000/svg">'
+            svg += '<g stroke-linecap="round" fill="none">'
+            let coltab = ['#ffffff', '#000000', '#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff'];
+            let widtab = [2, 5, 10, 30];
+            var colNdx = 0;
+            var widNdx = 0;
+            img.slice(1).forEach((e) => {
+              if (e[0] == 'c') {
+                colNdx = e[1];
+              } else if (e[0] == 'w') {
+                widNdx = e[1];
+              } else if (e[0] == 'p') {
+                svg += `<path d="M ${e[1]} ${e[2]} l`
+                e.slice(3).forEach((i) => {
+                  svg += ` ${i}`
+                })
+                svg += `" stroke="${coltab[colNdx+1]}" stroke-width="${widtab[widNdx]}"/>`
               }
+            })
+            svg += '</g></svg>'
+            // console.log('svg:', svg)
+            box += `<img src="data:image/svg+xml;base64,${btoa(svg)}"`;
+            box += 'alt="Drawing" width="100%">';
+            txt = "";
+        }
+
         var re = /!\[.*?\]\((.*?)\)/g;
         txt = txt.replace(re, " &nbsp;<object type='image/jpeg' style='width: 95%; display: block; margin-left: auto; margin-right: auto; cursor: zoom-in;' data='http://appassets.androidplatform.net/blobs/$1' ondblclick='modal_img(this)'></object>&nbsp; ");
         // txt = txt + " &nbsp;<object type='image/jpeg' width=95% data='http://appassets.androidplatform.net/blobs/25d444486ffb848ed0d4f1d15d9a165934a02403b66310bf5a56757fec170cd2.jpg'></object>&nbsp; (!)";
@@ -1166,8 +1204,8 @@ function b2f_get_settings(settings) {
 }
 
 function b2f_new_contact(fid) {
-    if ((fid in tremola.contacts)) // do not overwrite existing entry
-        return
+    if (typeof tremola == 'undefined' || fid in tremola.contacts) // do not overwrite existing entry
+        return;
     var id = id2b32(fid);
     tremola.contacts[fid] = {
         "alias": id, "initial": id.substring(0, 1).toUpperCase(),
