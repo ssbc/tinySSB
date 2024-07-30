@@ -33,7 +33,10 @@ function chat_openSketch() {
     canvas.style.left = '0';
     canvas.width = window.innerWidth; // Full screen width
     canvas.height = window.innerHeight; // Full screen height
-
+    /* on API 26, the canvas is not showing. Perhaps
+      https://stackoverflow.com/questions/24586530/android-canvas-drawing-not-visible#24586531
+    canvas.drawARGB(0, 225, 225, 255);
+    */
     canvas.style.backgroundColor = '#ffffff';
     document.body.appendChild(canvas);
 
@@ -63,13 +66,16 @@ function chat_openSketch() {
     // Create a close button and style it
     let closeButton = document.createElement('button');
     closeButton.id = 'btn:closeSketch';
-    closeButton.innerHTML = 'Cancel';
+    // closeButton.innerHTML = 'Cancel';
+    closeButton.style['background-image'] = "url('img/cancel.svg')"
     closeButton.style.position = 'fixed';
     closeButton.style.top = '10px';
     closeButton.style.right = '10px';
+    closeButton.style.width= '40px';
+    closeButton.style.height = '40px';
     closeButton.style.padding = '10px';
     closeButton.style.backgroundColor = '#ff0000';
-    closeButton.style.color = '#ffffff';
+    // closeButton.style.color = '#ffffff';
     closeButton.style.border = 'none';
     closeButton.style.borderRadius = '5px';
     closeButton.style.cursor = 'pointer';
@@ -79,13 +85,16 @@ function chat_openSketch() {
     // Do the same with a submit button
     let submitButton = document.createElement('button');
     submitButton.id = 'btn:submitSketch';
-    submitButton.innerHTML = 'Submit';
+    // submitButton.innerHTML = 'Submit';
+    submitButton.style['background-image'] = "url('img/checked.svg')"
     submitButton.style.position = 'fixed';
     submitButton.style.top = '10px';
-    submitButton.style.right = '100px';
+    submitButton.style.right = '55px';
+    submitButton.style.width= '40px';
+    submitButton.style.height = '40px';
     submitButton.style.padding = '10px';
     submitButton.style.backgroundColor = '#008000';
-    submitButton.style.color = '#ffffff';
+    // submitButton.style.color = '#ffffff';
     submitButton.style.border = 'none';
     submitButton.style.borderRadius = '5px';
     submitButton.style.cursor = 'pointer';
@@ -132,7 +141,7 @@ function chat_openSketch() {
     document.body.appendChild(colorChoiceButton);
 
     //Array of colors we want to include
-    var sketch_colors = ['#000000', '#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff'];
+    var sketch_colors = ['#000000', '#ee0000', '#00aa00', '#4040ff', '#ffee00', '#ff00ff'];
 
     // Add color buttons to the color palette
     Array.from(Array(sketch_colors.length).keys()).forEach(function(ndx) {
@@ -231,12 +240,16 @@ function chat_openSketch() {
         [sketch.lastX, sketch.lastY] = [Math.round(e.touches[0].clientX - rect.left),
                                         Math.round(e.touches[0].clientY - rect.top)];
         sketch.svg.push(['p',sketch.lastX,sketch.lastY])
+        sketch.start = Date.now()
     }
 
 
     //Function when users move their finger to continue drawing
     function draw(e) {
         if (!sketch.isDrawing) return;
+        let t = Date.now()
+        if (t - sketch.start < 35) return;
+        sketch.start = t;
         e.preventDefault();
         let rect = e.target.getBoundingClientRect();
         let ctx_ = sketch.ctx;
@@ -384,8 +397,12 @@ function chat_closeSketch() {
   if (undoButton) {
       undoButton.parentNode.removeChild(undoButton);
   }
+
+  sketch.svg = []
+  sketch.currSize = 0;
 }
 
+/*
 function sketch_reduceResolution(base64String, reductionFactor) {
     return new Promise((resolve, reject) => {
         const img = new Image();
@@ -411,6 +428,7 @@ function sketch_reduceResolution(base64String, reductionFactor) {
         };
       });
 }
+*/
 
 // returns the size of the base64 string that represents the sketch
 async function sketch_get_current_size() {

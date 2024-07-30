@@ -41,7 +41,13 @@ const BIPF_MATH_POW_5 = Math.pow(2, 5*7)
 const BIPF_MATH_POW_6 = Math.pow(2, 6*7)
 const BIPF_MATH_POW_7 = Math.pow(2, 7*7)
 
-function bipf_fvdecode(buf, offset) {
+function unzigzag(value) {
+  let s = value & 0x01;
+  value >>>= 1;
+  return s ? -value - 1 : value
+}
+
+function bipf_fvdecode(buf, offset, zigzag) {
   offset = offset || 0
 
   buf = new Uint8Array(buf)
@@ -51,56 +57,56 @@ function bipf_fvdecode(buf, offset) {
   res += b & BIPF_REST
   if (b < BIPF_MSB) {
     bipf_fvdecode.bytes = 1
-    return res
+    return zigzag ? unzigzag(res) : res
   }
 
   b = buf[offset + 1]
   res += (b & BIPF_REST) << 7
   if (b < BIPF_MSB) {
     bipf_fvdecode.bytes = 2
-    return res
+    return zigzag ? unzigzag(res) : res
   }
 
   b = buf[offset + 2]
   res += (b & BIPF_REST) << 14
   if (b < BIPF_MSB) {
     bipf_fvdecode.bytes = 3
-    return res
+    return zigzag ? unzigzag(res) : res
   }
 
   b = buf[offset + 3]
   res += (b & BIPF_REST) << 21
   if (b < BIPF_MSB) {
     bipf_fvdecode.bytes = 4
-    return res
+    return zigzag ? unzigzag(res) : res
   }
 
   b = buf[offset + 4]
   res += (b & BIPF_REST) * BIPF_MATH_POW_4
   if (b < BIPF_MSB) {
     bipf_fvdecode.bytes = 5
-    return res
+    return zigzag ? unzigzag(res) : res
   }
 
   b = buf[offset + 5]
   res += (b & BIPF_REST) * BIPF_MATH_POW_5
   if (b < BIPF_MSB) {
     bipf_fvdecode.bytes = 6
-    return res
+    return zigzag ? unzigzag(res) : res
   }
 
   b = buf[offset + 6]
   res += (b & BIPF_REST) * BIPF_MATH_POW_6
   if (b < BIPF_MSB) {
     bipf_fvdecode.bytes = 7
-    return res
+    return zigzag ? unzigzag(res) : res
   }
 
   b = buf[offset + 7]
   res += (b & BIPF_REST) * BIPF_MATH_POW_7
   if (b < BIPF_MSB) {
     bipf_fvdecode.bytes = 8
-    return res
+    return zigzag ? unzigzag(res) : res
   }
 
   bipf_fvdecode.bytes = 0
@@ -110,11 +116,13 @@ function bipf_fvdecode(buf, offset) {
 var BIPF_MSBALL = ~BIPF_REST
 var BIPF_INT31 = Math.pow(2, 31)
 
-function bipf_fvencode(num, out, offset) {
+function bipf_fvencode(num, out, offset, zigzag) {
   if (Number.MAX_SAFE_INTEGER && num > Number.MAX_SAFE_INTEGER) {
     bipf_fvencode.bytes = 0
     throw new RangeError('Could not encode varint')
   }
+  if (zigzag)
+    num = num >= 0 ? 2*num : (2 * -num) - 1 // zig-zag encoding of sign
   // out = out || []
   out = new Uint8Array(out)
   offset = offset || 0
@@ -145,21 +153,21 @@ var BIFP_N7 = Math.pow(2, 49)
 var BIFP_N8 = Math.pow(2, 56)
 var BIFP_N9 = Math.pow(2, 63)
 
-function bipf_fvencodingLength (value) {
-  if (value >= 0)
-      return (
-          value < BIFP_N1 ? 1
-              : value < BIFP_N2 ? 2
-                  : value < BIFP_N3 ? 3
-                      : value < BIFP_N4 ? 4
-                          : value < BIFP_N5 ? 5
-                              : value < BIFP_N6 ? 6
-                                  : value < BIFP_N7 ? 7
-                                      : value < BIFP_N8 ? 8
-                                          : value < BIFP_N9 ? 9
-                                              :              10
-      )
-  return -1 // FIXME: handle negative numbers
+function bipf_fvencodingLength (value, zigzag) {
+  if (zigzag)
+    value = value >= 0 ? 2*value : (2 * -value) - 1 // zig-zag encoding of sign
+  return (
+      value < BIFP_N1 ? 1
+          : value < BIFP_N2 ? 2
+              : value < BIFP_N3 ? 3
+                  : value < BIFP_N4 ? 4
+                      : value < BIFP_N5 ? 5
+                          : value < BIFP_N6 ? 6
+                              : value < BIFP_N7 ? 7
+                                  : value < BIFP_N8 ? 8
+                                      : value < BIFP_N9 ? 9
+                                          :              10
+  )
 }
 
 // --- encode
@@ -177,9 +185,12 @@ const BIPF_encoders = [
     return b.length
   },
   function Integer(i, buffer, start) {
-    let dv = new DataView(buffer);
-    dv.setInt32(start, i, true);
-    return 4
+    // let dv = new DataView(buffer);
+    // dv.setInt32(start, i, true);
+    // return 4
+    bipf_fvencode(i, buffer, start, true);
+    return bipf_fvencode.bytes;
+
   },
   function Double(d, buffer, start) {
     let dv = new DataView(buffer);
@@ -216,20 +227,20 @@ const BIPF_encodingLengthers = [
     return b.length
   },
   function Integer(i) {
-    // return bipf_fvencodingLength(i)
-    return 4
+    // return 4
+    return bipf_fvencodingLength(i, true);
   },
   function Double(d) {
     return 8
   },
   function Array(a) {
     var bytes = 0
-    for (var i = 0; i < a.length; i++) bytes += bipf_encodingLength(a[i])
+    for (var i = 0; i < a.length; i++) bytes += bipf_encodingLength(a[i], false)
     return bytes
   },
   function Object(o) {
     var bytes = 0
-    for (var k in o) bytes += bipf_encodingLength(k) + bipf_encodingLength(o[k])
+    for (var k in o) bytes += bipf_encodingLength(k) + bipf_encodingLength(o[k], false)
     return bytes
   },
   function boolnull(b, buffer, start) {
@@ -258,7 +269,7 @@ function bipf_encodingLength(value) {
   if (type === void 0) throw new Error('unknown type: ' + JSON.stringify(value))
   if (type === BIPF_ALREADY_BIPF) return value.length
   const len = BIPF_encodingLengthers[type](value)
-  return bipf_fvencodingLength(len << BIPF_TAG_SIZE) + len
+  return bipf_fvencodingLength(len << BIPF_TAG_SIZE, false) + len
 }
 
 function bipf_encode(value, buffer, start, _len) {
@@ -273,7 +284,7 @@ function bipf_encode(value, buffer, start, _len) {
   //  if(!buffer)
   //    buffer = Buffer.allocUnsafe(len)
   //throw new Error('buffer must be provided')
-  bipf_fvencode((len << BIPF_TAG_SIZE) | type, buffer, start)
+  bipf_fvencode((len << BIPF_TAG_SIZE) | type, buffer, start, false)
   const bytes = bipf_fvencode.bytes
   return BIPF_encoders[type](value, buffer, start + bytes) + bytes
 }
@@ -294,22 +305,22 @@ function bipf_isIdempotent(buffer) {
 }
 
 function bipf_getEncodedLength(buffer, start) {
-  return bipf_fvdecode(buffer, start) >> BIPF_TAG_SIZE
+  return bipf_fvdecode(buffer, start, false) >> BIPF_TAG_SIZE
 }
 
 function bipf_getEncodedType(buffer, start) {
-  return bipf_fvdecode(buffer, start) & BIPF_TAG_MASK
+  return bipf_fvdecode(buffer, start, false) & BIPF_TAG_MASK
 }
 
 function bipf_allocAndEncode(value) {
-  const len = bipf_encodingLength(value)
+  const len = bipf_encodingLength(value, false)
   const buffer = Buffer.allocUnsafe(len)
   bipf_encode(value, buffer, 0)
   return buffer
 }
 
 function bipf_allocAndEncodeIdempotent(value) {
-  const len = bipf_encodingLength(value)
+  const len = bipf_encodingLength(value, false)
   const buffer = Buffer.allocUnsafe(len)
   bipf_encodeIdempotent(value, buffer, 0)
   return buffer
@@ -327,8 +338,9 @@ function bipf_decodeBuffer(buffer, start, length) {
 }
 
 function bipf_decodeInteger(buf, start, length) {
-  let dv = new DataView(buf);
-  return dv.getInt32(start, true); //TODO: encode in minimum bytes
+  // let dv = new DataView(buf);
+  // return dv.getInt32(start, true); //TODO: encode in minimum bytes
+  return bipf_fvdecode(buf, start, true);
 }
 
 function bipf_decodeDouble(buffer, start, length) {
@@ -339,7 +351,7 @@ function bipf_decodeDouble(buffer, start, length) {
 function bipf_decodeArray(buffer, start, length) {
   const a = []
   for (let c = 0; c < length; ) {
-    const tag = bipf_fvdecode(buffer, start + c)
+    const tag = bipf_fvdecode(buffer, start + c, false)
     const type = tag & BIPF_TAG_MASK
     if (type === 7) throw new Error('reserved type')
     const len = tag >> BIPF_TAG_SIZE
@@ -354,7 +366,7 @@ function bipf_decodeArray(buffer, start, length) {
 function bipf_decodeObject(buffer, start, length) {
   const o = {}
   for (let c = 0; c < length; ) {
-    const tag = bipf_fvdecode(buffer, start + c)
+    const tag = bipf_fvdecode(buffer, start + c, false)
     // JavaScript only allows string-valued and Symbol keys for objects
     if (tag & BIPF_TAG_MASK) throw new Error('required type:string')
     const len = tag >> BIPF_TAG_SIZE
@@ -362,7 +374,7 @@ function bipf_decodeObject(buffer, start, length) {
     const key = bipf_decodeString(buffer, start + c, len)
     c += len
 
-    const tag2 = bipf_fvdecode(buffer, start + c)
+    const tag2 = bipf_fvdecode(buffer, start + c, false)
     const type2 = tag2 & BIPF_TAG_MASK
     if (type2 === 7) throw new Error('reserved type:value')
     const len2 = tag2 >> BIPF_TAG_SIZE
@@ -404,7 +416,7 @@ function bipf_decodeType(type, buffer, start, len) {
 
 function bipf_decode(buffer, start) {
   start = start | 0
-  const tag = bipf_fvdecode(buffer, start)
+  const tag = bipf_fvdecode(buffer, start, false)
   const type = tag & BIPF_TAG_MASK
   const len = tag >> BIPF_TAG_SIZE
   const bytes = bipf_fvdecode.bytes
@@ -444,7 +456,7 @@ const isObject = (object) => {
 }
 
 function testEncodeDecode(value) {
-    const buf = new ArrayBuffer(bipf_encodingLength(value))
+    const buf = new ArrayBuffer(bipf_encodingLength(value, false))
     const len = bipf_encode(value, buf, 0)
     console.log('in:', JSON.stringify(value), '--> encoded:', buf.slice(0, len))
     //''+jsonString to get 'undefined' string.
@@ -491,9 +503,11 @@ pkg = {
 }
 
 testEncodeDecode(100)
+testEncodeDecode(63)
 testEncodeDecode(0)
 testEncodeDecode(1)
 testEncodeDecode(-1)
+testEncodeDecode(-63)
 testEncodeDecode(-100)
 testEncodeDecode(123.456)
 testEncodeDecode(2147483647)
@@ -514,7 +528,6 @@ testEncodeDecode({ foo: true })
 // testEncodeDecode([-1, { foo: true }, Buffer.from('deadbeef', 'hex')])
 testEncodeDecode(pkg)
 testEncodeDecode({ 1: true })
-
 */
 
 // eof

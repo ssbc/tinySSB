@@ -383,34 +383,42 @@ function load_post_item(p) { // { 'key', 'from', 'when', 'body', 'to' (if group 
             var ui8 = new Uint8Array(buf);
             for (var i = 0; i < binStr.length; i++)
                ui8[i] = binStr.charCodeAt(i);
-            let img = bipf_decode(buf, 0);
-            // console.log('got svg', JSON.stringify(img));
-            // img[0] -- version of this svg encoding, currently 1, ignored
-            if (Number.isInteger(img[0]))
-              img = img.slice(1)
-            var svg = `<svg version="1.1" width="${img[0][1]}" height="${img[0][2]}"`
-            svg += ' style="background-color:white" xmlns="http://www.w3.org/2000/svg">'
-            svg += '<g stroke-linecap="round" fill="none">'
-            let coltab = ['#ffffff', '#000000', '#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff'];
-            let widtab = [2, 5, 10, 30];
-            var colNdx = 0;
-            var widNdx = 0;
-            img.slice(1).forEach((e) => {
-              if (e[0] == 'c') {
-                colNdx = e[1];
-              } else if (e[0] == 'w') {
-                widNdx = e[1];
-              } else if (e[0] == 'p') {
-                svg += `<path d="M ${e[1]} ${e[2]} l`
-                e.slice(3).forEach((i) => {
-                  svg += ` ${i}`
-                })
-                svg += `" stroke="${coltab[colNdx+1]}" stroke-width="${widtab[widNdx]}"/>`
-              }
-            })
-            svg += '</g></svg>'
-            // console.log('svg:', svg)
-            box += `<img src="data:image/svg+xml;base64,${btoa(svg)}"`;
+            var src;
+            try {
+               let img = bipf_decode(buf, 0);
+               // console.log('got svg', JSON.stringify(img));
+               // img[0] -- version of this svg encoding, currently 1, ignored
+               if (Number.isInteger(img[0]))
+                 img = img.slice(1)
+               var svg = `<svg version="1.1" width="${img[0][1]}" height="${img[0][2]}"`
+               svg += ' style="background-color:white" xmlns="http://www.w3.org/2000/svg">'
+               svg += '<g stroke-linecap="round" fill="none">'
+               let coltab = ['#ffffff', '#000000', '#ee0000', '#00aa00', '#4040ff', '#ffee00', '#ff00ff'];
+               // let coltab = ['#ffffff', '#000000', '#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff'];
+               let widtab = [2, 5, 10, 30];
+               var colNdx = 0;
+               var widNdx = 0;
+               img.slice(1).forEach((e) => {
+                 if (e[0] == 'c') {
+                   colNdx = e[1];
+                 } else if (e[0] == 'w') {
+                   widNdx = e[1];
+                 } else if (e[0] == 'p') {
+                   svg += `<path d="M ${e[1]} ${e[2]} l`
+                   e.slice(3).forEach((i) => {
+                     svg += ` ${i}`
+                   })
+                   svg += `" stroke="${coltab[colNdx+1]}" stroke-width="${widtab[widNdx]}"/>`
+                 }
+               })
+               svg += '</g></svg>';
+               // console.log('svg:', svg)
+               src = `data:image/svg+xml;base64,${btoa(svg)}`;
+            } catch (error) {
+               console.error(error);
+               src = "data:null";
+            }
+            box += `<img src="${src}"`;
             box += 'alt="Drawing" width="100%">';
             txt = "";
         }

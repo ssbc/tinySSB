@@ -5,7 +5,6 @@ apply plugin: 'kotlin-kapt'
 android {
     namespace "tremolavossbol"
     compileSdk 30
-    buildToolsVersion "30.0.3"
 
     buildFeatures {
         viewBinding = true
@@ -13,7 +12,7 @@ android {
 
     defaultConfig {
         applicationId "nz.scuttlebutt.tremolavossbol"
-        minSdkVersion 26
+        minSdk 24
         targetSdkVersion 30
         versionCode 1
         versionName "0.1"
