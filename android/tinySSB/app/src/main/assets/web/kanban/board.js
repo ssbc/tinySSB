@@ -293,7 +293,7 @@ function kanban_new_event(e) {
     if (op == Operation.LEAVE && e.header.fid == myId) {
         delete board.pendingInvitations[myId]
         board.subscribed = false
-        load_board_list()
+        load_kanban_list()
     }
 
     if (board.subscribed) {
@@ -318,7 +318,7 @@ function kanban_new_event(e) {
         if (curr_scenario != 'board' || curr_board != bid)
             board.unreadEvents++
 
-        load_board_list()
+        load_kanban_list()
 
         // invite selected users (during Kanban board creation)
         if (op == Operation.BOARD_CREATE && e.header.fid == myId) {
@@ -366,7 +366,7 @@ function kanban_new_event(e) {
             board.lastUpdate = Date.now()
             board.unreadEvents++
             board.curr_prev = board.sortedOperations.get_tips()
-            load_board_list()
+            load_kanban_list()
             return
         }
 

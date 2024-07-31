@@ -219,6 +219,29 @@ textarea {
   display: inline-block;
 }
 
+.app_icon {
+  height: 3em;
+  width: 3em;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  font-size: medium;
+  box-shadow: 0 0 5px rgba(0,0,0,0.7);
+}
+
+.prod_item_button {
+  border: none;
+  text-align: left;
+  vertical-align: top;
+  width: calc(100%-10em);
+  font-size: medium;
+  border-radius: 4pt;
+  box-shadow: 0 0 5px rgba(0,0,0,0.7);
+  display: inline-block;
+  padding-top: 5px;
+  padding-bottom: 8px;
+}
+
 .menu_item_button {
   border: none;
   text-align: left;

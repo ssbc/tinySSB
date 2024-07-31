@@ -674,6 +674,64 @@ function save_content_alias() {
     closeOverlay();
 }
 
+// --- productivity
+
+function load_prod_list() {
+    document.getElementById("lst:prod").innerHTML = '';
+    load_prod_item('Kanban', 'img/kanban.svg', 'setScenario("kanban")',
+                   'text text text h aghjwd gldfhjs hlgsf hgljksf hgls fdhglf sdhgl hfgskj hls dfhgjl shgjkls hgl sfdhgjk sdfjklg hljs hfgl dfjlsfs');
+    load_prod_item('Scheduler', 'img/schedule.svg', 'xyz',
+                   'text text text h aghjwd gldfhjs hlgsf hgljksf hgls fdhglf sdhgl hfgskj hls dfhgjl shgjkls hgl sfdhgjk sdfjklg hljs hfgl dfjlsfs');
+    load_prod_item('Kahoot Quiz', 'img/quiz.svg', 'xyz',
+                   'text text text h aghjwd gldfhjs hlgsf hgljksf hgls fdhglf sdhgl hfgskj hls dfhgjl shgjkls hgl sfdhgjk sdfjklg hljs hfgl dfjlsfs');
+    load_prod_item('Lokens (coming soon)', 'img/hand_and_coins.svg', 'xyz',
+                   'crypto tokens based on CRDTs, no mining needed. Ideal for fidelity cards, bartering, recognition tokens in open SW communities, and more.');
+    load_prod_item('(dummy entry)', 'img/contacts.svg', 'xyz',
+                   'dah dah dah');
+}
+
+function load_prod_item(title, imageName, cb, descr) {
+    var row, item = document.createElement('div'), bg;
+    item.setAttribute('style', 'padding: 0px 5px 10px 5px;'); // old JS (SDK 23)
+    bg = ' light'; // c[1].forgotten ? ' gray' : ' light';
+    row = `<button class="app_icon" style="margin-right: 0.75em; background-color: white;"><img width=35 height=35 src="${imageName}"/>`;
+    row += `<button class='prod_item_button light' style='overflow: hidden; width: calc(100% - 4em);' onclick='${cb};'>`;
+    row += "<div style='white-space: wrap;'><div style='text-overflow: ellipsis; overflow: hidden;'>" + escapeHTML(title) + "</div>";
+    row += "<font size=-2>" + escapeHTML(descr) + "</font></div></button>";
+    item.innerHTML = row;
+    document.getElementById('lst:prod').appendChild(item);
+}
+
+// --- games
+
+function load_game_list() {
+    document.getElementById("lst:games").innerHTML = '';
+    load_game_item('Kanban', 'img/kanban.svg',
+                   'text text text h aghjwd gldfhjs hlgsf hgljksf hgls fdhglf sdhgl hfgskj hls dfhgjl shgjkls hgl sfdhgjk sdfjklg hljs hfgl dfjlsfs');
+    load_game_item('Scheduler', 'img/schedule.svg',
+                   'text text text h aghjwd gldfhjs hlgsf hgljksf hgls fdhglf sdhgl hfgskj hls dfhgjl shgjkls hgl sfdhgjk sdfjklg hljs hfgl dfjlsfs');
+    load_game_item('Kahoot Quiz', 'img/quiz.svg',
+                   'text text text h aghjwd gldfhjs hlgsf hgljksf hgls fdhglf sdhgl hfgskj hls dfhgjl shgjkls hgl sfdhgjk sdfjklg hljs hfgl dfjlsfs');
+    load_game_item('Lokens (coming soon)', 'img/hand_and_coins.svg',
+                   'crypto tokens based on CRDTs, no mining needed. Ideal for fidelity cards, bartering, recognition tokens in open SW communities, and more.');
+    load_game_item('(dummy entry)', 'img/contacts.svg',
+                   'dah dah dah');
+}
+
+function load_game_item(title, imageName, descr) {
+    var row, item = document.createElement('div'), bg;
+    item.setAttribute('style', 'padding: 0px 5px 10px 5px;'); // old JS (SDK 23)
+    bg = ' light'; // c[1].forgotten ? ' gray' : ' light';
+    row = `<button class="app_icon" style="margin-right: 0.75em; background-color: white;"><img width=35 height=35 src="${imageName}"/>`;
+    row += "<button class='prod_item_button light' style='overflow: hidden; width: calc(100% - 4em);' onclick='show_contact_details();'>";
+    row += "<div style='white-space: wrap;'><div style='text-overflow: ellipsis; overflow: hidden;'>" + escapeHTML(title) + "</div>";
+    row += "<font size=-2>" + escapeHTML(descr) + "</font></div></button>";
+    item.innerHTML = row;
+    document.getElementById('lst:games').appendChild(item);
+}
+
+// --- chats
+
 function new_conversation() {
     // { "alias":"local notes (for my eyes only)", "posts":{}, "members":[myId], "touched": millis }
     var recps = []
@@ -1188,7 +1246,7 @@ function b2f_new_event(e) { // incoming SSB log event: we get map with three ent
                 contact.alias = e.public[1] == "" ? id2b32(e.header.fid) : e.public[1]
                 contact.initial = contact.alias.substring(0, 1).toUpperCase()
                 load_contact_list()
-                load_board_list()
+                load_kanban_list()
 
                 // update names in connected devices menu
                 for (var l in localPeers) {
@@ -1271,8 +1329,11 @@ function b2f_initialize(id, settings) {
     for (nm in tremola.settings)
         setSetting(nm, tremola.settings[nm])
     load_chat_list()
+    load_prod_list()
+    load_game_list()
     load_contact_list()
-    load_board_list()
+
+    load_kanban_list()
 
     closeOverlay();
     setScenario('chats');

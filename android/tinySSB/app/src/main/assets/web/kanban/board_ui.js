@@ -69,7 +69,7 @@ function dragDrop(ev) {
     }
 }
 
-function load_board_list() {
+function load_kanban_list() {
     document.getElementById('lst:kanban').innerHTML = '';
     if (Object.keys(tremola.board).length === 0)
         return
@@ -428,7 +428,7 @@ function menu_rename_board() {
 function ui_update_board_title(bid) {
     var board = tremola.board[bid]
     // update board list
-    load_board_list()
+    load_kanban_list()
     // update title name
     if (curr_board == bid) {
         var title = document.getElementById("conversationTitle"), bg, box;
@@ -445,7 +445,7 @@ function board_toggle_forget() {
     board.forgotten = !board.forgotten
     persist()
     closeOverlay()
-    load_board_list()
+    load_kanban_list()
     setScenario('kanban')
 }
 

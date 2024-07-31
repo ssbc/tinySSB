@@ -3,16 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <link rel="stylesheet" type="text/css" href="tremola.css" media="screen" />
-  <script type="text/javascript" charset="UTF-8" src="bipf.js"></script>
-  <script type="text/javascript" charset="UTF-8" src="scuttlesort.js"></script>
+  <script type="text/javascript" charset="UTF-8" src="util/bipf.js"></script>
+  <script type="text/javascript" charset="UTF-8" src="util/scuttlesort.js"></script>
   <script type="text/javascript" charset="UTF-8" src="tremola.js"></script>
   <script type="text/javascript" charset="UTF-8" src="tremola_settings.js"></script>
   <script type="text/javascript" charset="UTF-8" src="tremola_ui.js"></script>
-  <script type="text/javascript" charset="UTF-8" src="qrcode.min.js"></script>
-  <script type="text/javascript" charset="UTF-8" src="pinch-zoom.min.js"></script>
-  <script type="text/javascript" charset="UTF-8" src="board.js"></script>
-  <script type="text/javascript" charset="UTF-8" src="board_ui.js"></script>
-  <script type="text/javascript" charset="UTF-8" src="pako.min.js"></script>
+  <script type="text/javascript" charset="UTF-8" src="util/qrcode.min.js"></script>
+  <script type="text/javascript" charset="UTF-8" src="util/pinch-zoom.min.js"></script>
+  <script type="text/javascript" charset="UTF-8" src="kanban/board.js"></script>
+  <script type="text/javascript" charset="UTF-8" src="kanban/board_ui.js"></script>
+  <script type="text/javascript" charset="UTF-8" src="util/pako.min.js"></script>
   <script type="text/javascript" charset="UTF-8" src="sketch.js"></script>
 </head>
 <body style="background-image: url('img/splash-as-background.jpg'); background-size: cover; background-color: white; overflow: hidden" onload="backend('ready');">
@@ -48,7 +48,10 @@
 
 <div id='core' style="height: calc(100% - 118px); width: 100%;">
 
-  <div id='lst:chats' class=w100 style='overflow: hidden'></div>
+  <div id='lst:chats'    class=w100 style='overflow: scroll;height: 100%;'></div>
+  <div id='lst:prod'     class=w100 style='display: none; overflow: scroll;height: 100%;'></div>
+  <div id='lst:games'    class=w100 style='display: none; overflow: scroll;height: 100%;'></div>
+  <div id='lst:contacts' class=w100 style="display: none; overflow: scroll;height: 100%;"></div>
 
   <div id='div:posts' style="height: 100%; overflow-x: auto; display: none;">
     <table id='lst:posts' style="width: 100%; table-layout: auto;">
@@ -64,7 +67,6 @@
     </table>
   </div>
 
-  <div id='lst:contacts' class=w100 style="display: none;margin-top: 6px;"></div>
 
   <div id='the:connex' style="display: none; margin: 5pt;"></div>
 
@@ -341,10 +343,10 @@
     <div style="text-align: center;">
       <font size=+1><em>About</em></font><br><img src="img/map-1862.jpg" style="height: 8em;">
       <font size=-2>
-        <p>tinySSB, August 2023
+        <p>tinySSB, August 2024
 
         <hr>
-        <p>Software (c) 2021-2023:<br>
+        <p>Software (c) 2021-2024:<br>
           Jannick Heisch<br>
           Etienne Mettaz<br>
           Cedrik Schimschar<br>
@@ -355,6 +357,7 @@
           https://www.flaticon.com/authors/kiranshastry<br>
           https://icon-icons.com/icon/kanban-board/120442<br>
           https://icon-icons.com/icon/paper-clip/102692<br>
+          http://www.onlinewebfonts.com/icon<br>
 
         <hr>
 
@@ -535,9 +538,10 @@
 <div id='div:footer' class=neutral style="height: 56px; align-content: center; border: 3px inset #ebf4fa /*var(--light)*/; border-radius: 2px; margin: 3px; width: calc(100% - 12px);">
 
   <table width=100% cellpadding="2pt"><tr>
-    <td width=33%><button id='btn:chats'    class="w100 flat active buttontext" onclick="btnBridge(this);" style="background-image: url('img/chat.svg');">&nbsp;<!-- font size=+3>&#x1F4E8;</font><br><font size=small>Chats</font --></button>
-    <td width=33%><button id='btn:kanban'   class="w100 flat passive buttontext" onclick="btnBridge(this);" style="background-image: url('img/kanban.svg');">&nbsp;<!-- font size=+3>&#x1F5E3;</font><br><font size=small>Board</font --></button>
-    <td width=33%><button id='btn:contacts' class="w100 flat passive buttontext" onclick="btnBridge(this);" style="background-image: url('img/contacts.svg');">&nbsp;<!-- font size=+3>&#x1F465;</font><br><font size=small>Contacts</font --></button>
+    <td width=25%><button id='btn:chats'        class="w100 flat active buttontext"  onclick="btnBridge(this);" style="background-image: url('img/chat.svg');">&nbsp;</button>
+    <td width=25%><button id='btn:productivity' class="w100 flat passive buttontext" onclick="btnBridge(this);" style="background-image: url('img/productivity.svg');"> </button>
+    <td width=25%><button id='btn:games'        class="w100 flat passive buttontext" onclick="btnBridge(this);" style="background-image: url('img/game-controller.svg');">&nbsp;</button>
+    <td width=25%><button id='btn:contacts'     class="w100 flat passive buttontext" onclick="btnBridge(this);" style="background-image: url('img/contacts.svg');"> </button>
   </table>
 
 </div>

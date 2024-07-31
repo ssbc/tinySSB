@@ -5,10 +5,11 @@
 var overlayIsActive = false;
 
 var display_or_not = [
-    'div:qr', 'div:back',
-    'core', 'lst:chats', 'div:posts', 'lst:contacts', 'lst:members', 'the:connex',
-    'lst:kanban', 'div:footer', 'div:textarea', 'div:confirm-members', 'plus',
-    'div:settings', 'div:board'
+    'div:qr', 'div:back', 'core',
+    'lst:chats', 'lst:prod', 'lst:games', 'lst:contacts',
+    'lst:members', 'the:connex',
+    'div:posts', 'lst:kanban', 'div:board',
+    'div:footer', 'div:textarea', 'div:confirm-members', 'plus', 'div:settings'
 ];
 
 var prev_scenario = 'chats';
@@ -19,7 +20,9 @@ var scenarioDisplay = {
     'contacts': ['div:qr', 'core', 'lst:contacts', 'div:footer', 'plus'],
     'posts': ['div:back', 'core', 'div:posts', 'div:textarea'],
     'connex': ['div:qr', 'core', 'the:connex', 'div:footer', 'plus'],
+    'games': ['div:qr', 'core', 'lst:games', 'div:footer'],
     'members': ['div:back', 'core', 'lst:members', 'div:confirm-members'],
+    'productivity': ['div:qr', 'core', 'lst:prod', 'div:footer'],
     'settings': ['div:back', 'div:settings', 'core'],
     'kanban': ['div:qr', 'core', 'lst:kanban', 'div:footer', 'plus'],
     'board': ['div:back', 'core', 'div:board']
@@ -27,6 +30,12 @@ var scenarioDisplay = {
 
 var scenarioMenu = {
     'chats': [['Connected Devices', 'menu_connection'], // '['New conversation', 'menu_new_conversation'],' TODO reactivate when encrypted chats are implemented
+        ['Settings', 'menu_settings'],
+        ['About', 'menu_about']],
+    'productivity': [['Connected Devices', 'menu_connection'],
+        ['Settings', 'menu_settings'],
+        ['About', 'menu_about']],
+    'games': [['Connected Devices', 'menu_connection'],
         ['Settings', 'menu_settings'],
         ['About', 'menu_about']],
     'contacts': [['New contact', 'menu_new_contact'],
@@ -39,17 +48,6 @@ var scenarioMenu = {
         // ['<del>Force sync</del>', 'menu_sync'],
         ['Settings', 'menu_settings'],
         ['About', 'menu_about']],
-    /*
-      ['Redraw', 'menu_redraw'],
-      ['Sync', 'menu_sync'],
-      ['Redraw', 'menu_redraw'],
-      ['Restream', 'menu_stream_all_posts'],
-      ['Import ID', 'menu_import_id'],
-      ['Process msgs', 'menu_process_msgs'],
-      ['Add pub', 'menu_add_pub'],
-      ['Dump', 'menu_dump'],
-      ['Reset', 'menu_reset']]
-    */
     'posts': [/* ['Take picture', 'menu_take_picture'],
                 ['Pick image', 'menu_pick_image'], */
         ['Rename this chat', 'menu_edit_convname'],
@@ -112,7 +110,7 @@ function setScenario(s) {
     var lst = scenarioDisplay[s];
     if (lst) {
         // if (s != 'posts' && curr_scenario != "members" && curr_scenario != 'posts') {
-        if (['chats', 'contacts', 'connex', 'kanban'].indexOf(curr_scenario) >= 0) {
+        if (['chats', 'productivity', 'games', 'contacts', 'connex', ].indexOf(curr_scenario) >= 0) {
             var cl = document.getElementById('btn:' + curr_scenario).classList;
             cl.toggle('active', false);
             cl.toggle('passive', true);
@@ -146,7 +144,7 @@ function setScenario(s) {
             prev_scenario = s;
         }
         curr_scenario = s;
-        if (['chats', 'contacts', 'connex', 'kanban'].indexOf(curr_scenario) >= 0) {
+        if (['chats', 'productivity', 'games', 'contacts', 'connex'].indexOf(curr_scenario) >= 0) {
             var cl = document.getElementById('btn:' + curr_scenario).classList;
             cl.toggle('active', true);
             cl.toggle('passive', false);
@@ -157,6 +155,11 @@ function setScenario(s) {
             document.getElementById('core').style.height = 'calc(100% - 118px)';
 
         if (s == 'kanban') {
+            document.getElementById("tremolaTitle").style.display = 'none';
+            var c = document.getElementById("conversationTitle");
+            c.style.display = null;
+            c.innerHTML = "<font size=+1><strong>List of Kanban Boards</strong></font><br>Pick or create a board";
+
             var personalBoardAlreadyExists = false
             for (var b in tremola.board) {
                 var board = tremola.board[b]
@@ -175,7 +178,9 @@ function setScenario(s) {
 
 function btnBridge(e) {
     var e = e.id, m = '';
-    if (['btn:chats', 'btn:posts', 'btn:contacts', 'btn:connex', 'btn:kanban'].indexOf(e) >= 0) {
+    if (['btn:chats', 'btn:connex', 'btn:contacts', 'btn:games',
+         'btn:posts', 'btn:productivity'].indexOf(e) >= 0) {
+         console.log('btn', e)
         setScenario(e.substring(4));
     }
     if (e == 'btn:menu') {
