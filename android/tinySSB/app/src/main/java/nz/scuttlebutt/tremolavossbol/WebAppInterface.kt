@@ -21,6 +21,7 @@ import nz.scuttlebutt.tremolavossbol.utils.Bipf.Companion.BIPF_LIST
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_IAM
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_TEXTANDVOICE
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_KANBAN
+import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_SCHEDULING
 import nz.scuttlebutt.tremolavossbol.utils.HelperFunctions.Companion.toBase64
 import nz.scuttlebutt.tremolavossbol.utils.HelperFunctions.Companion.toHex
 import org.json.JSONArray
@@ -228,6 +229,14 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
 
                 kanban(bid, prev , op, argsList)
             }
+            "scheduling" -> {
+                val bid: String? = if (args[1] != "null") args[1] else null
+                val prev: List<String>? = if (args[2] != "null") Base64.decode(args[2], Base64.NO_WRAP).decodeToString().split(",").map{ Base64.decode(it, Base64.NO_WRAP).decodeToString()} else null
+                val op: String = args[3]
+                val argsList: List<String>? = if(args[4] != "null") Base64.decode(args[4], Base64.NO_WRAP).decodeToString().split(",").map{ Base64.decode(it, Base64.NO_WRAP).decodeToString()} else null
+
+                scheduling(bid, prev , op, argsList)
+            }
             "iam" -> {
                 val new_alias = Base64.decode(args[1], Base64.NO_WRAP).decodeToString()
                 val lst = Bipf.mkList()
@@ -304,6 +313,44 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
         val body = Bipf.encode(lst)
         if (body != null)
             act.tinyNode.publish_public_content(body)
+    }
+
+    fun scheduling(bid: String?, prev: List<String>?, operation: String, args: List<String>?) {
+        val lst = Bipf.mkList()
+        Bipf.list_append(lst, TINYSSB_APP_SCHEDULING)
+        if (bid != null)
+            Bipf.list_append(lst, Bipf.mkBytes(Base64.decode(bid, Base64.NO_WRAP)))
+        else
+            Bipf.list_append(lst, Bipf.mkNone())
+
+        if(prev != null) {
+            val prevList = Bipf.mkList()
+            for(p in prev) {
+                Bipf.list_append(prevList, Bipf.mkBytes(Base64.decode(p, Base64.NO_WRAP)))
+            }
+            Bipf.list_append(lst, prevList)
+        } else {
+            Bipf.list_append(lst, Bipf.mkString("null"))
+        }
+
+        Bipf.list_append(lst, Bipf.mkString(operation))
+
+        if(args != null) {
+            for(arg in args) {
+                if (Regex("^([A-Za-z0-9+/]{4})*([A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==)?\$").matches(arg)) {
+                    Bipf.list_append(lst, Bipf.mkBytes(Base64.decode(arg, Base64.NO_WRAP)))
+                } else { // arg is not a b64 string
+                    Bipf.list_append(lst, Bipf.mkString(arg))
+                }
+            }
+        }
+
+        val body = Bipf.encode(lst)
+
+        if (body != null) {
+            Log.d("scheduling", "published bytes: " + Bipf.decode(body))
+            act.tinyNode.publish_public_content(body)
+        }
     }
 
     fun kanban(bid: String?, prev: List<String>?, operation: String, args: List<String>?) {

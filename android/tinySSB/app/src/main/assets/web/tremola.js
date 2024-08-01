@@ -157,6 +157,15 @@ function edit_confirmed() {
         }
         //create new board with name = val
         createBoard(val)
+    } else if (edit_target == 'new_event') {
+         console.log("action for new_event")
+         if (val == '') {
+             console.log('empty')
+             return
+         }
+         //create new event with name = val
+         console.log("VALUE", val)
+         dpi_createEvent(val)
     } else if (edit_target == 'board_rename') {
         var board = tremola.board[curr_board]
         if (val == '') {
@@ -210,6 +219,8 @@ function members_confirmed() {
         new_conversation()
     } else if (prev_scenario == 'kanban') {
         menu_new_board_name()
+    } else if (prev_scenario == 'scheduling') {
+        dpi_menu_new_event_name()
     }
 }
 
@@ -706,15 +717,17 @@ function load_prod_item(title, imageName, cb, descr) {
 
 function load_game_list() {
     document.getElementById("lst:games").innerHTML = '';
-    load_game_item('Kanban', 'img/kanban.svg',
+    load_game_item('Battelship (dpi24.06)', 'games/dpi24-06-battelship/battleship.svg',
                    'text text text h aghjwd gldfhjs hlgsf hgljksf hgls fdhglf sdhgl hfgskj hls dfhgjl shgjkls hgl sfdhgjk sdfjklg hljs hfgl dfjlsfs');
-    load_game_item('Scheduler', 'img/schedule.svg',
+    load_game_item('Snake (dpi24.07)', 'games/dpi24-07-snake/snake.svg',
                    'text text text h aghjwd gldfhjs hlgsf hgljksf hgls fdhglf sdhgl hfgskj hls dfhgjl shgjkls hgl sfdhgjk sdfjklg hljs hfgl dfjlsfs');
-    load_game_item('Kahoot Quiz', 'img/quiz.svg',
+    load_game_item('Checkers (dpi24.08)', 'games/dpi24-08-checkers/checkers.svg',
                    'text text text h aghjwd gldfhjs hlgsf hgljksf hgls fdhglf sdhgl hfgskj hls dfhgjl shgjkls hgl sfdhgjk sdfjklg hljs hfgl dfjlsfs');
-    load_game_item('Lokens (coming soon)', 'img/hand_and_coins.svg',
+    load_game_item('Connect4 (dpi24.09)', 'games/dpi24-09-connect4/connect4.png',
+                   'text text text h aghjwd gldfhjs hlgsf hgljksf hgls fdhglf sdhgl hfgskj hls dfhgjl shgjkls hgl sfdhgjk sdfjklg hljs hfgl dfjlsfs');
+    load_game_item('Blackjack (dpi24.10)', 'games/dpi24-10-blackjack/coins.svg',
                    'crypto tokens based on CRDTs, no mining needed. Ideal for fidelity cards, bartering, recognition tokens in open SW communities, and more.');
-    load_game_item('(dummy entry)', 'img/contacts.svg',
+    load_game_item('Hangman (dpi24.11)', 'games/dpi24-11-hangman/hangman.svg',
                    'dah dah dah');
 }
 
@@ -1121,6 +1134,10 @@ function b2f_new_in_order_event(e) {
             console.log("New kanban event")
             kanban_new_event(e)
             break
+        case "SCH":
+            console.log("New scheduling event")
+            dpi_scheduling_new_event(e)
+            break
         default:
             return
     }
@@ -1247,6 +1264,7 @@ function b2f_new_event(e) { // incoming SSB log event: we get map with three ent
                 contact.initial = contact.alias.substring(0, 1).toUpperCase()
                 load_contact_list()
                 load_kanban_list()
+                dpi_load_event_list(tremola)
 
                 // update names in connected devices menu
                 for (var l in localPeers) {
@@ -1334,6 +1352,7 @@ function b2f_initialize(id, settings) {
     load_contact_list()
 
     load_kanban_list()
+    dpi_load_event_list(tremola)
 
     closeOverlay();
     setScenario('chats');

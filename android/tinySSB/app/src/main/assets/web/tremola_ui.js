@@ -9,6 +9,7 @@ var display_or_not = [
     'lst:chats', 'lst:prod', 'lst:games', 'lst:contacts',
     'lst:members', 'the:connex',
     'div:posts', 'lst:kanban', 'div:board',
+    'lst:scheduling', 'div:event',
     'div:footer', 'div:textarea', 'div:confirm-members', 'plus', 'div:settings'
 ];
 
@@ -25,7 +26,9 @@ var scenarioDisplay = {
     'productivity': ['div:qr', 'core', 'lst:prod', 'div:footer'],
     'settings': ['div:back', 'div:settings', 'core'],
     'kanban': ['div:qr', 'core', 'lst:kanban', 'div:footer', 'plus'],
-    'board': ['div:back', 'core', 'div:board']
+    'board': ['div:back', 'core', 'div:board'],
+    'scheduling': ['div:qr', 'core', 'lst:scheduling', 'div:footer', 'plus'],
+    'event': ['div:back', 'core', 'div:event']
 }
 
 var scenarioMenu = {
@@ -72,7 +75,19 @@ var scenarioMenu = {
         ['Reload', 'reload_curr_board'],
         ['Leave', 'leave_curr_board'],
         ['(un)Forget', 'board_toggle_forget'],
-        ['Debug', 'ui_debug']]
+        ['Debug', 'ui_debug']],
+
+    'scheduling': [['New Event', 'dpi_menu_new_event'],
+                ['Invitations', 'dpi_menu_event_invitations'],
+                ['Connected Devices', 'menu_connection'],
+                ['Settings', 'menu_settings'],
+                ['About', 'menu_about']],
+
+    'event': [['Add appointment', 'dpi_menu_new_appointment'],
+            ['Invite Users', 'dpi_menu_invite'],
+            ['Reload', 'dpi_reload_curr_event'],
+            ['Debug', 'dpi_ui_debug']]
+
 }
 
 const QR_SCAN_TARGET = {
@@ -87,11 +102,13 @@ function onBackPressed() {
         closeOverlay();
         return;
     }
-    if (['chats', 'contacts', 'connex', 'board'].indexOf(curr_scenario) >= 0) {
+    if (['chats', 'contacts', 'connex', 'board', 'event'].indexOf(curr_scenario) >= 0) {
         if (curr_scenario == 'chats')
             backend("onBackPressed");
         else if (curr_scenario == 'board')
             setScenario('kanban')
+        else if (curr_scenario == 'event')
+                            setScenario('scheduling')
         else
             setScenario('chats')
     } else {
@@ -130,7 +147,7 @@ function setScenario(s) {
             document.getElementById('tremolaTitle').style.position = null;
         }
 
-        if (s == "posts" || s == "settings" || s == "board") {
+        if (s == "posts" || s == "settings" || s == "board" || s == "event") {
             document.getElementById('tremolaTitle').style.display = 'none';
             document.getElementById('conversationTitle').style.display = null;
             // document.getElementById('plus').style.display = 'none';
@@ -183,6 +200,23 @@ function setScenario(s) {
           // var pl = document.getElementById('lst:posts'); // has same problem
           // pl.rows[pl.rows.length-1].scrollIntoView()
         }
+
+        if (s == 'scheduling') {
+            document.getElementById("tremolaTitle").style.display = 'none';
+            var c = document.getElementById("conversationTitle");
+            c.style.display = null;
+            c.innerHTML = "<font size=+1><strong>List of Events</strong></font><br>Pick or create an event";
+        /*
+             var personalEventAlreadyExists = false
+             if(tremola && tremola.event && tremola.event.length > 0){
+             launch_snackbar("COUNT EVENTS" + tremola.event.length)
+             console.log(tremola.event)
+
+             } else {
+              dpi_menu_create_personal_event();
+        */
+        }
+
     }
 }
 
@@ -271,6 +305,11 @@ function closeOverlay() {
     document.getElementById('div:debug').style.display = 'none'
     document.getElementById("div:invite_menu").style.display = 'none'
 
+    // scheduling overlays
+    document.getElementById('scheduling-create-personal-event-overlay').style.display = 'none';
+    document.getElementById('add-appointment-overlay').style.display='none';
+    document.getElementById('scheduling-invitations-overlay').style.display='none';
+
     overlayIsActive = false;
 
     if (curr_img_candidate != null) {
@@ -313,6 +352,8 @@ function plus_button() {
         menu_new_pub();
     } else if (curr_scenario == 'kanban') {
         menu_new_board();
+    } else if (curr_scenario == 'scheduling') {
+        dpi_menu_new_event();
     }
 }
 
