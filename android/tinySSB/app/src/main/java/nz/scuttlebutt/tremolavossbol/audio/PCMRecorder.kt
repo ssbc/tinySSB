@@ -17,10 +17,15 @@ class PCMRecorder(val audioSrc: Int) {
         //    AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT);
         val bufSize = 3*1024 // 4096 // 40*4096 // 2*640
         Log.d("PCM", "start " + bufSize.toString())
-        audioRecorder = AudioRecord(
-            audioSrc, 8000, AudioFormat.CHANNEL_IN_MONO,
-            AudioFormat.ENCODING_PCM_16BIT, bufSize)
-        audioRecorder!!.startRecording()
+        try {
+            audioRecorder = AudioRecord(
+                audioSrc, 8000, AudioFormat.CHANNEL_IN_MONO,
+                AudioFormat.ENCODING_PCM_16BIT, bufSize)
+            audioRecorder!!.startRecording()
+        } catch (e: SecurityException) {
+            //Will never occur because permission is already checked in RecordActivity
+            Log.e("PCM", "SecurityException", e)
+        }
     }
 
     fun read(buf: ShortArray, pos: Int): Int {

@@ -5,7 +5,6 @@ apply plugin: 'kotlin-kapt'
 
 android {
     compileSdk 30
-    buildToolsVersion "30.0.3"
 
     defaultConfig {
         applicationId "nz.scuttlebutt.tremolavossbol"
@@ -49,9 +48,10 @@ android {
     externalNativeBuild {
         cmake {
             path file('src/main/cpp/CMakeLists.txt')
-            version '3.18.1'
+            version '3.18.1+'
         }
     }
+    namespace 'tremolavossbol'
 }
 
 dependencies {
