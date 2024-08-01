@@ -12,7 +12,7 @@ android {
 
     defaultConfig {
         applicationId "nz.scuttlebutt.tremolavossbol"
-        minSdk 24
+        minSdk 23
         targetSdkVersion 30
         versionCode 1
         versionName "0.1"

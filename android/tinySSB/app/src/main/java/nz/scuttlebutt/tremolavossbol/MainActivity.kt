@@ -90,7 +90,12 @@ class MainActivity : Activity() {
         Log.d("IDENTITY", "is ${idStore.identity.toRef()} (${idStore.identity.verifyKey})")
 
         val webView = findViewById<WebView>(R.id.webView)
-        webView.setLayerType(View.LAYER_TYPE_SOFTWARE,null) // disable acceleration, needed for older WebViews
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            webView.setLayerType(
+                View.LAYER_TYPE_SOFTWARE,
+                null
+            ) // disable acceleration, needed for older WebViews
+        }
         wai = WebAppInterface(this, webView)
         // upgrades repo filesystem if necessary
         tinyRepo.upgrade_repo()

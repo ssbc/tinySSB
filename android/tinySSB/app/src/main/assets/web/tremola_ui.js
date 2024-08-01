@@ -29,22 +29,22 @@ var scenarioDisplay = {
 }
 
 var scenarioMenu = {
-    'chats': [['Connected Devices', 'menu_connection'], // '['New conversation', 'menu_new_conversation'],' TODO reactivate when encrypted chats are implemented
+    'chats': [// ['Connected Devices', 'menu_connection'], // '['New conversation', 'menu_new_conversation'],' TODO reactivate when encrypted chats are implemented
         ['Settings', 'menu_settings'],
         ['About', 'menu_about']],
-    'productivity': [['Connected Devices', 'menu_connection'],
+    'productivity': [// ['Connected Devices', 'menu_connection'],
         ['Settings', 'menu_settings'],
         ['About', 'menu_about']],
-    'games': [['Connected Devices', 'menu_connection'],
+    'games': [// ['Connected Devices', 'menu_connection'],
         ['Settings', 'menu_settings'],
         ['About', 'menu_about']],
     'contacts': [['New contact', 'menu_new_contact'],
-        ['Connected Devices', 'menu_connection'],
+        // ['Connected Devices', 'menu_connection'],
         ['Settings', 'menu_settings'],
         ['About', 'menu_about']],
     'connex': [['New SSB pub', 'menu_new_pub'],
         ['Redeem invite code', 'menu_invite'],
-        ['Connected Devices', 'menu_connection'],
+        // ['Connected Devices', 'menu_connection'],
         // ['<del>Force sync</del>', 'menu_sync'],
         ['Settings', 'menu_settings'],
         ['About', 'menu_about']],
@@ -61,7 +61,7 @@ var scenarioMenu = {
 
     'kanban': [['New Kanban board', 'menu_new_board'],
         ['Invitations', 'menu_board_invitations'],
-        ['Connected Devices', 'menu_connection'],
+        // ['Connected Devices', 'menu_connection'],
         ['Settings', 'menu_settings'],
         ['About', 'menu_about']],
 
@@ -173,6 +173,16 @@ function setScenario(s) {
             }
         }
 
+        if (s == 'posts') {
+          // FIXME: the following does not reliably scroll to the end ...
+          let p = document.getElementById('div:posts');
+          // console.log("scroll 1 " + p.scrollHeight)
+          p.scrollTop = p.scrollHeight;
+          // p.scrollTo(0, p.scrollHeight);   // has same problem
+
+          // var pl = document.getElementById('lst:posts'); // has same problem
+          // pl.rows[pl.rows.length-1].scrollIntoView()
+        }
     }
 }
 
@@ -492,9 +502,17 @@ function refresh_goset_progressbar(curr, max) {
     document.getElementById('connection-overlay-progressbar-label-goset').textContent = "GoSet - " + delta + " key" + (delta > 1 ? "s" : "") + " left"
     if (delta > 0) {
         console.log("display progress")
+        // main html:
+        document.getElementById('gosetBar').style.display = "initial"
+        // document.getElementById('progressBars').style.display = "none"
+        // overlay:
         document.getElementById('goset-progress-container').style.display = "initial"
         document.getElementById('progress-container').style.display = "none"
     } else {
+        // main html:
+        document.getElementById('gosetBar').style.display = "none"
+        // document.getElementById('progressBars').style.display = "initial"
+        // overlay:
         document.getElementById('goset-progress-container').style.display = "none"
         document.getElementById('progress-container').style.display = "initial"
     }
@@ -503,8 +521,7 @@ function refresh_goset_progressbar(curr, max) {
 
 var max_chnks = 0
 function refresh_chunk_progressbar(remaining) {
-
-    if(remaining != 0) {
+    if (remaining != 0) {
         max_chnks = Math.max(max_chnks, remaining)
     } else {
         max_chnks = 0 // reset
@@ -512,16 +529,18 @@ function refresh_chunk_progressbar(remaining) {
 
     console.log("refresh_chunk_progressbar", remaining, max_chnks)
 
-
-    if(remaining > 0) {
-        var percentage = (1 - ((remaining - 0) / (max_chnks - 0))) * 100
+    if (remaining > 0) {
+        var percentage = Math.round( (1 - ((remaining - 0) / (max_chnks - 0))) * 100 )
+        // main html:
+        document.getElementById('progBarChunks').style.width = `${percentage}%`;
+        // overlay:
         document.getElementById('connection-overlay-progressbar-chnk').value = percentage
         document.getElementById('connection-overlay-progressbar-label-chnk').textContent = remaining + " Chunks left"
     } else {
-        document.getElementById('connection-overlay-progressbar-chnk').value = 100
-        document.getElementById('connection-overlay-progressbar-label-chnk').textContent = "Chunks — Synchronized"
+      document.getElementById('progBarChunks').style.width = '100%';
+      document.getElementById('connection-overlay-progressbar-chnk').value = 100;
+      document.getElementById('connection-overlay-progressbar-label-chnk').textContent = "Chunks — Synchronized"
     }
-
 }
 
 function refresh_connection_progressbar(min_entries, old_min_entries, old_want_entries, curr_want_entries, max_entries) {
@@ -537,26 +556,26 @@ function refresh_connection_progressbar(min_entries, old_min_entries, old_want_e
 
   // update want progress
 
-  if(curr_want_entries >= max_entries || old_want_entries == max_entries) {
+  if (curr_want_entries >= max_entries || old_want_entries == max_entries) {
+    document.getElementById('progBarMissing').style.width = '100%';
     document.getElementById('connection-overlay-progressbar-want').value = 100
     document.getElementById('connection-overlay-progressbar-label-want').textContent = "Missing — Synchronized"
   } else {
-    var newPosReq = (curr_want_entries - old_want_entries) / (max_entries - old_want_entries) * 100
-
+    var newPosReq = Math.round((curr_want_entries - old_want_entries) / (max_entries - old_want_entries) * 100)
     console.log("newPosMax:", newPosReq)
-
+    document.getElementById('progBarMissing').style.width = `${newPosReq}%`;
     document.getElementById('connection-overlay-progressbar-want').value = newPosReq
     document.getElementById('connection-overlay-progressbar-label-want').textContent = "Missing - " + (max_entries - curr_want_entries) + " entries left"
-
   }
 
   // update gift progress
   if (curr_want_entries <= min_entries || old_min_entries == curr_want_entries) {
+    document.getElementById('progBarAhead').style.width = '100%';
     document.getElementById('connection-overlay-progressbar-gift').value = 100
     document.getElementById('connection-overlay-progressbar-label-gift').textContent = "Ahead — Synchronized"
   } else {
-    var newPosOff = (min_entries - old_min_entries) / (curr_want_entries - old_min_entries) * 100
-
+    var newPosOff = Math.round((min_entries - old_min_entries) / (curr_want_entries - old_min_entries) * 100)
+    document.getElementById('progBarAhead').style.width = `${newPosOff}%`;
     document.getElementById('connection-overlay-progressbar-gift').value = newPosOff
     document.getElementById('connection-overlay-progressbar-label-gift').textContent = "Ahead - " + (curr_want_entries - min_entries) + " entries left"
   }
