@@ -46,7 +46,7 @@ function menu_new_conversation() {
     document.getElementById("tremolaTitle").style.display = 'none';
     var c = document.getElementById("conversationTitle");
     c.style.display = null;
-    c.innerHTML = "<font size=+1><strong>Create New Conversation</strong></font><br>Select up to 7 members";
+    c.innerHTML = "<font size=+1><strong>Create Private Channel</strong></font><br>Select up to 7 members";
     document.getElementById('plus').style.display = 'none';
     closeOverlay();
 }
@@ -122,8 +122,10 @@ function edit_confirmed() {
         var ch = tremola.chats[curr_chat];
         ch.alias = val;
         persist();
-        load_chat_title(ch); // also have to update entry in chats
-        menu_redraw();
+        // load_chat_title(ch); // also have to update entry in chats
+        load_chat_list() // regenerate list for when we come back from the posts
+        load_chat(curr_chat)
+        // menu_redraw();
     } else if (edit_target == 'new_contact_alias' || edit_target == 'trust_wifi_peer') {
         document.getElementById('contact_id').value = '';
         if (val == '')
@@ -135,13 +137,10 @@ function edit_confirmed() {
         };
         var recps = [myId, new_contact_id];
         var nm = recps2nm(recps);
-        // TODO reactivate when encrypted chats are implemented
-        /*
         tremola.chats[nm] = {
             "alias": "Chat w/ " + val, "posts": {}, "members": recps,
             "touched": Date.now(), "lastRead": 0, "timeline": new Timeline()
         };
-        */
         persist();
         backend("add:contact " + new_contact_id + " " + btoa(val))
         menu_redraw();
@@ -508,13 +507,20 @@ function load_chat_title(ch) {
 }
 
 function load_chat_list() {
-    var meOnly = recps2nm([myId])
-    // console.log('meOnly', meOnly)
     document.getElementById('lst:chats').innerHTML = '';
-    // load_chat_item(meOnly) TODO reactivate when encrypted chats are implemented
+    load_chat_item("ALL")
+    var meOnly = recps2nm([myId])
+    if (!(meOnly in tremola.chats)) {
+        tremola.chats[meOnly] = {
+            "alias": "--- local notes (for my eyes only)", "posts": {}, "forgotten": false,
+            "members": [myId], "touched": Date.now(), "lastRead": 0,
+            "timeline": new Timeline()
+        };
+    }
+    load_chat_item(meOnly)
     var lop = [];
     for (var p in tremola.chats) {
-        if (p != meOnly && !tremola.chats[p]['forgotten'])
+        if (p != "ALL" && p != meOnly && !tremola.chats[p]['forgotten'])
             lop.push(p)
     }
     lop.sort(function (a, b) {
@@ -770,7 +776,7 @@ function new_conversation() {
     var nm = recps2nm(recps);
     if (!(nm in tremola.chats)) {
         tremola.chats[nm] = {
-            "alias": "Unnamed conversation", "posts": {},
+            "alias": "Private", "posts": {},
             "members": recps, "touched": Date.now(), "timeline": new Timeline()
         };
         persist();
@@ -898,7 +904,7 @@ function recps2display(rcps) {
     var lst = rcps.map(function (fid) {
         return fid2display(fid)
     });
-    return '[' + lst.join(', ') + ']';
+    return '🔒 [' + lst.join(', ') + ']';
 }
 
 function fid2display(fid) {
@@ -998,16 +1004,13 @@ function resetTremola() { // wipes browser-side content
         "settings": {},
         "board": {}
     }
-    var n = recps2nm([myId])
 
-    //TODO reactivate when encrypted chats are implemented
-    /*
+    var n = recps2nm([myId])
     tremola.chats[n] = {
-        "alias": "local notes (for my eyes only)", "posts": {}, "forgotten": false,
+        "alias": "Local notes (for my eyes only)", "posts": {}, "forgotten": false,
         "members": [myId], "touched": Date.now(), "lastRead": 0,
         "timeline": new Timeline()
     };
-    */
 
     tremola.chats["ALL"] = {
         "alias": "Public channel", "posts": {},
@@ -1192,9 +1195,11 @@ function b2f_new_incomplete_event(e) {
  */
 function b2f_new_event(e) { // incoming SSB log event: we get map with three entries
                             // console.log('hdr', JSON.stringify(e.header))
-    console.log('pub', JSON.stringify(e.public))
-    // console.log('cfd', JSON.stringify(e.confid))
     console.log("New Frontend Event: " + JSON.stringify(e.header))
+    if (e.public)
+        console.log('pub', JSON.stringify(e.public))
+    if (e.confid)
+        console.log('cfd', JSON.stringify(e.confid))
 
     //add
     if (!(e.header.fid in tremola.contacts)) {
@@ -1227,11 +1232,6 @@ function b2f_new_event(e) { // incoming SSB log event: we get map with three ent
             console.log("new post 1 ", ch)
             if (!(e.header.ref in ch.posts)) { // new post
                 var a = e.public;
-                // var d = new Date(e.header.tst);
-                // d = d.toDateString() + ' ' + d.toTimeString().substring(0,5);
-                // var txt = null;
-                // if (a[1] != null)
-                //   txt = a[1];
                 var p = {
                     "key": e.header.ref, "from": e.header.fid, "body": a[1],
                     "voice": a[2], "when": a[3] * 1000
@@ -1269,13 +1269,55 @@ function b2f_new_event(e) { // incoming SSB log event: we get map with three ent
                 // update names in connected devices menu
                 for (var l in localPeers) {
                     if (localPeers[l].alias == old_alias) {
-
                         localPeers[l].alias = contact.alias
                         refresh_connection_entry(l)
                     }
                 }
             }
 
+        }
+        persist();
+        must_redraw = true;
+    }
+    if (e.confid) {
+        if (e.confid[0] == 'TAV') { // text and voice
+            console.log("new priv post 0 ", tremola)
+            var conv_name = recps2nm(e.confid[4]);
+            if (!(conv_name in tremola.chats)) { // create new conversation if needed
+                console.log("xx")
+                tremola.chats[conv_name] = {
+                    "alias": "🔒 " + recps2display(e.confid[4]), "posts": {},
+                    "members": e.confid[4], "touched": Date.now(), "lastRead": 0,
+                    "timeline": new Timeline()
+                };
+                load_chat_list()
+            }
+            console.log("new priv post 1")
+            var ch = tremola.chats[conv_name];
+            if (ch.timeline == null)
+                ch["timeline"] = new Timeline();
+            console.log("new priv post 1 ", ch)
+            if (!(e.header.ref in ch.posts)) { // new post
+                var a = e.confid;
+                var p = {
+                    "key": e.header.ref, "from": e.header.fid, "body": a[1],
+                    "voice": a[2], "when": a[3] * 1000
+                };
+                console.log("new priv post 2 ", p)
+                console.log("time: ", a[3])
+                ch["posts"][e.header.ref] = p;
+                if (ch["touched"] < e.header.tst)
+                    ch["touched"] = e.header.tst
+                if (curr_scenario == "posts" && curr_chat == conv_name) {
+                    load_chat(conv_name); // reload all messages (not very efficient ...)
+                    ch["lastRead"] = Date.now();
+                }
+                set_chats_badge(conv_name)
+            } else {
+                console.log("known already?")
+            }
+            // if (curr_scenario == "chats") // the updated conversation could bubble up
+            load_chat_list();
         }
         persist();
         must_redraw = true;
@@ -1351,8 +1393,8 @@ function b2f_initialize(id, settings) {
     load_game_list()
     load_contact_list()
 
-    load_kanban_list()
-    dpi_load_event_list(tremola)
+    // load_kanban_list()
+    // dpi_load_event_list() // problem with access to tremola object
 
     closeOverlay();
     setScenario('chats');

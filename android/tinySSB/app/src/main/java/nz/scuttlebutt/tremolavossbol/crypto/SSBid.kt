@@ -89,8 +89,8 @@ class SSBid { // ed25519
         return shared
     }
 
-    fun encryptPrivateMessage(message: String, recps: List<ByteArray>): String {
-        val txt = message.encodeToByteArray()
+    fun encryptPrivateMessage(message: ByteArray, recps: List<ByteArray>): ByteArray {
+        // val txt = message.encodeToByteArray()
         val nonce = SecureRandom().generateSeed(24)
         val cdek = SecureRandom().generateSeed(33) // count plus data encryption key
         cdek[0] = recps.size.toByte()
@@ -106,14 +106,14 @@ class SSBid { // ed25519
             lazySodiumInst.cryptoSecretBoxEasy(sbox, cdek, cdek.size.toLong(), nonce, kek)
             boxes += sbox
         }
-        val lastbox = ByteArray(txt.size + 16)
-        lazySodiumInst.cryptoSecretBoxEasy(lastbox, txt, txt.size.toLong(), nonce, dek)
+        val lastbox = ByteArray(message.size + 16)
+        lazySodiumInst.cryptoSecretBoxEasy(lastbox, message, message.size.toLong(), nonce, dek)
         val total = nonce + public + boxes + lastbox
-        return Base64.encodeToString(total, Base64.NO_WRAP) + ".box"
+        return total // Base64.encodeToString(total, Base64.NO_WRAP) + ".box"
     }
 
-    fun decryptPrivateMessage(message: String): ByteArray? {
-        val raw = Base64.decode(message.removeSuffix(".box"), Base64.NO_WRAP)
+    fun decryptPrivateMessage(raw: ByteArray): ByteArray? {
+        // val raw = Base64.decode(message.removeSuffix(".box"), Base64.NO_WRAP)
         val nonce = raw.sliceArray(0..23)
         val pubkey = raw.sliceArray(24..55)
         val kek = ByteArray(32)

@@ -17,11 +17,13 @@ import org.json.JSONObject
 
 
 import nz.scuttlebutt.tremolavossbol.utils.Bipf
+import nz.scuttlebutt.tremolavossbol.utils.Bipf.Companion.BIPF_BYTES
 import nz.scuttlebutt.tremolavossbol.utils.Bipf.Companion.BIPF_LIST
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_IAM
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_TEXTANDVOICE
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_KANBAN
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_SCHEDULING
+import nz.scuttlebutt.tremolavossbol.utils.HelperFunctions.Companion.deRef
 import nz.scuttlebutt.tremolavossbol.utils.HelperFunctions.Companion.toBase64
 import nz.scuttlebutt.tremolavossbol.utils.HelperFunctions.Companion.toHex
 import org.json.JSONArray
@@ -166,11 +168,11 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
                 return
             }
             "priv:post" -> { // priv:post tips atob(text) atob(voice) rcp1 rcp2 ...
-                val a = JSONObject(args[1]) as JSONArray
+                val a = JSONArray(args[1])
                 val tips = ArrayList<String>(0)
                 for (i in 0..a.length()-1) {
                     val s = (a[i] as JSONObject).toString()
-                    Log.d("priv;post", s)
+                    Log.d("priv:post", s)
                     tips.add(s)
                 }
                 var t: String? = null
@@ -299,20 +301,37 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
 
     fun private_post_with_voice(tips: ArrayList<String>, text: String?, voice: ByteArray?, rcps: List<String>) {
         if (text != null)
-            Log.d("wai", "post_voice t- ${text}/${text.length}")
+            Log.d("wai", "private post_voice t- ${text}/${text.length}")
         if (voice != null)
-            Log.d("wai", "post_voice v- ${voice}/${voice.size}")
+            Log.d("wai", "private post_voice v- ${voice}/${voice.size}")
         val lst = Bipf.mkList()
         Bipf.list_append(lst, TINYSSB_APP_TEXTANDVOICE)
         // add tips
         Bipf.list_append(lst, if (text == null) Bipf.mkNone() else Bipf.mkString(text))
         Bipf.list_append(lst, if (voice == null) Bipf.mkNone() else Bipf.mkBytes(voice))
         val tst = Bipf.mkInt((System.currentTimeMillis() / 1000).toInt())
-        Log.d("wai", "send time is ${tst.getInt()}")
+        Log.d("wai", "private send time is ${tst.getInt()}")
         Bipf.list_append(lst, tst)
-        val body = Bipf.encode(lst)
-        if (body != null)
-            act.tinyNode.publish_public_content(body)
+
+        val recps = Bipf.mkList()
+        val keys: MutableList<ByteArray> = mutableListOf()
+        val me = act.idStore.identity.toRef()
+        for (r in rcps) {
+            if (r != me) {
+                Bipf.list_append(recps, Bipf.mkString(r))
+                keys.add(r.deRef())
+            }
+        }
+        Bipf.list_append(recps, Bipf.mkString(me))
+        keys.add(me.deRef())
+        Bipf.list_append(lst, recps)
+
+        val body_clear = Bipf.encode(lst)
+        val encrypted = body_clear!!.let { act.idStore.identity.encryptPrivateMessage(it, keys) }
+        // return encrypted.let { Bipf.mkString(it) }
+        val body_encr = Bipf.encode(Bipf.mkBytes(encrypted))
+        if (body_encr != null)
+            act.tinyNode.publish_public_content(body_encr)
     }
 
     fun scheduling(bid: String?, prev: List<String>?, operation: String, args: List<String>?) {
@@ -434,16 +453,33 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
 
     fun toFrontendObject(fid: ByteArray, seq: Int, mid: ByteArray, payload: ByteArray): String? {
         val bodyList = Bipf.decode(payload)
-        if (bodyList == null || bodyList.typ != BIPF_LIST) {
-            Log.d("toFrontendObject", "decoded payload == null")
+        if (bodyList == null)
             return null
+        if (bodyList.typ == BIPF_LIST) { // clear text log entry
+            val param = Bipf.bipf_list2JSON(bodyList)
+            var hdr = JSONObject()
+            hdr.put("fid", "@" + fid.toBase64() + ".ed25519")
+            hdr.put("ref", mid.toBase64())
+            hdr.put("seq", seq)
+            return "{header:${hdr.toString()}, public:${param.toString()}}"
         }
-        val param = Bipf.bipf_list2JSON(bodyList)
-        var hdr = JSONObject()
-        hdr.put("fid", "@" + fid.toBase64() + ".ed25519")
-        hdr.put("ref", mid.toBase64())
-        hdr.put("seq", seq)
-        return "{header:${hdr.toString()}, public:${param.toString()}}"
+        if (bodyList.typ == BIPF_BYTES) { // encrypted
+            Log.d("rcvd encrypted log entry", "@" + fid.toBase64() + ".ed25519, seq=" + seq)
+            val clear = act.idStore.identity.decryptPrivateMessage(bodyList.getBytes())
+            if (clear != null) {
+                val bodyList2 = Bipf.decode(clear)
+                if (bodyList2 != null) {
+                    val param = Bipf.bipf_list2JSON(bodyList2)
+                    var hdr = JSONObject()
+                    hdr.put("fid", "@" + fid.toBase64() + ".ed25519")
+                    hdr.put("ref", mid.toBase64())
+                    hdr.put("seq", seq)
+                    return "{header:${hdr.toString()}, confid:${param.toString()}}"
+                }
+            }
+        }
+        Log.d("toFrontendObject", "could not decode or decrypt")
+        return null
     }
 
 

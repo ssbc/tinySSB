@@ -5,19 +5,19 @@
 var overlayIsActive = false;
 
 var display_or_not = [
-    'div:qr', 'div:back', 'core',
+    'div:qr', 'div:back', 'core', 'plus',
     'lst:chats', 'lst:prod', 'lst:games', 'lst:contacts',
     'lst:members', 'the:connex',
     'div:posts', 'lst:kanban', 'div:board',
     'lst:scheduling', 'div:event',
-    'div:footer', 'div:textarea', 'div:confirm-members', 'plus', 'div:settings'
+    'div:footer', 'div:textarea', 'div:confirm-members', 'div:settings'
 ];
 
 var prev_scenario = 'chats';
 var curr_scenario = 'chats';
 
 var scenarioDisplay = {
-    'chats': ['div:qr', 'core', 'lst:chats', 'div:footer'], // 'plus' TODO reactivate when encrypted chats are implemented
+    'chats': ['div:qr', 'core', 'lst:chats', 'div:footer', 'plus'],
     'contacts': ['div:qr', 'core', 'lst:contacts', 'div:footer', 'plus'],
     'posts': ['div:back', 'core', 'div:posts', 'div:textarea'],
     'connex': ['div:qr', 'core', 'the:connex', 'div:footer', 'plus'],
@@ -32,7 +32,7 @@ var scenarioDisplay = {
 }
 
 var scenarioMenu = {
-    'chats': [// ['Connected Devices', 'menu_connection'], // '['New conversation', 'menu_new_conversation'],' TODO reactivate when encrypted chats are implemented
+    'chats': [// ['New Channel', 'menu_new_conversation'],
         ['Settings', 'menu_settings'],
         ['About', 'menu_about']],
     'productivity': [// ['Connected Devices', 'menu_connection'],
@@ -62,7 +62,7 @@ var scenarioMenu = {
 
     'settings': [],
 
-    'kanban': [['New Kanban board', 'menu_new_board'],
+    'kanban': [// ['New Kanban board', 'menu_new_board'], // no redundant functionality
         ['Invitations', 'menu_board_invitations'],
         // ['Connected Devices', 'menu_connection'],
         ['Settings', 'menu_settings'],
@@ -108,7 +108,7 @@ function onBackPressed() {
         else if (curr_scenario == 'board')
             setScenario('kanban')
         else if (curr_scenario == 'event')
-                            setScenario('scheduling')
+            setScenario('scheduling')
         else
             setScenario('chats')
     } else {
@@ -150,7 +150,7 @@ function setScenario(s) {
         if (s == "posts" || s == "settings" || s == "board" || s == "event") {
             document.getElementById('tremolaTitle').style.display = 'none';
             document.getElementById('conversationTitle').style.display = null;
-            // document.getElementById('plus').style.display = 'none';
+            document.getElementById('plus').style.display = 'none';
         } else {
             document.getElementById('tremolaTitle').style.display = null;
             // if (s == "connex") { /* document.getElementById('plus').style.display = 'none'; */}
@@ -165,6 +165,14 @@ function setScenario(s) {
             var cl = document.getElementById('btn:' + curr_scenario).classList;
             cl.toggle('active', true);
             cl.toggle('passive', false);
+        }
+        if (s == 'chats') {
+            document.getElementById('tremolaTitle').style.display = null;
+            document.getElementById('conversationTitle').style.display = 'none';
+            /*
+            c.style.display = null;
+            c.innerHTML = "<font size=+1><strong>List of Chat Channels</strong></font><br>Pick or create a channel";
+            */
         }
         if (s == 'board')
             document.getElementById('core').style.height = 'calc(100% - 60px)';

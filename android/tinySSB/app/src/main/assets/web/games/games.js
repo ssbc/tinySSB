@@ -4,7 +4,7 @@
 
 function load_game_list() {
     document.getElementById("lst:games").innerHTML = '';
-    load_game_item('Battelship (dpi24.06)', 'games/dpi24-06-battelship/battleship.svg',
+    load_game_item('Battleship (dpi24.06)', 'games/dpi24-06-battelship/battleship.svg',
                    'text text text h aghjwd gldfhjs hlgsf hgljksf hgls fdhglf sdhgl hfgskj hls dfhgjl shgjkls hgl sfdhgjk sdfjklg hljs hfgl dfjlsfs');
     load_game_item('Snake (dpi24.07)', 'games/dpi24-07-snake/snake.png',
                    'text text text h aghjwd gldfhjs hlgsf hgljksf hgls fdhglf sdhgl hfgskj hls dfhgjl shgjkls hgl sfdhgjk sdfjklg hljs hfgl dfjlsfs');
