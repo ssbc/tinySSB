@@ -43,7 +43,7 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
                 (act as MainActivity)._onBackPressed()
             }
             "ready" -> {
-                eval("b2f_initialize(\"${act.idStore.identity.toRef()}\")")
+                eval("b2f_initialize('${act.idStore.identity.toRef()}', '${act.settings!!.getSettings()}')")
                 frontend_ready = true
                 act.tinyRepo.addNumberOfPendingChunks(0) // initialize chunk progress bar
                 act.tinyNode.beacon()
@@ -240,12 +240,11 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
                 }
             }
             "settings:set" -> {
-                when(args[1]) {
-                    "ble" -> {act.settings!!.setBleEnabled(args[2].toBooleanStrict())}
-                    "udp_multicast" -> {act.settings!!.setUdpMulticastEnabled(args[2].toBooleanStrict())}
-                    "websocket" -> {act.settings!!.setWebsocketEnabled(args[2].toBooleanStrict())}
-                    "websocket_url" -> {act.settings!!.setWebsocketUrl(args[2])}
-                }
+                act.settings!!.set(args[1], args[2])
+            }
+            "settings:get" -> {
+                val settings = act.settings!!.getSettings()
+                act.wai.eval("b2f_get_settings('${settings}')")
             }
             else -> {
                 Log.d("onFrontendRequest", "unknown")

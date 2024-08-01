@@ -2,20 +2,23 @@
 
 "use strict";
 
-function get_default_settings() {
-    return {
-        'enable_preview': false,
-        'background_map': true,
-        'websocket': true,
-        'show_shortnames': true,
-        'hide_forgotten_conv': true,
-        'hide_forgotten_contacts': true,
-        'udp_multicast': true,
-        'ble': true,
-        'websocket_url': "ws://meet.dmi.unibas.ch:8989"
-    }
+
+// These default settings are only used for browser-only testing
+// Normally, these settings below WILL BE IGNORED and loaded via the provided backend.
+const BrowserOnlySettings = {
+    'show_chat_preview': false,
+    'show_background_map': true,
+    'websocket_enabled': true,
+    'show_shortnames': true,
+    'hide_forgotten_conv': true,
+    'hide_forgotten_contacts': true,
+    'hide_forgotten_kanbans': true,
+    'udp_multicast_enabled': true,
+    'ble_enabled': true,
+    'websocket_url': "ws://meet.dmi.unibas.ch:8989"
 }
 
+// button/toggle handler for boolean settings; settingID is determined by the id of the html object that emitted the event (e.id)
 function toggle_changed(e) {
     // console.log("toggle ", e.id);
     tremola.settings[e.id] = e.checked;
@@ -24,12 +27,14 @@ function toggle_changed(e) {
     applySetting(e.id, e.checked);
 }
 
-function getSetting(nm) {
-    return document.getElementById(nm).checked
+// getter
+function getSetting(settingID) {
+    return tremola.settings[settingID]
 }
 
+// frontend handler when settings have changed
 function applySetting(nm, val) {
-    if (nm == 'background_map') {
+    if (nm == 'show_background_map') {
         if (val)
             document.body.style.backgroundImage = "url('img/splash-as-background.jpg')";
         else
@@ -38,7 +43,7 @@ function applySetting(nm, val) {
         load_chat_list();
     } else if (nm == 'hide_forgotten_contacts') {
         load_contact_list();
-    } else if (nm == 'websocket') {
+    } else if (nm == 'websocket_enabled') {
         if (val)
             document.getElementById("container:settings_ws_url").style.display = 'flex'
         else
@@ -46,8 +51,9 @@ function applySetting(nm, val) {
     }
 }
 
+// setter, this will also save the given settingID and its value in the backend
 function setSetting(nm, val) {
-    // console.log("setting", nm, val)
+    console.log("setting", nm, val)
     if (nm == "websocket_url") {
       document.getElementById("settings_urlInput").value = val
       return
@@ -56,20 +62,13 @@ function setSetting(nm, val) {
     document.getElementById(nm).checked = val;
 }
 
-/* async */
+// calls the backend to wipe everything, including the ID
 function settings_wipe() {
     closeOverlay();
-    backend("wipe"); // will not return
-    /*
-    window.localStorage.setItem("tremola", "null");
-    backend("ready"); // will call initialize()
-    await new Promise(resolve => setTimeout(resolve, 500));
-    // resetTremola();
-    menu_redraw();
-    setScenario('chats');
-    */
+    backend("wipe"); // will not return, because of app restart
 }
 
+// button handler for websocket url textfield
 function btn_setWebsocketUrl() {
    var new_url = document.getElementById("settings_urlInput").value
 
