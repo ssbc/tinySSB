@@ -296,20 +296,27 @@ function new_text_post(s) {
         return;
     }
     var draft = unicodeStringToTypedArray(document.getElementById('draft').value); // escapeHTML(
-    var recps;
+    var ch = tremola.chats[curr_chat]
+    if (!(ch.timeline instanceof Timeline)) {
+        ch.timeline = Timeline.fromJSON(ch.timeline)
+    }
+    let tips = JSON.stringify(ch.timeline.get_tips())
+    // console.log(`tips: ${tips}`)
     if (curr_chat == "ALL") {
-        recps = "ALL";
-        backend("publ:post [] " + btoa(draft) + " null"); //  + recps)
+        var cmd = `publ:post ${tips} ` + btoa(draft) + " null"; // + recps
+        // console.log(cmd)
+        backend(cmd);
     } else {
-        recps = tremola.chats[curr_chat].members.join(' ');
-        backend("priv:post [] " + btoa(draft) + " null " + recps);
+        var recps = tremola.chats[curr_chat].members.join(' ');
+        var cmd = `priv:post ${tips} ` + btoa(draft) + " null " + recps;
+        backend(cmd);
     }
     document.getElementById('draft').value = '';
     closeOverlay();
     setTimeout(function () { // let image rendering (fetching size) take place before we scroll
         var c = document.getElementById('core');
         c.scrollTop = c.scrollHeight;
-    }, 100);
+      }, 100);
 }
 
 function new_voice_post(voice_b64) {
@@ -318,12 +325,21 @@ function new_voice_post(voice_b64) {
         draft = "null"
     else
         draft = btoa(draft)
+    var ch = tremola.chats[curr_chat]
+    if (!(ch.timeline instanceof Timeline)) {
+        ch.timeline = Timeline.fromJSON(ch.timeline)
+    }
+    let tips = JSON.stringify(ch.timeline.get_tips())
+    // console.log(`tips: ${tips}`)
+
     if (curr_chat == "ALL") {
-        // recps = "ALL";
-        backend("publ:post [] " + draft + " " + voice_b64); //  + recps)
+        var cmd = `publ:post ${tips} ` + draft + " " + voice_b64;
+        // console.log(cmd)
+        backend(cmd);
     } else {
-        recps = tremola.chats[curr_chat].members.join(' ');
-        backend("priv:post [] " + draft + " " + voice_b64 + " " + recps);
+        var recps = tremola.chats[curr_chat].members.join(' ');
+        var cmd = `priv:post ${tips} ` + draft + " " + voice_b64 + " " + recps;
+        backend(cmd);
     }
     document.getElementById('draft').value = '';
 }
@@ -469,6 +485,10 @@ function load_chat(nm) {
     }
     pl.insertRow(0).innerHTML = "<tr><td>&nbsp;<td>&nbsp;<td>&nbsp;<td>&nbsp;<td>&nbsp;</tr>";
     curr_chat = nm;
+    for (var n of ch.timeline.linear) {
+        load_post_item(ch.posts[n.name])
+    }
+    /*
     var lop = []; // list of posts
     for (var p in ch.posts) lop.push(p)
     lop.sort(function (a, b) {
@@ -477,6 +497,7 @@ function load_chat(nm) {
     lop.forEach(function (p) {
         load_post_item(ch.posts[p])
     })
+    */
     load_chat_title(ch);
     setScenario("posts");
     document.getElementById("tremolaTitle").style.display = 'none';
@@ -484,10 +505,6 @@ function load_chat(nm) {
     ch["lastRead"] = Date.now();
     persist();
     document.getElementById(nm + '-badge').style.display = 'none' // is this necessary?
-    setTimeout(function () { // let image rendering (fetching size) take place before we scroll
-        var c = document.getElementById('core');
-        c.scrollTop = c.scrollHeight;
-    }, 100);
     /*
     // scroll to bottom:
     var c = document.getElementById('core');
@@ -627,7 +644,7 @@ function show_contact_details(id) {
     }
     var c = tremola.contacts[id];
     new_contact_id = id;
-    document.getElementById('old_contact_alias').value = c['alias'];
+    document.getElementById('old_contact_alias').value = c.alias ? c['alias'] : "";
     var details = '';
     details += '<br><div>IAM-Alias: &nbsp;' + (c.iam != "" ? c.iam : "&mdash;") + '</div>\n';
     details += '<br><div>Shortname: &nbsp;' + id2b32(id) + '</div>\n';
@@ -780,7 +797,8 @@ function new_conversation() {
     if (!(nm in tremola.chats)) {
         tremola.chats[nm] = {
             "alias": "Private", "posts": {},
-            "members": recps, "touched": Date.now(), "timeline": new Timeline()
+            "members": recps, "touched": Date.now(),
+            "timeline": new Timeline()
         };
         persist();
     } else
@@ -899,6 +917,7 @@ function escapeHTML(str) {
 
 function recps2nm(rcps) { // use concat of sorted FIDs as internal name for conversation
                           // return "ALL";
+    // console.log(`recps2nm ${rcps}`)
     return rcps.sort().join('').replace(/.ed25519/g, '');
 }
 
@@ -1137,7 +1156,7 @@ function b2f_new_in_order_event(e) {
         load_contact_list()
     }
 
-    switch (e.public[0]) {
+    if (e.public) switch (e.public[0]) {
         case "KAN":
             console.log("New kanban event")
             kanban_new_event(e)
@@ -1230,20 +1249,23 @@ function b2f_new_event(e) { // incoming SSB log event: we get map with three ent
                 };
                 load_chat_list()
             }
-            console.log("new post 1")
+            // console.log("new post 1")
             var ch = tremola.chats[conv_name];
-            if (ch.timeline == null)
-                ch["timeline"] = new Timeline();
-            console.log("new post 1 ", ch)
+            if (!(ch.timeline instanceof Timeline)) {
+                ch.timeline = Timeline.fromJSON(ch.timeline)
+            }
+            // console.log("new post 1 ", ch)
             if (!(e.header.ref in ch.posts)) { // new post
                 var a = e.public;
                 var p = {
-                    "key": e.header.ref, "from": e.header.fid, "body": a[1],
-                    "voice": a[2], "when": a[3] * 1000
+                    "key": e.header.ref, "from": e.header.fid, "body": a[2],
+                    "voice": a[3], "when": a[4] * 1000, "prev": a[1]
                 };
-                console.log("new post 2 ", p)
-                console.log("time: ", a[3])
+                // console.log("new post 2 ", JSON.stringify(p))
+                // console.log("time: ", a[3])
                 ch["posts"][e.header.ref] = p;
+                // console.log(`chat add ${a[1]}`)
+                ch.timeline.add(e.header.ref, a[1])
                 if (ch["touched"] < e.header.tst)
                     ch["touched"] = e.header.tst
                 if (curr_scenario == "posts" && curr_chat == conv_name) {
@@ -1252,7 +1274,7 @@ function b2f_new_event(e) { // incoming SSB log event: we get map with three ent
                 }
                 set_chats_badge(conv_name)
             } else {
-                console.log("known already?")
+                console.log(`post ${e.header.ref} known already?`)
             }
             // if (curr_scenario == "chats") // the updated conversation could bubble up
             load_chat_list();
@@ -1287,30 +1309,34 @@ function b2f_new_event(e) { // incoming SSB log event: we get map with three ent
     if (e.confid) {
         if (e.confid[0] == 'TAV') { // text and voice
             console.log("new priv post 0 ", tremola)
-            var conv_name = recps2nm(e.confid[4]);
+            var conv_name = recps2nm(e.confid[5]);
             if (!(conv_name in tremola.chats)) { // create new conversation if needed
                 console.log("xx")
                 tremola.chats[conv_name] = {
-                    "alias": recps2display(e.confid[4]), "posts": {},
-                    "members": e.confid[4], "touched": Date.now(), "lastRead": 0,
+                    "alias": recps2display(e.confid[5]), "posts": {},
+                    "members": e.confid[5], "touched": Date.now(), "lastRead": 0,
                     "timeline": new Timeline()
                 };
                 load_chat_list()
             }
-            console.log("new priv post 1")
+            // console.log("new priv post 1")
             var ch = tremola.chats[conv_name];
             if (ch.timeline == null)
                 ch["timeline"] = new Timeline();
-            console.log("new priv post 1 ", ch)
+            else if (!(ch.timeline instanceof Timeline))
+                ch.timeline = Timeline.fromJSON(ch.timeline)
+            // console.log("new priv post 1 ", ch)
             if (!(e.header.ref in ch.posts)) { // new post
                 var a = e.confid;
                 var p = {
-                    "key": e.header.ref, "from": e.header.fid, "body": a[1],
-                    "voice": a[2], "when": a[3] * 1000
+                    "key": e.header.ref, "from": e.header.fid, "body": a[2],
+                    "voice": a[3], "when": a[4] * 1000, "prev": a[1]
                 };
-                console.log("new priv post 2 ", p)
-                console.log("time: ", a[3])
+                // console.log("new priv post 2 ", p)
+                // console.log("time: ", a[3])
                 ch["posts"][e.header.ref] = p;
+                // console.log(`chat add ${a[1]}`)
+                ch.timeline.add(e.header.ref, a[1])
                 if (ch["touched"] < e.header.tst)
                     ch["touched"] = e.header.tst
                 if (curr_scenario == "posts" && curr_chat == conv_name) {

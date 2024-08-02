@@ -85,7 +85,7 @@ class Repo(val context: MainActivity) {
             chnk_offs = Random.nextInt(0, context.tinyGoset.keys.size - 1)
         }
 
-        if(context.wai.frontend_ready) // was: isWaiInitialized()
+        if(context.frontend_ready) // was: isWaiInitialized()
             context.wai.eval("b2f_new_contact(\"@${fid.toBase64()}.ed25519\")") // notify frontend
 
         // want_is_valid = false

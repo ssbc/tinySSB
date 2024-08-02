@@ -19,7 +19,7 @@ class Settings(val context: MainActivity) {
         // backend settings
         "ble_enabled" to "true",
         "udp_multicast_enabled" to "true",
-        "websocket_enabled" to "true",
+        "websocket_enabled" to "false",
         "websocket_url" to TINYSSB_SIMPLEPUB_URL
     )
     fun getSettings(): String {

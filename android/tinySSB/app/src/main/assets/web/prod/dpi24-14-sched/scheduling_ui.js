@@ -73,7 +73,7 @@ function dpi_load_event_list() {
     document.getElementById('lst:scheduling').innerHTML = '';
     // console.log("tremola in load_ebent+list " + tremola)
     // if (tremola == undefined || !('event' in tremola) || Object.keys(tremola.event).length === 0)
-    if (Object.keys(tremola.event).length === 0)
+    if (!tremola.event || Object.keys(tremola.event).length === 0)
         return
     var subeventIds = Object.keys(tremola.event).filter(key => tremola.event[key].subscribed && !tremola.event[key].removed).map(key => ({[key]: tremola.event[key]}))
     if (subeventIds.length > 0) {

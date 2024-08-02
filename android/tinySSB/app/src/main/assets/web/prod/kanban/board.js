@@ -297,6 +297,7 @@ function kanban_new_event(e) {
     }
 
     if (board.subscribed) {
+        console.log(`board add ${prev}`)
         board.sortedOperations.add(e.header.ref, prev)
 
         var independentOPs = [Operation.COLUMN_CREATE, Operation.ITEM_CREATE, Operation.COLUMN_REMOVE, Operation.ITEM_REMOVE, Operation.LEAVE] // these operations cannot be overwritten; their position in the linear timeline does not affect the resulting board

@@ -33,7 +33,6 @@ import org.json.JSONArray
 
 class WebAppInterface(val act: MainActivity, val webView: WebView) {
 
-    var frontend_ready = false
     val frontend_frontier = act.getSharedPreferences("frontend_frontier", Context.MODE_PRIVATE)
 
     @JavascriptInterface
@@ -47,7 +46,7 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
             }
             "ready" -> {
                 eval("b2f_initialize('${act.idStore.identity.toRef()}', '${act.settings!!.getSettings()}')")
-                frontend_ready = true
+                act.frontend_ready = true
                 act.tinyRepo.addNumberOfPendingChunks(0) // initialize chunk progress bar
                 act.tinyNode.beacon()
             }
@@ -154,8 +153,7 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
                 val a = JSONArray(args[1])
                 val tips = ArrayList<String>(0)
                 for (i in 0..a.length()-1) {
-                    val s = (a[i] as JSONObject).toString()
-                    Log.d("publ:post", s)
+                    val s = a[i].toString() // (a[i] as JSONObject).toString()
                     tips.add(s)
                 }
                 var t: String? = null
@@ -171,8 +169,7 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
                 val a = JSONArray(args[1])
                 val tips = ArrayList<String>(0)
                 for (i in 0..a.length()-1) {
-                    val s = (a[i] as JSONObject).toString()
-                    Log.d("priv:post", s)
+                    val s = a[i].toString() // (a[i] as JSONObject).toString()
                     tips.add(s)
                 }
                 var t: String? = null
@@ -288,7 +285,11 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
             Log.d("wai", "post_voice v- ${voice}/${voice.size}")
         val lst = Bipf.mkList()
         Bipf.list_append(lst, TINYSSB_APP_TEXTANDVOICE)
-        // add tips
+        val tip_lst = Bipf.mkList()
+        for (t in tips) {
+            Bipf.list_append(tip_lst, Bipf.mkString(t))
+        }
+        Bipf.list_append(lst, tip_lst)
         Bipf.list_append(lst, if (text == null) Bipf.mkNone() else Bipf.mkString(text))
         Bipf.list_append(lst, if (voice == null) Bipf.mkNone() else Bipf.mkBytes(voice))
         val tst = Bipf.mkInt((System.currentTimeMillis() / 1000).toInt())
@@ -306,7 +307,11 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
             Log.d("wai", "private post_voice v- ${voice}/${voice.size}")
         val lst = Bipf.mkList()
         Bipf.list_append(lst, TINYSSB_APP_TEXTANDVOICE)
-        // add tips
+        val tip_lst = Bipf.mkList()
+        for (t in tips) {
+            Bipf.list_append(tip_lst, Bipf.mkString(t))
+        }
+        Bipf.list_append(lst, tip_lst)
         Bipf.list_append(lst, if (text == null) Bipf.mkNone() else Bipf.mkString(text))
         Bipf.list_append(lst, if (voice == null) Bipf.mkNone() else Bipf.mkBytes(voice))
         val tst = Bipf.mkInt((System.currentTimeMillis() / 1000).toInt())

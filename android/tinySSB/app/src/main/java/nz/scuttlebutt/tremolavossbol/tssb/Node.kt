@@ -193,7 +193,7 @@ class Node(val context: MainActivity) {
     // calculates current replication progress and sends update to frontend
     fun update_progress(want_vector: List<Int>, from: String) {
 
-        if (!context.wai.frontend_ready)
+        if (!context.frontend_ready)
             return
 
         var wantsChanged = false // if want vectors did change

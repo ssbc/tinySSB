@@ -487,19 +487,26 @@ async function chat_sendDrawing() {
     }
 
     // send to backend
-    let recps;
-    if (curr_chat == "ALL") {
-        recps = "ALL";
-        backend("publ:post [] " + btoa(img) + " null"); //  + recps)
-    } else {
-        recps = tremola.chats[curr_chat].members.join(' ');
-        backend("priv:post [] " + btoa(img) + " null " + recps);
+    var ch = tremola.chats[curr_chat]
+    if (!(ch.timeline instanceof Timeline)) {
+        ch.timeline = Timeline.fromJSON(ch.timeline)
     }
+    let tips = JSON.stringify(ch.timeline.get_tips())
+    if (curr_chat == "ALL") {
+        var cmd = `publ:post ${tips} ` + btoa(img) + " null"; // + recps
+        // console.log(cmd)
+        backend(cmd);
+    } else {
+        var recps = tremola.chats[curr_chat].members.join(' ');
+        var cmd = `priv:post ${tips} ` + btoa(img) + " null " + recps;
+        backend(cmd);
+    }
+
     closeOverlay();
-    setTimeout(function () { // let image rendering (fetching size) take place before we scroll
+    // setTimeout(function () { // let image rendering (fetching size) take place before we scroll
         let c = document.getElementById('core');
         c.scrollTop = c.scrollHeight;
-    }, 100);
+    // }, 100);
 
     // close sketch
     chat_closeSketch();

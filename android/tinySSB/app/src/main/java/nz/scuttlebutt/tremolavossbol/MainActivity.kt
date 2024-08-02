@@ -41,6 +41,7 @@ class MainActivity : Activity() {
     lateinit var idStore: IdStore
     lateinit var wai: WebAppInterface
     lateinit var tinyIO: IO
+    var frontend_ready = false
     val tinyNode = Node(this)
     val tinyRepo = Repo(this)
     val tinyDemux = Demux(this)

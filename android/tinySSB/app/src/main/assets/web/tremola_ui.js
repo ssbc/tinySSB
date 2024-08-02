@@ -199,14 +199,12 @@ function setScenario(s) {
         }
 
         if (s == 'posts') {
-          // FIXME: the following does not reliably scroll to the end ...
-          let p = document.getElementById('div:posts');
-          // console.log("scroll 1 " + p.scrollHeight)
-          p.scrollTop = p.scrollHeight;
-          // p.scrollTo(0, p.scrollHeight);   // has same problem
-
-          // var pl = document.getElementById('lst:posts'); // has same problem
-          // pl.rows[pl.rows.length-1].scrollIntoView()
+          setTimeout(function () { // let image rendering (fetching size) take place before we scroll
+              let c = document.getElementById('core');
+              c.scrollTop = c.scrollHeight;
+              let p = document.getElementById('div:posts');
+              p.scrollTop = p.scrollHeight;
+              }, 100);
         }
 
         if (s == 'scheduling') {
