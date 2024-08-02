@@ -1329,11 +1329,6 @@ function b2f_get_settings(settings) {
     tremola.settings = settings
 }
 
-// backend callback method when calling backend("settings:get")
-function b2f_get_settings(settings) {
-    tremola.settings = settings
-}
-
 function b2f_new_contact(fid) {
     if (typeof tremola == 'undefined' || fid in tremola.contacts) // do not overwrite existing entry
         return;
