@@ -502,7 +502,10 @@ function load_chat_title(ch) {
     c.style.display = null;
     c.setAttribute('classList', ch.forgotten ? 'gray' : '') // old JS (SDK 23)
     box = "<div style='white-space: nowrap;'><div style='text-overflow: ellipsis; overflow: hidden;'><font size=+1><strong>" + escapeHTML(ch.alias) + "</strong></font></div>";
-    box += "<div style='color: black; text-overflow: ellipsis; overflow: hidden;'>" + escapeHTML(recps2display(ch.members)) + "</div></div>";
+    var mem = "[ALL]"
+    if (ch.members.length > 1 || ch.members[0] != "ALL")
+       mem = "🔒 " + recps2display(ch.members)
+    box += "<div style='color: black; text-overflow: ellipsis; overflow: hidden;'>" + escapeHTML(mem) + "</div></div>";
     c.innerHTML = box;
 }
 

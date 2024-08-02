@@ -8,7 +8,7 @@
 const BrowserOnlySettings = {
     'show_chat_preview': false,
     'show_background_map': true,
-    'websocket_enabled': true,
+    'websocket_enabled': false,
     'show_shortnames': true,
     'hide_forgotten_conv': true,
     'hide_forgotten_contacts': true,
