@@ -64,6 +64,10 @@ class GOset(val context: MainActivity) {
     // unsigned long zap_state;
     // unsigned long zap_next;
 
+    fun key2ndx(k: ByteArray): Int {
+        return keys.indexOf(k)
+    }
+
     fun rx(pkt: ByteArray, aux: ByteArray?) {
         Log.d("goset", "rx ${pkt.size}")
 

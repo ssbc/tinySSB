@@ -24,8 +24,8 @@ class Repo(val context: MainActivity) {
     val FEED_DIR = "feeds"
     private var loadingFinished = false // indicates whether all replicas have already been loaded into the repo.
     private val replicas = ArrayList<Replica>()
-    private var want_is_valid = false
-    private var chnk_is_valid = false
+    // private var want_is_valid = false
+    // private var chnk_is_valid = false
     private var want_offs = 0
     private var chnk_offs = 0
     private var numberOfPendingChunks = 0
@@ -88,8 +88,8 @@ class Repo(val context: MainActivity) {
         if(context.wai.frontend_ready) // was: isWaiInitialized()
             context.wai.eval("b2f_new_contact(\"@${fid.toBase64()}.ed25519\")") // notify frontend
 
-        want_is_valid = false
-        chnk_is_valid = false
+        // want_is_valid = false
+        // chnk_is_valid = false
 
     }
 
@@ -118,8 +118,8 @@ class Repo(val context: MainActivity) {
         }
 
         val success = r.ingest_entry_pkt(buf, r.state.max_seq + 1)
-        if (success)
-            want_is_valid = false
+        // if (success)
+        //     want_is_valid = false
         return success
     }
 
@@ -138,14 +138,15 @@ class Repo(val context: MainActivity) {
     }
 
     fun mk_want_vect(): ByteArray? {
-        want_is_valid = false // TODO optimization not implemented yet
-        if (want_is_valid) return null
+        // want_is_valid = false // TODO optimization not implemented yet
+        // if (want_is_valid) return null
 
         val lst = ArrayList<Int>()
         var v = ""
         var encoding_len = Bipf.encodingLength(want_offs)
 
         lst.add(want_offs)
+        var new_want_offs = want_offs + 1
         var i = 0
         while (i < context.tinyGoset.keys.size) {
             val ndx = (want_offs + i) % context.tinyGoset.keys.size
@@ -155,19 +156,20 @@ class Repo(val context: MainActivity) {
                 i++
                 continue
             }
+            new_want_offs++
             val (ns, ndmx) = r.get_next_seq()
-            encoding_len += Bipf.encode(Bipf.mkInt(ns))!!.size
+            encoding_len += Bipf.encodingLength(ns) // Bipf.encode(Bipf.mkInt(ns))!!.size
             lst.add(ns)
-            v += (if (v.length == 0) "[ " else " ") + "$ndx.$ns"
-            i++
+            v += (if (v.length == 0) "[" else " ") + "$ndx.$ns"
             if (encoding_len > 100)
                 break
+            i++
         }
+        want_offs = new_want_offs % context.tinyGoset.keys.size
+        // want_is_valid = true
+        Log.d("repo", "mk_want offs=${want_offs}, vector=${v}]")
 
-
-
-
-        if(lst.size > 1) {
+        if (lst.size > 1) {
             // notify frontend
             var vec = lst.slice(1 .. lst.lastIndex) // want_vector without offset
             val front = vec.subList(vec.size - lst[0], vec.size)
@@ -177,22 +179,19 @@ class Repo(val context: MainActivity) {
 
             return Bipf.encode(Bipf.mkList(lst))
         }
-
-        want_offs = (want_offs + i + 1) % context.tinyGoset.keys.size
-        want_is_valid = true
         return null
     }
 
     fun mk_chnk_vect(): ByteArray? {
-        chnk_is_valid = false // not implemented yet
-        if (chnk_is_valid) return null
+        // chnk_is_valid = false // not implemented yet
+        // if (chnk_is_valid) return null
 
         val lst = ArrayList<Any>()
         var v = ""
-        var encoding_len = Bipf.encodingLength(chnk_offs)
+        var encoding_len = 0
 
-        //lst.add(chnk_offs)
         var i = 0
+        var new_chnk_offs = chnk_offs + 1
         while (i < context.tinyGoset.keys.size) {
             val ndx = (chnk_offs + i) % context.tinyGoset.keys.size
             val fid = context.tinyGoset.keys[ndx]
@@ -202,23 +201,32 @@ class Repo(val context: MainActivity) {
                 i++
                 continue
             }
+            new_chnk_offs++
+            var lim = 3 // limit # of chunks per feed that we ask for
             for ((seq, p) in pending) {
                 val c = arrayListOf(ndx, seq, p.cnr)
                 lst.add(c)
+                // val cl = Bipf.encodingLength(c)
+                // Log.d("repo", "mk_chunk_vect - enc_len ${cl}")
                 encoding_len += Bipf.encodingLength(c)
-                v += (if (v.length == 0) "[ " else " ") + "$ndx.$seq.${p.cnr}"
+                v += (if (v.length == 0) "[" else " ") + "$ndx.$seq.${p.cnr}"
                 if (encoding_len > 100)
                     break
+                lim--
+                if (lim <= 0)
+                    break
             }
-            i++
             if (encoding_len > 100)
                 break
-            chnk_offs = (chnk_offs + i + 1) % context.tinyGoset.keys.size
-
+            i++
         }
-        chnk_is_valid = true
+        chnk_offs = new_chnk_offs % context.tinyGoset.keys.size
+        // chnk_is_valid = true
+
         if (lst.size > 0) {
-            return Bipf.encode(Bipf.mkList(lst))
+            Log.d("repo", "mk_chnk offs=${chnk_offs}, vector=${v}]")
+            val lst_e = Bipf.encode(Bipf.mkList(lst))
+            return lst_e
         }
         return null
     }

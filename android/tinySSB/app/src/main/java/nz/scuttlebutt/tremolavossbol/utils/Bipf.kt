@@ -103,7 +103,7 @@ class Bipf {
             ByteArray::class.java to { v: Any -> (v as ByteArray).size },
             MutableMap::class.java to { v: Any ->  _dictEncLen(v as MutableMap<*, *>) }, //_dictEncLen(x)
             Float::class.java to { _: Any -> 8 },
-            Int::class.java to { v: Any -> _intEncLen(v as Int) }, //
+            Integer::class.java to { v: Any -> _intEncLen(v as Int) }, //
             ArrayList::class.java to { v: Any -> _listEncLen(v as ArrayList<*>)}, //
             String::class.java to { v: Any -> (v as String).length }
         )
@@ -390,9 +390,9 @@ class Bipf {
         fun encodingLength(v: Any?): Int {
             if (v == null)
                 return 1
-
             val sz = type2encLen[v::class.java]?.invoke(v)
             if (sz == null) {
+                Log.e("Bipf","invalid encoding length for value of class ${v::class.java}")
                 return -1
             }
 

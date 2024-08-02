@@ -153,7 +153,7 @@ class Replica(val context: MainActivity, val datapath: File, val fid: ByteArray)
                 fid
             )
         ) {
-            Log.e("Replica", "ingest_entry: signature verify failed")
+            Log.d("Replica", "ingest_entry: signature verify failed")
             return false
         }
         var chunk_cnt = 0
@@ -197,14 +197,14 @@ class Replica(val context: MainActivity, val datapath: File, val fid: ByteArray)
     }
 
     fun ingest_chunk_pkt(pkt: ByteArray, seq: Int): Boolean {
-        Log.d("replica", "ingest_chunk_pkt")
+        // Log.d("replica", "ingest_chunk_pkt")
         if (pkt.size != TINYSSB_PKT_LEN) return false
         val pend: Pending
         var pos: Int
         try {
             pend = state.pend_sc[seq]!!
             if(!pend.hptr.contentEquals(pkt.sha256().sliceArray(0 until HASH_LEN))) {
-                Log.e("ingest_chunk_pkt", "hptr missmatch, expected: ${pend.hptr.toHex()}, hptr: ${pkt.sha256().sliceArray(0 until HASH_LEN).toHex()}, seq: $seq, cnr: ${pend.cnr}")
+                Log.e("replica", "hptr mismatch, expected: ${pend.hptr.toHex()}, hptr: ${pkt.sha256().sliceArray(0 until HASH_LEN).toHex()}, seq: $seq, cnr: ${pend.cnr}")
                 return false
             }
             RandomAccessFile(log, "rwd").use { f ->

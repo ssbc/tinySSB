@@ -72,6 +72,7 @@ class IO(val context: MainActivity, val wai: WebAppInterface?) {
             if (outqueue.size > 0) {
                 lck.lock()
                 val buf = outqueue.removeFirst()
+                // Log.d("tinyIO", "send loop: buf size is ${buf.size} bytes")
                 lck.unlock()
                 if (context.mc_socket != null) { // WiFi, add CRC
                     val msg = appendCRC(buf)

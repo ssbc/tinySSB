@@ -25,11 +25,13 @@ class Node(val context: MainActivity) {
     val NODE_ROUND_LEN = 5000L
     var log_offs = 0
     var chunk_offs = 0
+    val WANT_LIM = 5
+    val CHNK_LIM = 5
 
     private val wantAccessLock = Any()
 
     fun incoming_want_request(buf: ByteArray, aux: ByteArray?, sender: String?) {
-        Log.d("node", "incoming WANT ${buf.toHex()} from sender: $sender")
+        // Log.d("node", "incoming WANT ${buf.toHex()} from sender: $sender")
         val vect = bipf_loads(buf.sliceArray(DMX_LEN..buf.lastIndex))
         if (vect == null || vect.typ != BIPF_LIST) return
         val lst = vect.getBipfList()
@@ -38,9 +40,9 @@ class Node(val context: MainActivity) {
             return
         }
         val offs = lst[0].getInt()
-        var v = "WANT vector=["
+        var v = "rcvd WANT vector=["
         var vector = mutableMapOf<Int, Int>() //send to frontend
-        var credit = 3
+        var credit = WANT_LIM
         for (i in 1..lst.lastIndex) {
             val fid: ByteArray
             var seq: Int
@@ -59,46 +61,48 @@ class Node(val context: MainActivity) {
                 val pkt = context.tinyRepo.feed_read_pkt(fid, seq)
                 //Log.d("incoming_want", "read pkt ${fid.toHex()}.$seq")
                 if (pkt == null) {
-                    //Log.d("incoming_want", "pkt not found")
+                    // Log.d("incoming_want", "pkt ${fid.toHex()}.${seq} not found")
                     break
                 }
 
-                Log.d("node", "  have entry ${fid.toHex()}.${seq} with dmx: ${pkt.sliceArray(0 until DMX_LEN).toHex()} (len: ${pkt.size})")
+                Log.d("node", "  have entry ${context.tinyGoset.key2ndx(fid)}.${seq} with dmx: ${pkt.sliceArray(0 until DMX_LEN).toHex()} (len: ${pkt.size})")
+                // Log.d("node", "  pkt size ${pkt.size}")
                 context.tinyIO.enqueue(pkt)
                 seq++;
                 credit--;
             }
         }
         v += " ]"
+        if (credit == WANT_LIM)
+            v += " - no log entry found to serve"
         Log.d("node", v)
         if(sender != null)
             update_progress(vector.toSortedMap().values.toList(), sender)
-        if (credit == 3)
-            Log.d("node", "  no entry found to serve")
     }
 
     fun incoming_chunk_request(buf: ByteArray, aux: ByteArray?) {
-        Log.d("node", "incoming CHNK request")
+        // Log.d("node", "incoming CHNK request")
         val vect = bipf_loads(buf.sliceArray(DMX_LEN..buf.lastIndex))
         if (vect == null || vect.typ != BIPF_LIST) {
-            Log.d("node", "  malformed?")
+            Log.d("node", "  malformed chunk request?")
             return
         }
-        var v= "CHNK vector=["
-        var credit = 3
+        var v= "rcvd CHNK vector=["
+        var credit = CHNK_LIM
         for (e in vect.getBipfList()) {
             val fNDX: Int
             val fid: ByteArray
             val seq: Int
             var cnr: Int
             try {
-                Log.d("in_chnk", "inner")
+                // Log.d("in_chnk", "inner")
                 val lst = e.getBipfList()
                 fNDX = lst[0].getInt()
                 fid = context.tinyGoset.keys[fNDX]
                 seq = lst[1].getInt()
                 cnr = lst[2].getInt()
-                v += " ${fid.sliceArray(0..9).toHex()}.${seq}.${cnr}"
+                // v += " ${fid.sliceArray(0..9).toHex()}.${seq}.${cnr}"
+                v += " ${fNDX}.${seq}.${cnr}"
             } catch (e: Exception) {
                 Log.d("node", "incoming CHNK error ${e.toString()}")
                 continue
@@ -108,17 +112,23 @@ class Node(val context: MainActivity) {
             val (sz, szlen) = varint_decode(pkt, DMX_LEN + 1, DMX_LEN + 4)
             if (sz <= 28 - szlen) continue;
             val maxChunks    = (sz - (28 - szlen) + 99) / 100
-            Log.d("node", "maxChunks is ${maxChunks}")
+            // Log.d("node", "maxChunks is ${maxChunks}")
             if (cnr > maxChunks) continue
-            while (cnr <= maxChunks && credit-- > 0) {
+            while (cnr <= maxChunks) {
                 val chunk = context.tinyRepo.feed_read_chunk(fid, seq, cnr)
                 if (chunk == null) break;
-                Log.d("node", "  have chunk ${fid.sliceArray(0..19).toHex()}.${seq}.${cnr}")
+                Log.d("node", "  have chunk ${context.tinyGoset.key2ndx(fid)}.${seq}.${cnr}")
+                // Log.d("node", "  chunk size ${chunk.size}")
                 context.tinyIO.enqueue(chunk);
+                credit--
+                if (credit <= 0)
+                    break
                 cnr++;
             }
         }
         v += " ]"
+        if (credit == CHNK_LIM)
+            v += " - no chunk found to serve"
         Log.d("node", v)
     }
 
@@ -132,16 +142,19 @@ class Node(val context: MainActivity) {
     }
 
     fun beacon() { // called in regular intervals
-
-        Log.d("node", "beacon")
+        // Log.d("node", "beacon")
 
         val want_buf = context.tinyRepo.mk_want_vect()
-        if (want_buf != null)
+        if (want_buf != null) {
+            // Log.d("node", "  want_buf size ${want_buf.size}")
             context.tinyIO.enqueue(want_buf, context.tinyDemux.want_dmx)
+        }
 
         val chnk_buf = context.tinyRepo.mk_chnk_vect()
-        if (chnk_buf != null)
+        if (chnk_buf != null) {
+            // Log.d("node", "  chnk_buf size ${chnk_buf.size}")
             context.tinyIO.enqueue(chnk_buf, context.tinyDemux.chnk_dmx)
+        }
     }
 
     fun incoming_pkt(buf: ByteArray, fid: ByteArray) {

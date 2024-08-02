@@ -96,12 +96,12 @@ class Demux(val context: MainActivity) {
         var rc = false
         val d = dmxt_find(buf.sliceArray(0..DMX_LEN-1))
         if (d != null && d.fct != null) {
-            Log.d("demux", "calling dmx=${d.dmx.toHex()} fct=[${d.fct}] aux=${d.aux?.toHex()} sender=$sender")
+            // Log.d("demux", "calling dmx=${d.dmx.toHex()} fct=[${d.fct}] aux=${d.aux?.toHex()} sender=$sender")
             d.fct!!.invoke(buf, d.aux, sender)
                 rc = true
         }
         if (buf.size == TINYSSB_PKT_LEN) {
-            Log.d("demux", "buf.size == TINYSSB_PKT_LEN")
+            // Log.d("demux", "buf.size == TINYSSB_PKT_LEN")
             val chnks = blbt_find(h)
             for (c in chnks) {
                 c.fct!!.invoke(buf, c.fid, c.seq)

@@ -122,20 +122,20 @@ class BlePeers(val act: MainActivity) {
     @SuppressLint("MissingPermission")
     fun write(buf: ByteArray) {
         for (p in peers) {
-            Log.d("ble_rx", "sending (rx char) ${buf.size} bytes")
+            Log.d("BlePeers", "ble_rx sending (rx charact.) ${buf.size} bytes")
             val service = p.value.getService(TINYSSB_BLE_REPL_SERVICE_2022)
             if(service == null) {
-                Log.d("ble_rx", "service not available")
+                Log.d("BlePeers", "reply service not available")
                 return
             }
-            Log.d("ble_rx", "Service: $service")
+            // Log.d("ble_rx", "Service: $service")
             //Log.d("ble_rx", "Available chs: ${service.characteristics.get(0).uuid}")
             //Log.d("ble_rx", "expected: $TINYSSB_BLE_RX_CHARACTERISTIC")
             //Log.d("ble_rx", "Check? ${service.characteristics.get(0).uuid.toString() == TINYSSB_BLE_RX_CHARACTERISTIC.toString()}")
             val ch = service.getCharacteristic(TINYSSB_BLE_RX_CHARACTERISTIC)
-            Log.d("ble_rx", "Characteristic: ${ch}")
+            // Log.d("ble_rx", "Characteristic: ${ch}")
             ch.value = buf
-            Log.d("ble_rx", "send $buf")
+            // Log.d("BlePeers", "ble_rx (send) $buf")
             p.value.writeCharacteristic(ch)
         }
     }
@@ -144,7 +144,7 @@ class BlePeers(val act: MainActivity) {
     private fun startBleScan() {
         if (isScanning)
             return
-        Log.d("ble", "starting scan")
+        Log.d("BlePeers", "ble - starting scan")
             // scanResults.clear()
             // scanResultAdapter.notifyDataSetChanged()
         if (bleScanner != null) {
@@ -155,7 +155,7 @@ class BlePeers(val act: MainActivity) {
 
     @SuppressLint("MissingPermission")
     private fun stopBleScan() {
-        Log.d("ble", "Stopped ble scan")
+        Log.d("BlePeers", "ble - Stopped scan")
         if (bleScanner != null)
             bleScanner.stopScan(scanCallback)
         isScanning = false
@@ -169,14 +169,14 @@ class BlePeers(val act: MainActivity) {
             descriptor: BluetoothGattDescriptor?,
             status: Int
         ) {
-            Log.d("ble", "onDescriptorRead")
+            Log.d("BlePeers", "ble - onDescriptorRead")
             super.onDescriptorRead(gatt, descriptor, status)
 
             if (gatt == null)
                 return
 
             if (descriptor?.uuid == TINYSSB_BLE_RX_NAME_DESCRIPTOR) {
-                Log.d("ble", "received name: ${descriptor!!.value.toHex()}")
+                Log.d("BlePeers", "ble - received name: ${descriptor!!.value.toHex()}")
                 device_pubkey[gatt.device] = descriptor!!.value
                 refreshShortNameForKey(descriptor!!.value)
             }
@@ -184,7 +184,7 @@ class BlePeers(val act: MainActivity) {
         }
 
         override fun onCharacteristicChanged(gatt: BluetoothGatt?, ch: BluetoothGattCharacteristic?) {
-            Log.d("ble", "change..")
+            Log.d("BlePeers", "ble change..")
             super.onCharacteristicChanged(gatt, ch)
             if (ch != null) {
                 // Log.d("ble", "${ch.uuid.toString()} changed: ${ch.value.toHex()}, ${ch.value.size}")
@@ -192,20 +192,20 @@ class BlePeers(val act: MainActivity) {
                 val rc = act.tinyDemux.on_rx(ch.value)
                 act.ioLock.unlock()
                 if (!rc)
-                    Log.d("ble rx", "no dmx entry for ${ch.value.toHex()}")
+                    Log.d("BlePeers", "ble - no dmx entry for ${ch.value.toHex()}")
             }
         }
 
         override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
             super.onConnectionStateChange(gatt, status, newState)
-            Log.d("ble", "Connection change!")
+            Log.d("BlePeers", "ble - Connection change!")
             if (status == GATT_SUCCESS && newState == STATE_CONNECTED) {
-                Log.d("ble", "connected! ${gatt.device.address.toString()}")
+                Log.d("BlePeers", "ble - connected! ${gatt.device.address.toString()}")
                 //Log.d("ble", "updated client list: ${peers.get(gatt.device)!!.device.address}")
                 val rc = gatt.requestMtu(128)
-                Log.d("ble mtu", "request rc=$rc")
+                Log.d("BlePeers", "ble - MTU request rc=$rc")
             } else if (newState == STATE_DISCONNECTED) {
-                Log.d("ble", "disconnected")
+                Log.d("BlePeers", "ble - disconnected")
                 notifyFrontend(gatt.device, "offline")
                 peers.remove(gatt.device)
                 pending.remove(gatt.device)
@@ -219,19 +219,19 @@ class BlePeers(val act: MainActivity) {
 
             if (gatt != null) {
                 for (s in gatt.services) {
-                    Log.d("ble discovered services", "${s.uuid.toString()}")
+                    Log.d("BlePeers", "ble - discovered service ${s.uuid.toString()}")
                     if (s.uuid.toString() == TINYSSB_BLE_REPL_SERVICE_2022.toString()) {
                         for (c in s.characteristics)
-                            Log.d("ble discovered ch", c.uuid.toString())
+                            Log.d("BlePeers","ble - discovered ch ${c.uuid.toString()}")
                         val ch = s.getCharacteristic(TINYSSB_BLE_TX_CHARACTERISTIC)
                         if (ch == null)
-                            Log.d("ble disc", "ch still is null")
+                            Log.d("BlePeers", "ble discovery - ch still is null")
                         else {
-                            Log.d("ble disc", "ch ${ch.uuid.toString()} found, enable notif")
+                            Log.d("BlePeers", "ble discovery - ch ${ch.uuid.toString()} found, enable notif")
                             val chRx = s.getCharacteristic(TINYSSB_BLE_RX_CHARACTERISTIC)
                             if (chRx != null ) {
                                 val read = gatt.readDescriptor(chRx.getDescriptor(TINYSSB_BLE_RX_NAME_DESCRIPTOR))
-                                Log.d("ble", "read: $read")
+                                Log.d("BlePeers", "ble - read: $read")
                             }
                             gatt.setCharacteristicNotification(ch, true)
                             val lst =
@@ -251,13 +251,13 @@ class BlePeers(val act: MainActivity) {
                         }
                     } else
                         Log.d(
-                            "ble",
-                            "hm, service is ${s.uuid.toString()} vs ${TINYSSB_BLE_REPL_SERVICE_2022.toString()}"
+                            "BlePeers",
+                            "hm, ble service is ${s.uuid.toString()} vs ${TINYSSB_BLE_REPL_SERVICE_2022.toString()}"
                         )
 
                 }
                 if (!foundService) {
-                    Log.d("ble", "Couldn't find the TinySSB-Service, disconnecting...")
+                    Log.d("BlePeers", "ble - couldn't find the TinySSB-Service, disconnecting...")
                     gatt.disconnect()
                     pending.remove(gatt.device)
                     gatt.close()
@@ -277,14 +277,14 @@ class BlePeers(val act: MainActivity) {
 
         override fun onMtuChanged(gatt: BluetoothGatt?, mtu: Int, status: Int) {
             super.onMtuChanged(gatt, mtu, status)
-            Log.d("ble mtu", "status=$status, mtu=$mtu")
+            Log.d("BlePeers", "ble mtu status=$status, mtu=$mtu")
 
             if(gatt != null) {
                 if (status == GATT_SUCCESS) {
-                    Log.d("ble gatt", "${gatt.discoverServices()}")
+                    Log.d("BlePeers", "ble gatt ${gatt.discoverServices()}")
 
                 } else {
-                    Log.d("ble", "Error onMtuChanged, closing connection...")
+                    Log.d("BlePeers", "ble error onMtuChanged, closing connection...")
                     gatt.disconnect()
                     pending.remove(gatt.device)
                     gatt.close()
@@ -298,7 +298,7 @@ class BlePeers(val act: MainActivity) {
             status: Int
         ) {
             super.onCharacteristicWrite(gatt, characteristic, status)
-            Log.d("gatt", "Write success status: $status")
+            // Log.d("gatt", "Write success status: $status")
 
             if(gatt != null) {
                 if(status != 0) {
@@ -330,9 +330,9 @@ class BlePeers(val act: MainActivity) {
     private val scanCallback = object : ScanCallback() {
         override fun onScanResult(callbackType: Int, result: ScanResult) {
             super.onScanResult(callbackType, result)
-            Log.d("ble_scan_callback", "Peers: $peers, Pending: $pending")
+            // Log.d("BlePeers", "ble scan callback - Peers: $peers, Pending: $pending")
             if (!(result.device in peers) and !(result.device in pending)) {
-                Log.d("ble_scan_callback", "Found BLE tinySSB device! adding address: ${result.device.address}")
+                // Log.d("BlePeers", "ble scan callback - Found BLE tinySSB device! adding address: ${result.device.address}")
                 /*if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
 
                 }
@@ -348,7 +348,7 @@ class BlePeers(val act: MainActivity) {
         }
 
         override fun onScanFailed(errorCode: Int) {
-            Log.d("ble","onScanFailed: code $errorCode")
+            Log.d("BlePeers","ble onScanFailed: code $errorCode")
         }
     }
 
@@ -375,7 +375,7 @@ class BlePeers(val act: MainActivity) {
         gattService.addCharacteristic(chRX)
         gattService.addCharacteristic(chTX)
         gattServer = bluetoothManager.openGattServer(act, gattServerCallback).apply { addService(gattService)}
-        Log.d("GATT_Server", "Server started")
+        Log.d("BlePeers", "ble GATT Server started")
         startAdvertising()
 
     }
@@ -401,16 +401,16 @@ class BlePeers(val act: MainActivity) {
         for (d in connectedDevices)
             gattServer?.cancelConnection(d)
         gattServer?.close()
-        Log.d("GATT_Server", "Server stopped")
+        Log.d("BlePeers", "ble GATT Server stopped")
     }
 
     private val advertiseCallback = object : AdvertiseCallback() {
         override fun onStartSuccess(settingsInEffect: AdvertiseSettings) {
-            Log.i("GATT_Advertiser", "GATT Advertise Started.")
+            Log.i("GATT_Advertiser", "ble GATT Advertise Started.")
         }
 
         override fun onStartFailure(errorCode: Int) {
-            Log.w("GATT_Advertiser", "GATT Advertise Failed: $errorCode")
+            Log.w("GATT_Advertiser", "ble GATT Advertise Failed: $errorCode")
         }
     }
 
@@ -419,17 +419,17 @@ class BlePeers(val act: MainActivity) {
 
 
         override fun onConnectionStateChange(device: BluetoothDevice?, status: Int, newState: Int) {
-            Log.d("GATT_Server", "Connection changed")
+            // Log.d("BlePeers", "ble GATT server Connection changed")
             super.onConnectionStateChange(device, status, newState)
                 if( status == GATT_SUCCESS && newState == STATE_CONNECTED && device != null) {
-                    Log.d("GATT_Server", "Device connected: $device")
+                    Log.d("BlePeers", "ble GATT server - Device connected: $device")
                     connectedDevices.add(device)
                     notifyFrontend(device, "online")
                 } else if (newState == STATE_DISCONNECTED) {
                     connectedDevices.remove(device)
                     if (device != null)
                         notifyFrontend(device, "offline")
-                    Log.d("GATT_Server", "Device disconnected: $device")
+                    Log.d("BlePeers", "ble GATT server - Device disconnected: $device")
                 }
         }
 
@@ -439,7 +439,7 @@ class BlePeers(val act: MainActivity) {
             offset: Int,
             descriptor: BluetoothGattDescriptor?
         ) {
-            Log.d("ble server", "onDescriptorReadRequest")
+            // Log.d("BlePeers", "ble server - onDescriptorReadRequest")
             super.onDescriptorReadRequest(device, requestId, offset, descriptor)
             gattServer?.sendResponse(device, requestId, GATT_SUCCESS, offset, act.idStore.identity.verifyKey)
         }
@@ -464,10 +464,10 @@ class BlePeers(val act: MainActivity) {
                 offset,
                 value
             )
-            Log.d("GATT_Server", "Characteristic Write Request! ${characteristic?.uuid}, $responseNeeded")
+            // Log.d("BlePeers", "ble GATT server - Characteristic Write Request! ${characteristic?.uuid}, $responseNeeded")
             if (characteristic != null) {
                 if(characteristic.uuid == TINYSSB_BLE_RX_CHARACTERISTIC) {
-                    Log.d("GATT_Server", "Received characteristic: ${value}, sender: ${device?.address}")
+                    // Log.d("GATT_Server", "Received characteristic: ${value}, sender: ${device?.address}")
                     gattServer?.sendResponse(device, requestId, GATT_SUCCESS,0, null)
 //                    if (value != null) {
                         try {
@@ -475,9 +475,9 @@ class BlePeers(val act: MainActivity) {
                             val rc = act.tinyDemux.on_rx(value!!, device?.address)
                             act.ioLock.unlock()
                             if (!rc)
-                                Log.d("ble rx", "not dmx entry for ${value}")
+                                Log.d("BlePeers", "ble rx: not dmx entry for ${value}")
                         } catch (e: Exception) {
-                            Log.e("GATT_Server", "error on tinyDemux: ${e.stackTrace}")
+                            Log.e("BlePeers", "ble GATT server - error on tinyDemux: ${e.stackTrace}")
                         }
 //                    }
                 }
@@ -494,7 +494,7 @@ class BlePeers(val act: MainActivity) {
             offset: Int,
             value: ByteArray?
         ) {
-            Log.d("GATT_Server","DescriptorWriteRequest")
+            Log.d("BlePeers","ble GATT server - DescriptorWriteRequest")
             super.onDescriptorWriteRequest(
                 device,
                 requestId,
@@ -512,9 +512,9 @@ class BlePeers(val act: MainActivity) {
     private fun notifyFrontend(device: BluetoothDevice, status: String) {
         val name = deviceToShortName(device)
 
-        Log.d("ble", "Connected devices: $connectedDevices, Peers: $peers, Server: ${bluetoothManager.getConnectedDevices(BluetoothProfile.GATT)}")
+        // Log.d("BlePeers", "ble - Connected devices: $connectedDevices, Peers: $peers, Server: ${bluetoothManager.getConnectedDevices(BluetoothProfile.GATT)}")
         if (connectedDevices.any { it.address == device.address} && peers.keys.any { it.address == device.address }) {
-            Log.d("BLE", "Device online: ${device}")
+            // Log.d("BlePeers", "ble - device online: ${device}")
             act.wai.eval("b2f_local_peer(\"ble\", \"${device.address}\", \"${name}\", \"${status}\")")
         } else if (status == "offline") {
             act.wai.eval("b2f_local_peer(\"ble\", \"${device.address}\", \"${name}\", \"${status}\")")

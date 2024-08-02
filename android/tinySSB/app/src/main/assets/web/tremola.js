@@ -543,7 +543,7 @@ function load_chat_item(nm) { // appends a button for conversation with name nm 
     if (nm == "ALL")
         mem = "ALL";
     else
-        mem = recps2display(tremola.chats[nm].members);
+        mem = "🔒 " + recps2display(tremola.chats[nm].members);
     item = document.createElement('div');
     // item.style = "padding: 0px 5px 10px 5px; margin: 3px 3px 6px 3px;";
     item.setAttribute('class', 'chat_item_div'); // old JS (SDK 23)
@@ -904,7 +904,7 @@ function recps2display(rcps) {
     var lst = rcps.map(function (fid) {
         return fid2display(fid)
     });
-    return '🔒 [' + lst.join(', ') + ']';
+    return '[' + lst.join(', ') + ']';
 }
 
 function fid2display(fid) {
@@ -1072,7 +1072,7 @@ function b2f_update_progress(min_entries, old_min_entries, old_want_entries, cur
 }
 
 function b2f_local_peer(type, identifier, displayname, status) {
-    console.log("incoming displayname:", displayname)
+    console.log(`incoming displayname: id=${identifier} dn=${displayname} status=${status}`)
     if (displayname == "null") {
         displayname = identifier
     }
@@ -1119,8 +1119,10 @@ function b2f_local_peer(type, identifier, displayname, status) {
  *
  */
 function b2f_new_in_order_event(e) {
-
-    console.log("b2f inorder event:", JSON.stringify(e.public))
+    if (e.public)
+        console.log("b2f inorder event:", JSON.stringify(e.public))
+    if (e.confid)
+        console.log("b2f inorder event:", JSON.stringify(e.confid))
 
     if (!(e.header.fid in tremola.contacts)) {
         var a = id2b32(e.header.fid);
@@ -1286,7 +1288,7 @@ function b2f_new_event(e) { // incoming SSB log event: we get map with three ent
             if (!(conv_name in tremola.chats)) { // create new conversation if needed
                 console.log("xx")
                 tremola.chats[conv_name] = {
-                    "alias": "🔒 " + recps2display(e.confid[4]), "posts": {},
+                    "alias": recps2display(e.confid[4]), "posts": {},
                     "members": e.confid[4], "touched": Date.now(), "lastRead": 0,
                     "timeline": new Timeline()
                 };
