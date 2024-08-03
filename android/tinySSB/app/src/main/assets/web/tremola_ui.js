@@ -30,17 +30,18 @@ var scenarioDisplay = {
 }
 
 var scenarioMenu = {
-    'chats': [// ['New Channel', 'menu_new_conversation'],
+    'chats': [
+        // ['New Channel', 'menu_new_conversation'],
         ['Settings', 'menu_settings'],
         ['About', 'menu_about']],
-    'productivity': [// ['Connected Devices', 'menu_connection'],
+    'productivity': [
         ['Settings', 'menu_settings'],
         ['About', 'menu_about']],
-    'games': [// ['Connected Devices', 'menu_connection'],
+    'games': [
         ['Settings', 'menu_settings'],
         ['About', 'menu_about']],
-    'contacts': [['New contact', 'menu_new_contact'],
-        // ['Connected Devices', 'menu_connection'],
+    'contacts': [
+        // ['New contact', 'menu_new_contact'],
         ['Settings', 'menu_settings'],
         ['About', 'menu_about']],
     'posts': [/* ['Take picture', 'menu_take_picture'],
@@ -49,14 +50,15 @@ var scenarioMenu = {
         ['(un)Forget', 'menu_forget_conv'],
         ['Settings', 'menu_settings'],
         ['About', 'menu_about']],
-    'members': [['Settings', 'menu_settings'],
+    'members': [
+        ['Settings', 'menu_settings'],
         ['About', 'menu_about']],
 
     'settings': [],
 
-    'kanban': [// ['New Kanban board', 'menu_new_board'], // no redundant functionality
+    'kanban': [
+        // ['New Kanban board', 'menu_new_board'], // no redundant functionality
         ['Invitations', 'menu_board_invitations'],
-        // ['Connected Devices', 'menu_connection'],
         ['Settings', 'menu_settings'],
         ['About', 'menu_about']],
 
@@ -69,17 +71,17 @@ var scenarioMenu = {
         ['(un)Forget', 'board_toggle_forget'],
         ['Debug', 'ui_debug']],
 
-    'scheduling': [['New Event', 'dpi_menu_new_event'],
-                ['Invitations', 'dpi_menu_event_invitations'],
-                ['Connected Devices', 'menu_connection'],
-                ['Settings', 'menu_settings'],
-                ['About', 'menu_about']],
+    'scheduling': [
+        // ['New Event', 'dpi_menu_new_event'],
+        ['Invitations', 'dpi_menu_event_invitations'],
+        ['Settings', 'menu_settings'],
+        ['About', 'menu_about']],
 
-    'event': [['Add appointment', 'dpi_menu_new_appointment'],
-            ['Invite Users', 'dpi_menu_invite'],
-            ['Reload', 'dpi_reload_curr_event'],
-            ['Debug', 'dpi_ui_debug']]
-
+    'event': [
+        ['Add appointment', 'dpi_menu_new_appointment'],
+        ['Invite Users', 'dpi_menu_invite'],
+        ['Reload', 'dpi_reload_curr_event'],
+        ['Debug', 'dpi_ui_debug']]
 }
 
 const QR_SCAN_TARGET = {

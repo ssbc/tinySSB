@@ -10,27 +10,9 @@ var edit_target = '';
 var colors = ["#d9ceb2", "#99b2b7", "#e6cba5", "#ede3b4", "#8b9e9b", "#bd7578", "#edc951",
     "#ffd573", "#c2a34f", "#fbb829", "#ffab03", "#7ab317", "#a0c55f", "#8ca315",
     "#5191c1", "#6493a7", "#bddb88"]
-var pubs = []
-// var wants = {}
 var loaded_settings = {} // the settings provided bz the backend, will overwrite tremola.settings after initialization
 
-
 // --- menu callbacks
-
-/*
-function menu_sync() {
-  if (localPeers.length == 0)
-    launch_snackbar("no local peer to sync with");
-  else {
-    for (var i in localPeers) {
-      backend("sync " + i);
-      launch_snackbar("sync launched");
-      break
-    }
-  }
-  closeOverlay();
-}
-*/
 
 function menu_redraw() {
     closeOverlay();
@@ -56,7 +38,6 @@ function menu_edit(target, title, text) {
 }
 
 function onEnter(ev) {
-
     if (ev.key == "Enter") {
         switch(ev.target.id) {
             case 'edit_text':
@@ -71,10 +52,6 @@ function onEnter(ev) {
         }
     }
 }
-
-// function menu_edit_new_contact_alias() {
-//   menu_edit('new_contact_alias', "Assign alias to new contact:", "");
-// }
 
 function edit_confirmed() {
     closeOverlay()
@@ -181,18 +158,6 @@ function members_confirmed() {
     } else if (prev_scenario == 'scheduling') {
         dpi_menu_new_event_name()
     }
-}
-
-/*
-function menu_process_msgs() {
-    backend('process.msg');
-    closeOverlay();
-}
-*/
-
-function menu_add_pub() {
-    // ...
-    closeOverlay();
 }
 
 function menu_dump() {
@@ -409,34 +374,12 @@ function persist() {
     window.localStorage.setItem("tremola", JSON.stringify(tremola));
 }
 
-/*
-function b2f_local_peer(p, status) { // wireless peer: online, offline, connected, disconnected
-    console.log("local peer", p, status);
-    if (!(p in localPeers))
-        localPeers[p] = [false, false]
-    if (status == 'online') localPeers[p][0] = true
-    if (status == 'offline') localPeers[p][0] = false
-    if (status == 'connected') localPeers[p][1] = true
-    if (status == 'disconnected') localPeers[p][1] = false
-    if (!localPeers[p][0] && !localPeers[p][1])
-        delete localPeers[p]
-    load_peer_list()
-}
-*/
-
-
-// type: 'udp' or 'ble'
-// identifier: unique identifier of the peer
-// displayname
-// status: 'connected', 'disconnected'
-
 function b2f_ble_enabled() {
     //ble_status = "enabled"
     //TODO update ui
 }
 
 function b2f_ble_disabled() {
-
     for(var p in localPeers) {
         if(localPeers[p].type == "ble") {
             delete localPeers[p]
@@ -446,16 +389,16 @@ function b2f_ble_disabled() {
     //ble_status = "disabled"
 }
 
-function b2f_local_peer_remaining_updates(identifier, remaining) {
-    //TODO
-}
-
 function b2f_update_progress(min_entries, old_min_entries, old_want_entries, curr_want_entries, max_entries) {
     refresh_connection_progressbar(min_entries, old_min_entries, old_want_entries, curr_want_entries, max_entries)
 }
 
 function b2f_local_peer(type, identifier, displayname, status) {
-    console.log(`incoming displayname: id=${identifier} dn=${displayname} status=${status}`)
+    // type: 'udp' or 'ble'
+    // identifier: unique identifier of the peer
+    // displayname
+    // status: 'connected', 'disconnected'
+    console.log(`local_peer: type=${type} id=${identifier} dn=${displayname} status=${status}`)
     if (displayname == "null") {
         displayname = identifier
     }
@@ -468,7 +411,6 @@ function b2f_local_peer(type, identifier, displayname, status) {
         'remaining': null
     }
 
-
     if (tremola != null) // can be the case during the first initialisation
         for (var c in tremola["contacts"]) {
             if (id2b32(c) == displayname) {
@@ -476,14 +418,10 @@ function b2f_local_peer(type, identifier, displayname, status) {
             }
         }
 
-
-    console.log("local_peer:", type, identifier, displayname, status)
-
     if (status == "offline") {
       delete localPeers[identifier]
       //refresh_connection_progressbar()
     }
-
 
     if (document.getElementById('connection-overlay').style.display != 'none')
         refresh_connection_entry(identifier)
@@ -792,8 +730,5 @@ function b2f_initialize(id, settings) {
     setScenario('chats');
     // load_chat("ALL");
 }
-
-
-
 
 // --- eof
