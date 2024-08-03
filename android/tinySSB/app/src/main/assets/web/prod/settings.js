@@ -1,7 +1,6 @@
-// tremola_settings.js
+// prod/settings.js
 
 "use strict";
-
 
 // These default settings are only used for browser-only testing
 // Normally, these settings below WILL BE IGNORED and loaded via the provided backend.
