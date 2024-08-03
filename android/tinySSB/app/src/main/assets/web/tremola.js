@@ -32,14 +32,6 @@ function menu_sync() {
 }
 */
 
-function menu_new_pub() {
-    menu_edit('new_pub_target', "Enter address of trustworthy pub<br><br>Format:<br><tt>net:IP_ADDR:PORT~shs:ID_OF_PUB</tt>", "");
-}
-
-function menu_invite() {
-    menu_edit('new_invite_target', "Enter invite code<br><br>Format:<br><tt>IP_ADDR:PORT:@ID_OF_PUB.ed25519~INVITE_CODE</tt>", "");
-}
-
 function menu_redraw() {
     closeOverlay();
 
@@ -114,8 +106,6 @@ function edit_confirmed() {
         persist();
         backend("add:contact " + new_contact_id + " " + btoa(val))
         menu_redraw();
-    } else if (edit_target == 'new_pub_target') {
-        console.log("action for new_pub_target")
     } else if (edit_target == 'new_invite_target') {
         backend("invite:redeem " + val)
     } else if (edit_target == 'new_board') {
@@ -227,34 +217,6 @@ function fill_members() {
     */
     document.getElementById(myId).checked = true;
     document.getElementById(myId).disabled = true;
-}
-
-function load_peer_list() {
-    var i, lst = '', row;
-    for (i in localPeers) {
-        var x = localPeers[i], color, row, nm, tmp;
-        if (x[1]) color = ' background: var(--lightGreen);'; else color = '';
-        tmp = i.split('~');
-        nm = '@' + tmp[1].split(':')[1] + '.ed25519'
-        if (nm in tremola.contacts)
-            nm = ' / ' + tremola.contacts[nm].alias
-        else
-            nm = ''
-        row = "<button class='flat buttontext' style='border-radius: 25px; width: 50px; height: 50px; margin-right: 0.75em;" + color + "'><img src=img/signal.svg style='width: 50px; height: 50px; margin-left: -3px; margin-top: -3px; padding: 0px;'></button>";
-        row += "<button class='chat_item_button light' style='overflow: hidden; width: calc(100% - 4em);' onclick='show_peer_details(\"" + i + "\");'>";
-        row += "<div style='white-space: nowrap;'><div style='text-overflow: ellipsis; overflow: hidden;'>" + tmp[0].substring(4) + nm + "</div>";
-        row += "<div style='text-overflow: clip; overflow: ellipsis;'><font size=-2>" + tmp[1].substring(4) + "</font></div></div></button>";
-        lst += '<div style="padding: 0px 5px 10px 5px;">' + row + '</div>';
-        // console.log(row)
-    }
-    document.getElementById('the:connex').innerHTML = lst;
-}
-
-function show_peer_details(id) {
-    new_contact_id = "@" + id.split('~')[1].substring(4) + ".ed25519";
-    // if (new_contact_id in tremola.constacts)
-    //  return;
-    menu_edit("trust_wifi_peer", "Trust and Autoconnect<br>&nbsp;<br><strong>" + new_contact_id + "</strong><br>&nbsp;<br>Should this WiFi peer be trusted (and autoconnected to)? Also enter an alias for the peer - only you will see this alias", "?")
 }
 
 // --- util

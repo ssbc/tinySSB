@@ -6,8 +6,7 @@ var overlayIsActive = false;
 
 var display_or_not = [
     'div:qr', 'div:back', 'core', 'plus',
-    'lst:chats', 'lst:prod', 'lst:games', 'lst:contacts',
-    'lst:members', 'the:connex',
+    'lst:chats', 'lst:prod', 'lst:games', 'lst:contacts', 'lst:members',
     'div:posts', 'lst:kanban', 'div:board',
     'lst:scheduling', 'div:event',
     'div:footer', 'div:textarea', 'div:confirm-members', 'div:settings'
@@ -20,7 +19,6 @@ var scenarioDisplay = {
     'chats': ['div:qr', 'core', 'lst:chats', 'div:footer', 'plus'],
     'contacts': ['div:qr', 'core', 'lst:contacts', 'div:footer', 'plus'],
     'posts': ['div:back', 'core', 'div:posts', 'div:textarea'],
-    'connex': ['div:qr', 'core', 'the:connex', 'div:footer', 'plus'],
     'games': ['div:qr', 'core', 'lst:games', 'div:footer'],
     'members': ['div:back', 'core', 'lst:members', 'div:confirm-members'],
     'productivity': ['div:qr', 'core', 'lst:prod', 'div:footer'],
@@ -43,12 +41,6 @@ var scenarioMenu = {
         ['About', 'menu_about']],
     'contacts': [['New contact', 'menu_new_contact'],
         // ['Connected Devices', 'menu_connection'],
-        ['Settings', 'menu_settings'],
-        ['About', 'menu_about']],
-    'connex': [['New SSB pub', 'menu_new_pub'],
-        ['Redeem invite code', 'menu_invite'],
-        // ['Connected Devices', 'menu_connection'],
-        // ['<del>Force sync</del>', 'menu_sync'],
         ['Settings', 'menu_settings'],
         ['About', 'menu_about']],
     'posts': [/* ['Take picture', 'menu_take_picture'],
@@ -102,7 +94,7 @@ function onBackPressed() {
         closeOverlay();
         return;
     }
-    if (['chats', 'contacts', 'connex', 'board', 'event'].indexOf(curr_scenario) >= 0) {
+    if (['chats', 'contacts', 'board', 'event'].indexOf(curr_scenario) >= 0) {
         if (curr_scenario == 'chats')
             backend("onBackPressed");
         else if (curr_scenario == 'board')
@@ -127,7 +119,7 @@ function setScenario(s) {
     var lst = scenarioDisplay[s];
     if (lst) {
         // if (s != 'posts' && curr_scenario != "members" && curr_scenario != 'posts') {
-        if (['chats', 'productivity', 'games', 'contacts', 'connex', ].indexOf(curr_scenario) >= 0) {
+        if (['chats', 'productivity', 'games', 'contacts'].indexOf(curr_scenario) >= 0) {
             var cl = document.getElementById('btn:' + curr_scenario).classList;
             cl.toggle('active', false);
             cl.toggle('passive', true);
@@ -153,15 +145,13 @@ function setScenario(s) {
             document.getElementById('plus').style.display = 'none';
         } else {
             document.getElementById('tremolaTitle').style.display = null;
-            // if (s == "connex") { /* document.getElementById('plus').style.display = 'none'; */}
-            // else { /* document.getElementById('plus').style.display = null; */}
             document.getElementById('conversationTitle').style.display = 'none';
         }
         if (lst.indexOf('div:qr') >= 0) {
             prev_scenario = s;
         }
         curr_scenario = s;
-        if (['chats', 'productivity', 'games', 'contacts', 'connex'].indexOf(curr_scenario) >= 0) {
+        if (['chats', 'productivity', 'games', 'contacts'].indexOf(curr_scenario) >= 0) {
             var cl = document.getElementById('btn:' + curr_scenario).classList;
             cl.toggle('active', true);
             cl.toggle('passive', false);
@@ -228,9 +218,9 @@ function setScenario(s) {
 
 function btnBridge(e) {
     var e = e.id, m = '';
-    if (['btn:chats', 'btn:connex', 'btn:contacts', 'btn:games',
+    if (['btn:chats', 'btn:contacts', 'btn:games',
          'btn:posts', 'btn:productivity'].indexOf(e) >= 0) {
-         console.log('btn', e)
+         // console.log('btn', e)
         setScenario(e.substring(4));
     }
     if (e == 'btn:menu') {
@@ -354,8 +344,6 @@ function plus_button() {
         menu_new_conversation();
     } else if (curr_scenario == 'contacts') {
         menu_new_contact();
-    } else if (curr_scenario == 'connex') {
-        menu_new_pub();
     } else if (curr_scenario == 'kanban') {
         menu_new_board();
     } else if (curr_scenario == 'scheduling') {
@@ -370,6 +358,12 @@ function launch_snackbar(txt) {
     setTimeout(function () {
         sb.className = sb.className.replace("show", "");
     }, 3000);
+}
+
+function chat_open_attachments_menu() {
+    closeOverlay()
+    document.getElementById('overlay-bg').style.display = 'initial'
+    document.getElementById('attach-menu').style.display = 'initial'
 }
 
 // --- QR display and scan
@@ -400,7 +394,6 @@ function generateQR(s) {
     }
     overlayIsActive = true;
 }
-
 
 function qr_scan_start(target) {
     // test if Android is defined ...
@@ -447,9 +440,6 @@ function qr_scan_success(s) {
     }
 }
 
-
-
-
 function qr_scan_failure() {
     launch_snackbar("QR scan failed")
 }
@@ -481,6 +471,8 @@ function modal_img(img) {
         }
     );
 }
+
+// --- sync status
 
 function menu_connection() {
     closeOverlay();
@@ -536,13 +528,10 @@ function refresh_connection_entry(id) {
     entryHTML += "</div>"
 
     document.getElementById('connection-overlay-content').innerHTML += entryHTML
-
 }
 
 function refresh_goset_progressbar(curr, max) {
-
     console.log("refresh_goset_progressbar", curr, max)
-
     var delta = max - curr
 
     document.getElementById('connection-overlay-progressbar-goset').value = (curr / max) * 100
@@ -573,8 +562,7 @@ function refresh_chunk_progressbar(remaining) {
     } else {
         max_chnks = 0 // reset
     }
-
-    console.log("refresh_chunk_progressbar", remaining, max_chnks)
+    console.log(`refresh_chunk_progressbar - remaining:${remaining} max_chnks:${max_chnks}`)
 
     if (remaining > 0) {
         var percentage = Math.round( (1 - ((remaining - 0) / (max_chnks - 0))) * 100 )
@@ -584,54 +572,42 @@ function refresh_chunk_progressbar(remaining) {
         document.getElementById('connection-overlay-progressbar-chnk').value = percentage
         document.getElementById('connection-overlay-progressbar-label-chnk').textContent = remaining + " Chunks left"
     } else {
-      document.getElementById('progBarChunks').style.width = '100%';
-      document.getElementById('connection-overlay-progressbar-chnk').value = 100;
-      document.getElementById('connection-overlay-progressbar-label-chnk').textContent = "Chunks — Synchronized"
+        document.getElementById('progBarChunks').style.width = '100%';
+        document.getElementById('connection-overlay-progressbar-chnk').value = 100;
+        document.getElementById('connection-overlay-progressbar-label-chnk').textContent = "Chunks — Synchronized"
     }
 }
 
 function refresh_connection_progressbar(min_entries, old_min_entries, old_want_entries, curr_want_entries, max_entries) {
-
-    console.log("min:", min_entries)
-    console.log("old_min:", old_min_entries)
-    console.log("old_curr:", old_want_entries)
-    console.log("curr:", curr_want_entries)
-    console.log("max:", max_entries)
-
+    console.log(`refresh_connection_progressbar - min:${min_entries} old_min:${old_min_entries} ` +
+                `old_curr:${old_want_entries} curr:${curr_want_entries} max:${max_entries}`)
     if(curr_want_entries == 0)
       return
 
-  // update want progress
+    // update want progress
+    if (curr_want_entries >= max_entries || old_want_entries == max_entries) {
+        document.getElementById('progBarMissing').style.width = '100%';
+        document.getElementById('connection-overlay-progressbar-want').value = 100
+        document.getElementById('connection-overlay-progressbar-label-want').textContent = "Missing — Synchronized"
+    } else {
+        var newPosReq = Math.round((curr_want_entries - old_want_entries) / (max_entries - old_want_entries) * 100)
+        console.log("newPosMax:", newPosReq)
+        document.getElementById('progBarMissing').style.width = `${newPosReq}%`;
+        document.getElementById('connection-overlay-progressbar-want').value = newPosReq
+        document.getElementById('connection-overlay-progressbar-label-want').textContent = "Missing - " + (max_entries - curr_want_entries) + " entries left"
+    }
 
-  if (curr_want_entries >= max_entries || old_want_entries == max_entries) {
-    document.getElementById('progBarMissing').style.width = '100%';
-    document.getElementById('connection-overlay-progressbar-want').value = 100
-    document.getElementById('connection-overlay-progressbar-label-want').textContent = "Missing — Synchronized"
-  } else {
-    var newPosReq = Math.round((curr_want_entries - old_want_entries) / (max_entries - old_want_entries) * 100)
-    console.log("newPosMax:", newPosReq)
-    document.getElementById('progBarMissing').style.width = `${newPosReq}%`;
-    document.getElementById('connection-overlay-progressbar-want').value = newPosReq
-    document.getElementById('connection-overlay-progressbar-label-want').textContent = "Missing - " + (max_entries - curr_want_entries) + " entries left"
-  }
-
-  // update gift progress
-  if (curr_want_entries <= min_entries || old_min_entries == curr_want_entries) {
-    document.getElementById('progBarAhead').style.width = '100%';
-    document.getElementById('connection-overlay-progressbar-gift').value = 100
-    document.getElementById('connection-overlay-progressbar-label-gift').textContent = "Ahead — Synchronized"
-  } else {
-    var newPosOff = Math.round((min_entries - old_min_entries) / (curr_want_entries - old_min_entries) * 100)
-    document.getElementById('progBarAhead').style.width = `${newPosOff}%`;
-    document.getElementById('connection-overlay-progressbar-gift').value = newPosOff
-    document.getElementById('connection-overlay-progressbar-label-gift').textContent = "Ahead - " + (curr_want_entries - min_entries) + " entries left"
-  }
-}
-
-function chat_open_attachments_menu() {
-    closeOverlay()
-    document.getElementById('overlay-bg').style.display = 'initial'
-    document.getElementById('attach-menu').style.display = 'initial'
+    // update gift progress
+    if (curr_want_entries <= min_entries || old_min_entries == curr_want_entries) {
+        document.getElementById('progBarAhead').style.width = '100%';
+        document.getElementById('connection-overlay-progressbar-gift').value = 100
+        document.getElementById('connection-overlay-progressbar-label-gift').textContent = "Ahead — Synchronized"
+    } else {
+        var newPosOff = Math.round((min_entries - old_min_entries) / (curr_want_entries - old_min_entries) * 100)
+        document.getElementById('progBarAhead').style.width = `${newPosOff}%`;
+        document.getElementById('connection-overlay-progressbar-gift').value = newPosOff
+        document.getElementById('connection-overlay-progressbar-label-gift').textContent = "Ahead - " + (curr_want_entries - min_entries) + " entries left"
+    }
 }
 
 // ---
