@@ -33,7 +33,7 @@ var scenarioDisplay = {
     'connect4-game': ['div:back', 'core', 'lst:connect4-game', 'div:footer', 'plus'],
     'connect4-game-players': ['div:back', 'core', 'lst:connect4-players', 'div:connect4-confirm-player'],
     'connect4-game-session': ['div:back', 'core', 'the:connect4-game-session'],
-    'scheduling': ['div:qr', 'core', 'lst:scheduling', 'div:footer', 'plus'],
+    'scheduling': ['div:back', 'core', 'lst:scheduling', 'div:footer', 'plus'],
     'event': ['div:back', 'core', 'div:event']
 }
 
@@ -159,7 +159,7 @@ function setScenario(s) {
             }
         })
         // console.log('s: ' + s)
-        if (s != "board" && s != '') {
+        if (s != "board" && s != '') { // show "tinySSB" by default
             document.getElementById('tremolaTitle').style.position = null;
         }
 
@@ -177,7 +177,11 @@ function setScenario(s) {
         if (lst.indexOf('div:qr') >= 0) {
             prev_scenario = s;
         }
+        if (lst.indexOf('div:back') >= 0) { // remember where we came from)
+            prev_scenario = curr_scenario;
+        }
         curr_scenario = s;
+
         if (['chats', 'productivity', 'games', 'contacts'].indexOf(curr_scenario) >= 0) {
             var cl = document.getElementById('btn:' + curr_scenario).classList;
             cl.toggle('active', true);
@@ -191,7 +195,15 @@ function setScenario(s) {
             c.innerHTML = "<font size=+1><strong>List of Chat Channels</strong></font><br>Pick or create a channel";
             */
         }
-        if (s == 'board')
+
+        if (s == 'contacts') {
+            document.getElementById("tremolaTitle").style.display = 'none';
+            var c = document.getElementById("conversationTitle");
+            c.style.display = null;
+            c.innerHTML = "<font size=+2><strong>Contacts</strong></font>";
+        }
+
+        if (s == 'board') // a specific Kanban board: use all space (beyond the footer)
             document.getElementById('core').style.height = 'calc(100% - 60px)';
         else
             document.getElementById('core').style.height = 'calc(100% - 118px)';
@@ -234,7 +246,7 @@ function setScenario(s) {
            document.getElementById("tremolaTitle").style.display = 'none';
            var c = document.getElementById("conversationTitle");
            c.style.display = null;
-           c.innerHTML = "<font size=+1><strong>Connect4</strong></font>";
+           c.innerHTML = "<font size=+2><strong>Connect4</strong></font>";
         }
 
         if (s == 'scheduling') {
