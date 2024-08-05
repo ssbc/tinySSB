@@ -352,7 +352,8 @@ function resetTremola() { // wipes browser-side content
         "profile": {},
         "id": myId,
         "settings": {},
-        "board": {}
+        "board": {},
+        "kahoot": {}
     }
 
     var n = recps2nm([myId])
@@ -473,6 +474,10 @@ function b2f_new_in_order_event(e) {
             break
         case "C4D":
             connect4_invite_declined(e);
+            break
+        case "KAH":
+            console.log("New kahoot event")
+            Kahoot_new_event(e)
             break
         case "SCH":
             console.log("New scheduling event")
@@ -758,6 +763,10 @@ function b2f_initialize(id, settings) {
     loadShortIds()
     // load_kanban_list()
     // dpi_load_event_list() // problem with access to tremola object
+    if (tremola.kahoot == undefined) {
+      tremola.kahoot = {};
+      persist();
+    }
 
     closeOverlay();
     setScenario('chats');

@@ -38,6 +38,7 @@ class Constants{
 
         val TINYSSB_APP_GAMETEXT     = Bipf.mkString("GAM") // BATTLESHIP
         val TINYSSB_APP_KANBAN       = Bipf.mkString("KAN") // kanban boards
+        val TINYSSB_APP_KAHOOT       = Bipf.mkString("KAH") // Kahoot quiz
         val TINYSSB_APP_SCHEDULING   = Bipf.mkString("SCH") // event scheduling
         val TINYSSB_APP_TEXTANDVOICE = Bipf.mkString("TAV") // str bytes int (xref)
         val TINYSSB_APP_TEXT         = Bipf.mkString("TXT") // str int xref

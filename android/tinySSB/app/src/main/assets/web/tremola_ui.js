@@ -10,6 +10,7 @@ var display_or_not = [
     'div:posts', 'lst:kanban', 'div:board',
     'lst:duels', 'div:battleships', // battleship
     'lst:connect4-game', 'lst:connect4-players', 'the:connect4-game-session', // connect4
+    'lst:kahoot',
     'lst:scheduling', 'div:event',
     'div:footer', 'div:textarea', 'div:confirm-members', 'div:settings'
 ];
@@ -28,6 +29,7 @@ var scenarioDisplay = {
     'settings': ['div:back', 'div:settings', 'core'],
     'kanban': ['div:back', 'core', 'lst:kanban', 'div:footer', 'plus'], // KANBAN
     'board': ['div:back', 'core', 'div:board'], // KANBAN
+    'kahoot': ['div:back', 'core', 'lst:kahoot'],
     'duels': ['div:back', 'core', 'lst:duels', 'plus'], // BATTLESHIP
     'battleships': ['div:back', 'core', 'div:battleships'], // BATTLESHIP
     'connect4-game': ['div:back', 'core', 'lst:connect4-game', 'div:footer', 'plus'],
@@ -225,6 +227,17 @@ function setScenario(s) {
             if(!personalBoardAlreadyExists && display_create_personal_board) {
                 menu_create_personal_board()
             }
+        }
+
+        if (s == 'kahoot') {
+            console.log('Kahoot scenario activated');
+            // Any additional initialization logic for Kahoot can go here
+            //document.getElementById('lst:kahoot').style.display = 'block';
+            document.getElementById('quiz-master-title').style.display = 'block';
+            document.getElementById('kahoot-buttons').style.display = 'block';
+            //document.getElementById('user-scores').style.display = 'block';
+            //document.getElementById('enter-quiz-button-list-container').style.display = 'block';
+            //document.getElementById('fill-quiz-button-list-container').style.display = 'block';
         }
 
         if (s == 'posts') {
