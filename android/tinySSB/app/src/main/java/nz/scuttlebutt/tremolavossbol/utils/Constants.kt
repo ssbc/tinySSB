@@ -29,7 +29,14 @@ class Constants{
         //  app name                                              schema
         val TINYSSB_APP_ALIAS        = Bipf.mkString("ALI") // fid str
         val TINYSSB_APP_BOX          = Bipf.mkString("BOX") // bytes
-        val TINYSSB_APP_BOX2         = Bipf.mkString("BX2") // bytes
+        val TINYSSB_APP_BOX2         = Bipf.mkString("BX2") //
+
+        val TINYSSB_APP_C4_START     = Bipf.mkString("C4N") // new     str str str str
+        val TINYSSB_APP_C4_END       = Bipf.mkString("C4E") // end     str str str
+        val TINYSSB_APP_C4_INVITE    = Bipf.mkString("C4I") // invite  str str
+        val TINYSSB_APP_C4_DECLINE   = Bipf.mkString("C4D") // decline str str
+
+        val TINYSSB_APP_GAMETEXT     = Bipf.mkString("GAM") // BATTLESHIP
         val TINYSSB_APP_KANBAN       = Bipf.mkString("KAN") // kanban boards
         val TINYSSB_APP_SCHEDULING   = Bipf.mkString("SCH") // event scheduling
         val TINYSSB_APP_TEXTANDVOICE = Bipf.mkString("TAV") // str bytes int (xref)

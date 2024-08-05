@@ -4,6 +4,8 @@
 
 var tremola;
 var myId;
+var myShortId;
+var shortToFidMap = {}
 var localPeers = {}; // feedID ~ [isOnline, isConnected] - TF, TT, FT - FF means to remove this entry
 var must_redraw = false;
 var edit_target = '';
@@ -460,6 +462,18 @@ function b2f_new_in_order_event(e) {
             console.log("New kanban event")
             kanban_new_event(e)
             break
+        case "C4N":
+            connect4_game_new_event(e);
+            break
+        case "C4E":
+            connect4_game_end_event(e);
+            break
+        case "C4I":
+            connect4_recv_invite(e);
+            break
+        case "C4D":
+            connect4_invite_declined(e);
+            break
         case "SCH":
             console.log("New scheduling event")
             dpi_scheduling_new_event(e)
@@ -601,6 +615,24 @@ function b2f_new_event(e) { // incoming SSB log event: we get map with three ent
                 }
             }
 
+        } else if (e.public[0] == "GAM") {
+            // TODO autoretransmit answer if necessary
+              if (window.GamesHandler && typeof window.GamesHandler.onGameBackendEvent === 'function') {
+                  var response = window.GamesHandler.onGameBackendEvent(e.public[1]);
+                  var responseList = response.split("!CERBERUS!")
+                  if (responseList.length >= 1 && responseList[0].startsWith("games")) {
+                      // TODO anpassen von GUI
+                      backend(responseList[0]);
+                  }
+                  if (responseList.length == 2) {
+                      update_game_gui(responseList[1])
+                  } else {
+                      update_game_gui(responseList[0])
+                  }
+              } else {
+                  console.error("GamesHandler.onGameBackendEvent is not a function");
+              }
+              //Android.onGameBackendEvent(e.public);
         }
         persist();
         must_redraw = true;
@@ -698,6 +730,7 @@ function b2f_new_image_blob(ref) {
 
 function b2f_initialize(id, settings) {
     myId = id
+    myShortId = id2b32(myId)
     if (window.localStorage.tremola) {
         tremola = JSON.parse(window.localStorage.getItem('tremola'));
 
@@ -722,13 +755,23 @@ function b2f_initialize(id, settings) {
     load_prod_list()
     load_game_list()
     load_contact_list()
-
+    loadShortIds()
     // load_kanban_list()
     // dpi_load_event_list() // problem with access to tremola object
 
     closeOverlay();
     setScenario('chats');
     // load_chat("ALL");
+}
+
+
+function addToMap(fid) {
+    const fidShort = id2b32(fid) // fid.substring(0, 7);  // Extract the shortID from the longID
+    shortToFidMap[fidShort] = fid;         // Map shortID to longID
+}
+function loadShortIds() {
+    for (var id in tremola.contacts)
+        addToMap(id);
 }
 
 // --- eof

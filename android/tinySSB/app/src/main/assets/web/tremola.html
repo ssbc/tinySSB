@@ -3,6 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <link rel="stylesheet" type="text/css" href="tremola.css" media="screen" />
+  <link rel="stylesheet" type="text/css" href="games/dpi24-06-battleship/duel.css" media="screen" />
+  <link rel="stylesheet" type="text/css" href="games/dpi24-09-connect4/connect4.css" media="screen" />
+  <link rel="stylesheet" type="text/css" href="prod/kanban/kanban.css" media="screen" />
+  <link rel="stylesheet" type="text/css" href="prod/dpi24-14-sched/scheduling.css" media="screen" />
   <script type="text/javascript" charset="UTF-8" src="util/bipf.js"></script>
   <script type="text/javascript" charset="UTF-8" src="util/scuttlesort.js"></script>
   <script type="text/javascript" charset="UTF-8" src="tremola.js"></script>
@@ -17,6 +21,8 @@
   <script type="text/javascript" charset="UTF-8" src="prod/kanban/board.js"></script>
   <script type="text/javascript" charset="UTF-8" src="prod/kanban/board_ui.js"></script>
   <script type="text/javascript" charset="UTF-8" src="games/games.js"></script>
+  <script type="text/javascript" charset="UTF-8" src="games/dpi24-06-battleship/duel.js"></script>
+  <script type="text/javascript" charset="UTF-8" src="games/dpi24-09-connect4/connect4.js"></script>
   <script type="text/javascript" charset="UTF-8" src="util/qrcode.min.js"></script>
   <script type="text/javascript" charset="UTF-8" src="util/pinch-zoom.min.js"></script>
   <script type="text/javascript" charset="UTF-8" src="util/pako.min.js"></script>
@@ -132,6 +138,43 @@
     </div>
   </div>
 
+  <div id="lst:duels" style="display: none; height: calc(100% - 45px);">
+    <div style="height: 100%; overflow-y: scroll; margin: 6px;">
+      <hr>
+      <div id="duels-container"></div>
+    </div>
+  </div>
+
+  <div id="div:battleships" style="display:none;">
+    <div class="board" id="battleships:board">
+      <div class="displays">
+        <div class="top" id="battleships:top">
+          <div class="grid" id="battleships:topgrid"></div>
+        </div>
+        <div class="battleships:bottom">
+          <div class="grid" id='battleships:bottomgrid'></div>
+        </div>
+      </div>
+    </div>
+    <div class="div:battleships_control" id="battleships:control">
+      <button class='battleships_big_button' id='battleships:invite'
+              onclick='battleships_invite()' style='display:none' type='button'>Invite
+      </button>
+      <button class='battleships_big_button' id='battleships:invited'
+              onclick='battleships_accept_button()' style='display:none' type='button'>Waiting ...
+      </button>
+      <div class='battleships_info' id='battleships:waiting' style='display:none'>Waiting for
+        the other player
+      </div>
+      <div class='battleships_placer' id='battleships:placer' style='display:none'>
+        <div class='battleships_length' id='battleships:length'>Boat Length: 0</div>
+        <button class='battleships_orientation_button' id='battleships:orientation'
+                onclick='battleships_flip()' type='button'>Horizontal
+        </button>
+      </div>
+      <div class='battleships_turn' id='battleships:turn' style='display:none'>Your Turn</div>
+    </div>
+  </div>
 
   <div id="plus">
     <button class=float_button onclick="plus_button();">+</button>
@@ -323,6 +366,42 @@
 
     <div id='connection-overlay-hdr' style='font-size:18px; padding-bottom: 10px;'><b>Connected Devices</b></div>
     <div id='connection-overlay-content'></div>
+  </div>
+
+  <!-- Connect 4-->
+  <div id='lst:connect4-players' style="display: none; margin: 3px;">
+    <!-- populated by connect4_fill_players() in tremola.js -->
+  </div>
+  <div id='lst:connect4-game' class=w100 style="display: none; margin: 5pt;">
+    <div id='lst:connect4-games' >
+      <!-- populated by load_games() in tremola.js -->
+    </div>
+  </div>
+  <div id='the:connect4-game-session' class=w100 style="display: none; margin: 5pt;">
+    <h1 id='connect4-game-session-title'>
+      <!-- Filled by connect4_open_game_session() in tremola.js -->
+    </h1>
+    <div id='connect4-game-board'>
+      <!-- Filled by connect4_open_game_session() in tremola.js -->
+    </div>
+    <div style="display:flex; flex-direction: column; align-items: center;">
+      <h1 id='connect4-game-turn-indicator'>TEST<!-- Filled by connect4_open_game_session() in tremola.js --></h1>
+      <div>
+        <button id="connect4-game-end-button">Give up</button>
+        <button id="connect4-game-leave-button" style="display:none;">End!</button>
+      </div>
+    </div>
+  </div>
+  <div id="connect4-game-invite-popup" class="qr-overlay" style="display: none; text-align: center;">
+    <h2>Game Invitation</h2>
+    <p id="connect4-invite-message"></p>
+    <button class="passive" onclick="acceptInvite()">Accept</button>
+    <button class="passive" onclick="declineInvite()">Decline</button>
+  </div>
+  <div id="connect4-game-decline-invite-popup" class="qr-overlay" style="display: none; text-align: center;">
+    <h2>Game Invitation declined</h2>
+    <p id="connect4-decline-invite-message"></p>
+     <button class="passive" onclick="hideDeclinePopup()">Ok</button>
   </div>
 
   <div id='qr-overlay' class='qr-overlay'>
@@ -622,6 +701,10 @@
   <div id='div:confirm-members' class=neutral style="height: 36px; align-content: center; border: 3px inset #ebf4fa /*var(--light)*/; border-radius: 2pt; margin: 3px; margin-top: 20px; display: none; flex-direction: row; justify-content: center; align-items: center;">
     <!-- button class="flat passive buttontext" style="background-image: url('img/cancel.svg'); width: 50%; height: 50px; margin: 5px;" onclick="onBackPressed();">&nbsp;</--button -->
     <button class="flat passive buttontext" style="background-image: url('img/checked.svg'); width: 100%; height: 30px; margin: 3px;" onclick="members_confirmed();">&nbsp;</button>
+  </div>
+
+  <div id='div:connect4-confirm-player' class=neutral style="height: 36px; align-content: center; border: 3px inset #ebf4fa /*var(--light)*/; border-radius: 2pt; margin: 3px; margin-top: 20px; display: none; flex-direction: row; justify-content: center; align-items: center;">
+    <button class="flat passive buttontext" style="background-image: url('img/checked.svg'); width: 100%; height: 30px; margin: 3px;" onclick="connect4_send_invite();">&nbsp;</button>
   </div>
 
 </div>

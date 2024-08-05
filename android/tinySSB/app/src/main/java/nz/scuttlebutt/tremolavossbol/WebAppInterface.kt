@@ -13,12 +13,19 @@ import android.webkit.WebView
 import android.widget.Toast
 import androidx.core.content.ContextCompat.checkSelfPermission
 import com.google.zxing.integration.android.IntentIntegrator
+import org.json.JSONArray
 import org.json.JSONObject
 
 
 import nz.scuttlebutt.tremolavossbol.utils.Bipf
 import nz.scuttlebutt.tremolavossbol.utils.Bipf.Companion.BIPF_BYTES
 import nz.scuttlebutt.tremolavossbol.utils.Bipf.Companion.BIPF_LIST
+
+import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_C4_START
+import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_C4_DECLINE
+import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_C4_END
+import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_C4_INVITE
+
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_IAM
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_TEXTANDVOICE
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_KANBAN
@@ -26,14 +33,19 @@ import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_SCHED
 import nz.scuttlebutt.tremolavossbol.utils.HelperFunctions.Companion.deRef
 import nz.scuttlebutt.tremolavossbol.utils.HelperFunctions.Companion.toBase64
 import nz.scuttlebutt.tremolavossbol.utils.HelperFunctions.Companion.toHex
-import org.json.JSONArray
+import nz.scuttlebutt.tremolavossbol.games.battleships.BattleshipGame
+import nz.scuttlebutt.tremolavossbol.games.common.GamesHandler
+import nz.scuttlebutt.tremolavossbol.games.battleships.GameStates
+import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_GAMETEXT
+
 
 
 // pt 3 in https://betterprogramming.pub/5-android-webview-secrets-you-probably-didnt-know-b23f8a8b5a0c
 
-class WebAppInterface(val act: MainActivity, val webView: WebView) {
+class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandler: GamesHandler) {
 
     val frontend_frontier = act.getSharedPreferences("frontend_frontier", Context.MODE_PRIVATE)
+    var gamesHandler = gameHandler
 
     @JavascriptInterface
     fun onFrontendRequest(s: String) {
@@ -247,6 +259,113 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
                     act.tinyNode.publish_public_content(body)
                 }
             }
+            "games" -> { // Handle battleship communication
+                Log.d("GAM - WebApp", args.toString())
+                //gamesHandler.processGameRequest(s.substring(6))
+                // TODO here you can add restrictions, if a command is not allowed
+                if (args[1] == "BSH") {
+                    when (args[2]) {
+                        "INV" -> {
+                            if (gamesHandler.getInviteCount("BSH") != 0) {
+                                Log.d("BSH-Handler INV", "inviteCounter is not 0")
+                                return
+                            }
+                            gameHandler.incInviteCount("BSH")
+                            gamesHandler.addOwnGame(args[1], args[3], GameStates.INVITED)
+                            val inst = gamesHandler.getInstanceFromFid(args[1], args[3])
+                            (inst!!.game as BattleshipGame).setupGame(true)
+                            val req = "${args[1]} INV ${args[3]} ${inst.startTime}"
+                            public_post_game_request(
+                                Base64.encodeToString(
+                                    req.toByteArray(),
+                                    Base64.NO_WRAP
+                                )
+                            )
+                            return
+                        }
+
+                        "INVACC" -> {
+                            val inst = gamesHandler.getInstanceFromFid("BSH", args[3])
+                            var peerHash: String = ""
+                            if (inst != null) {
+                                (inst.game as BattleshipGame).setupGame(false)
+                                peerHash = (inst.game as BattleshipGame).getShipPosition()
+                            }
+
+                            val invacc =
+                                "BSH INVACC ${args[3]} ${gamesHandler.myId.toRef()} $peerHash" // Appending Peer's Shiphash
+                            Log.d("GAM APP (INVACC)", invacc)
+                            public_post_game_request(
+                                Base64.encodeToString(
+                                    invacc.toByteArray(),
+                                    Base64.NO_WRAP
+                                )
+                            )
+                            return
+                        }
+
+                        "SHOT" -> {
+                            val inst = gamesHandler.getInstanceFromFids("BSH", args[3], args[4])
+                            var isPeer: String = ""
+                            if (gamesHandler.isIdEqualToMine(args[3])) { // I am owner
+                                isPeer = "0"
+                            } else if (gamesHandler.isIdEqualToMine(args[4])) {
+                                isPeer = "1"
+                            } else {
+                                return
+                            }
+                            if (inst != null) {
+                                if (!(inst.game as BattleshipGame).gameState!!.isMyTurn()) {
+                                    return
+                                }
+                                (inst.game as BattleshipGame).gameState!!.turn = false
+                            } else {
+                                return
+                            }
+                            val shot =
+                                "${args[1]} ${args[2]} ${args[3]} ${args[4]} $isPeer ${args[5]}"
+                            Log.d("GAM APP (SHOT)", shot)
+                            public_post_game_request(
+                                Base64.encodeToString(
+                                    shot.toByteArray(),
+                                    Base64.NO_WRAP
+                                )
+                            )
+                        }
+
+                        "DUELQUIT" -> {
+                            val inst = gamesHandler.getInstanceFromFids("BSH", args[3], args[4])
+                            if (inst == null || !inst.state.isActive()) {
+                                return
+                            }
+                            inst.state = GameStates.STOPPED
+                            (inst.game as BattleshipGame).gameState!!.turn = false
+                            var isPeer: String = ""
+                            if (gamesHandler.isIdEqualToMine(args[3])) { // I am owner
+                                isPeer = "0"
+                            } else if (gamesHandler.isIdEqualToMine(args[4])) {
+                                isPeer = "1"
+                            }
+                            val quit = "${args[1]} ${args[2]} ${args[3]} ${args[4]} $isPeer"
+                            Log.d("GAM APP (SHOT)", quit)
+                            public_post_game_request(
+                                Base64.encodeToString(
+                                    quit.toByteArray(),
+                                    Base64.NO_WRAP
+                                )
+                            )
+                        }
+
+                        else -> {
+                            public_post_game_request(
+                                Base64.encodeToString(
+                                    s.substring(6).toByteArray(), Base64.NO_WRAP
+                                )
+                            )
+                        }
+                    }
+                }
+            }
             "settings:set" -> {
                 act.settings!!.set(args[1], args[2])
             }
@@ -254,6 +373,20 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
                 val settings = act.settings!!.getSettings()
                 act.wai.eval("b2f_get_settings('${settings}')")
             }
+
+            "connect_four" -> {
+                connect_four(args[1], args[2], args[3], args[4]);
+            }
+            "connect_four_end" -> {
+                connect_four_end(args[1], args[2], args[3]);
+            }
+            "connect_four_invite" -> {
+                connect_four_invite(args[1], args[2]);
+            }
+            "connect_four_decline_invite" -> {
+                connect_four_decline_invite(args[1],args[2]);
+            }
+
             else -> {
                 Log.d("onFrontendRequest", "unknown")
             }
@@ -339,6 +472,19 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
             act.tinyNode.publish_public_content(body_encr)
     }
 
+    // BATTLESHIP
+    fun public_post_game_request(text: String?) {
+        val lst = Bipf.mkList()
+        Bipf.list_append(lst, TINYSSB_APP_GAMETEXT)
+        Bipf.list_append(lst, if (text == null) Bipf.mkNone() else Bipf.mkString(text))
+        val tst = Bipf.mkInt((System.currentTimeMillis() / 1000).toInt())
+        Log.d("wai", "send time is ${tst.getInt()}")
+        Bipf.list_append(lst, tst)
+        val body = Bipf.encode(lst)
+        if (body != null)
+            act.tinyNode.publish_public_content(body)
+    }
+
     fun scheduling(bid: String?, prev: List<String>?, operation: String, args: List<String>?) {
         val lst = Bipf.mkList()
         Bipf.list_append(lst, TINYSSB_APP_SCHEDULING)
@@ -418,6 +564,64 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
         //if (body != null)
             //act.tinyNode.publish_public_content(body)
 
+    }
+
+    fun connect_four(gameId: String, currentPlayer: String, members: String, stonePos: String) {
+        val lst = Bipf.mkList()
+        Bipf.list_append(lst, TINYSSB_APP_C4_START)
+        Bipf.list_append(lst, Bipf.mkString(gameId))
+        Bipf.list_append(lst, Bipf.mkString(currentPlayer))
+        Bipf.list_append(lst, Bipf.mkString(members))
+        Bipf.list_append(lst, Bipf.mkString(stonePos))
+
+        val body = Bipf.encode(lst)
+
+        if (body != null) {
+            Log.d("connect_four", "published bytes: " + Bipf.decode(body))
+            act.tinyNode.publish_public_content(body)
+        }
+    }
+
+    fun connect_four_invite(inviter: String, invitee: String) {
+        val lst = Bipf.mkList()
+        Bipf.list_append(lst, TINYSSB_APP_C4_INVITE)
+        Bipf.list_append(lst, Bipf.mkString(inviter))
+        Bipf.list_append(lst, Bipf.mkString(invitee))
+
+        val body = Bipf.encode(lst)
+
+        if (body != null) {
+            Log.d("connect_four_invite", "published bytes: " + Bipf.decode(body))
+            act.tinyNode.publish_public_content(body)
+        }
+    }
+
+    fun connect_four_decline_invite(inviter: String, invitee: String) {
+        val lst = Bipf.mkList()
+        Bipf.list_append(lst, TINYSSB_APP_C4_DECLINE)
+        Bipf.list_append(lst, Bipf.mkString(inviter))
+        Bipf.list_append(lst, Bipf.mkString(invitee))
+
+        val body = Bipf.encode(lst)
+
+        if (body != null) {
+            Log.d("connect_four_decline_invite", "published bytes: " + Bipf.decode(body))
+            act.tinyNode.publish_public_content(body)
+        }
+    }
+
+    fun connect_four_end(gameId: String, loser: String, stonePos: String) {
+        val lst = Bipf.mkList()
+        Bipf.list_append(lst, TINYSSB_APP_C4_END)
+        Bipf.list_append(lst, Bipf.mkString(gameId))
+        Bipf.list_append(lst, Bipf.mkString(loser))
+        Bipf.list_append(lst, Bipf. mkString(stonePos))
+
+        val body = Bipf.encode(lst)
+        if (body != null) {
+            Log.d("connect_four", "published bytes: " + Bipf.decode(body))
+            act.tinyNode.publish_public_content(body)
+        }
     }
 
     fun return_voice(voice: ByteArray) {
