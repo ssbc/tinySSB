@@ -95,6 +95,22 @@ textarea {
   box-shadow: 0 0 25px rgba(0,0,0,0.9);
 }
 
+.geo-menu-overlay {
+  display: none;
+  position: absolute;
+  left: 50%;
+  top: 20%;
+  transform: translateX(-50%);
+  width: auto;
+  max-width: 90%;
+  min-width: 70%;
+  background: #fff;
+  padding: 0.5em;
+  z-index: 10002; /* high z-index */
+  border-radius: 5px;
+  box-shadow: 0 0 25px rgba(0,0,0,0.9);
+}
+
 .qr-overlay {
   display: none;
   background: #fff;
@@ -515,5 +531,6 @@ input:checked + .slider:before {
 .img-gray-filter {
     filter: invert(62%) sepia(8%) saturate(116%) hue-rotate(145deg) brightness(89%) contrast(89%);
 }
+
 
 /* eof */

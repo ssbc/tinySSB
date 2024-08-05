@@ -22,11 +22,11 @@ var scenarioDisplay = {
     'chats': ['div:qr', 'core', 'lst:chats', 'div:footer', 'plus'],
     'contacts': ['div:qr', 'core', 'lst:contacts', 'div:footer', 'plus'],
     'posts': ['div:back', 'core', 'div:posts', 'div:textarea'],
-    'games': ['div:qr', 'core', 'lst:games', 'div:footer'],
+    'games': ['div:back', 'core', 'lst:games', 'div:footer'],
     'members': ['div:back', 'core', 'lst:members', 'div:confirm-members'],
-    'productivity': ['div:qr', 'core', 'lst:prod', 'div:footer'],
+    'productivity': ['div:back', 'core', 'lst:prod', 'div:footer'],
     'settings': ['div:back', 'div:settings', 'core'],
-    'kanban': ['div:qr', 'core', 'lst:kanban', 'div:footer', 'plus'], // KANBAN
+    'kanban': ['div:back', 'core', 'lst:kanban', 'div:footer', 'plus'], // KANBAN
     'board': ['div:back', 'core', 'div:board'], // KANBAN
     'duels': ['div:back', 'core', 'lst:duels', 'plus'], // BATTLESHIP
     'battleships': ['div:back', 'core', 'div:battleships'], // BATTLESHIP
@@ -310,6 +310,7 @@ function menu_settings() {
 
 function closeOverlay() {
     document.getElementById('menu').style.display = 'none';
+    document.getElementById('geo-menu').style.display = 'none';
     document.getElementById('qr-overlay').style.display = 'none';
     document.getElementById('preview-overlay').style.display = 'none';
     document.getElementById('image-overlay').style.display = 'none';
@@ -652,6 +653,57 @@ function refresh_connection_progressbar(min_entries, old_min_entries, old_want_e
         document.getElementById('connection-overlay-progressbar-gift').value = newPosOff
         document.getElementById('connection-overlay-progressbar-label-gift').textContent = "Ahead - " + (curr_want_entries - min_entries) + " entries left"
     }
+}
+
+function show_geo_location(locPlus) {
+//    var win = window.open("https://maps.app.goo.gl/Z7WWLG8UTAnfyJpb7", '_blank');
+
+    var win = window.open("https://plus.codes/" + locPlus, '_blank');
+    win.focus();
+}
+
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(() => {
+        console.log('Text copied to clipboard successfully.');
+    }).catch(err => {
+        console.error('Failed to copy text to clipboard:', err);
+    });
+}
+
+function showGeoMenu(plusCode) {
+    closeOverlay();
+    var latLongString = Android.getCoordinatesForPlusCode(plusCode);
+    var latLong = JSON.parse(latLongString);
+    var LatitudeLongitude = latLong.latitude + " " + latLong.longitude;
+    var m = '';
+    m += "<button class=menu_item_button ";
+    m += "onclick='copyToClipboard(\"" + plusCode + "\");'>" + plusCode + "</button><br> ";
+    m += "<button class=menu_item_button ";
+    m += "onclick='copyToClipboard(\"" + LatitudeLongitude + "\");'>Lat: " + latLong.latitude + " Long: " + latLong.longitude + "</button><br>";
+    m += "<button class=menu_item_button ";
+    m += "onclick='show_geo_location(\"" + plusCode + "\");'>Show Location</button>";
+    document.getElementById("geo-menu").innerHTML = m;
+    document.getElementById("geo-menu").style.display = 'initial';
+    document.getElementById("overlay-trans").style.display = 'initial';
+}
+
+function showGeoVoiceMenu(plusCode, chat, key) {
+    closeOverlay();
+    var latLongString = Android.getCoordinatesForPlusCode(plusCode);
+    var latLong = JSON.parse(latLongString);
+    var LatitudeLongitude = latLong.latitude + " " + latLong.longitude;
+    var m = '';
+    m += "<button class=menu_item_button ";
+    m += "onclick='copyToClipboard(\"" + plusCode + "\");'>" + plusCode + "</button><br>";
+    m += "<button class=menu_item_button ";
+    m += "onclick='copyToClipboard(\"" + LatitudeLongitude + "\");'>Lat: " + latLong.latitude + " Long: " + latLong.longitude + "</button><br>";
+    m += "<button class=menu_item_button ";
+    m += "onclick='show_geo_location(\"" + plusCode + "\");'>Show Location</button><br>";
+    m += "<button class=menu_item_button ";
+    m += "onclick='play_voice(\"" + chat + "\", \"" + key + "\");'>Play Voice Message</button>";
+    document.getElementById("geo-menu").innerHTML = m;
+    document.getElementById("geo-menu").style.display = 'initial';
+    document.getElementById("overlay-trans").style.display = 'initial';
 }
 
 // ---

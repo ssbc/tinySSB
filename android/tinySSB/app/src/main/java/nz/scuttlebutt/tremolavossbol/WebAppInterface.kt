@@ -12,10 +12,16 @@ import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import android.widget.Toast
 import androidx.core.content.ContextCompat.checkSelfPermission
+import androidx.annotation.RequiresPermission
 import com.google.zxing.integration.android.IntentIntegrator
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.tasks.CancellationTokenSource
+import com.google.android.gms.tasks.Tasks
+
 import org.json.JSONArray
 import org.json.JSONObject
-
+import java.sql.Time
+import java.util.concurrent.TimeUnit
 
 import nz.scuttlebutt.tremolavossbol.utils.Bipf
 import nz.scuttlebutt.tremolavossbol.utils.Bipf.Companion.BIPF_BYTES
@@ -33,6 +39,7 @@ import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_SCHED
 import nz.scuttlebutt.tremolavossbol.utils.HelperFunctions.Companion.deRef
 import nz.scuttlebutt.tremolavossbol.utils.HelperFunctions.Companion.toBase64
 import nz.scuttlebutt.tremolavossbol.utils.HelperFunctions.Companion.toHex
+import nz.scuttlebutt.tremolavossbol.utils.PlusCodesUtils
 import nz.scuttlebutt.tremolavossbol.games.battleships.BattleshipGame
 import nz.scuttlebutt.tremolavossbol.games.common.GamesHandler
 import nz.scuttlebutt.tremolavossbol.games.battleships.GameStates
@@ -46,6 +53,51 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
 
     val frontend_frontier = act.getSharedPreferences("frontend_frontier", Context.MODE_PRIVATE)
     var gamesHandler = gameHandler
+
+    /**
+     * Retrieves the current geolocation of the Android device and returns it as a PlusCode.
+     */
+    @JavascriptInterface
+    @RequiresPermission(
+        anyOf = [Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION],
+    )
+    fun getCurrentLocationAsPlusCode(): String {
+        val locationClient = LocationServices.getFusedLocationProviderClient(act)
+
+        try {
+            val currentLocationTask = locationClient.getCurrentLocation(102, CancellationTokenSource().token)
+            val currentLocation = Tasks.await(currentLocationTask, 2, TimeUnit.SECONDS)
+            return PlusCodesUtils.encode(currentLocation.latitude, currentLocation.longitude)
+        } catch (e: Exception) {
+            val lastLocationTast = locationClient.lastLocation
+            try {
+                val lastLocation = Tasks.await(lastLocationTast, 2, TimeUnit.SECONDS)
+                return PlusCodesUtils.encode(lastLocation.latitude, lastLocation.longitude)
+            } catch (e: Exception) {
+                Toast.makeText(act, "Failed to get location. Location is not sent with this message.", Toast.LENGTH_LONG).show()
+                return ""
+            }
+        }
+
+    }
+
+    @JavascriptInterface
+    fun getCoordinatesForPlusCode(code: String): String {
+        val (latitude, longitude) = PlusCodesUtils.decode(code)
+        return JSONObject()
+            .put("latitude", latitude)
+            .put("longitude", longitude)
+            .toString()
+    }
+
+    @JavascriptInterface
+    fun isGeoLocationEnabled(): String {
+        return if (act.settings!!.isGeoLocationEnabled()) {
+            "true"
+        } else {
+            "false"
+        }
+    }
 
     @JavascriptInterface
     fun onFrontendRequest(s: String) {

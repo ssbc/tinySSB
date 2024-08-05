@@ -67,7 +67,13 @@ function new_text_post(s) {
     if (s.length == 0) {
         return;
     }
-    var draft = unicodeStringToTypedArray(document.getElementById('draft').value); // escapeHTML(
+    var draft = ''
+    if (Android.isGeoLocationEnabled() == "true") {
+        var plusCode = Android.getCurrentLocationAsPlusCode();
+        if (plusCode != null && plusCode.length > 0) //check if we actually received a location
+            draft += "pfx:loc/plus," + plusCode + "|";
+    }
+    draft += unicodeStringToTypedArray(document.getElementById('draft').value); // escapeHTML(
     var ch = tremola.chats[curr_chat]
     if (!(ch.timeline instanceof Timeline)) {
         ch.timeline = Timeline.fromJSON(ch.timeline)
@@ -92,7 +98,13 @@ function new_text_post(s) {
 }
 
 function new_voice_post(voice_b64) {
-    var draft = unicodeStringToTypedArray(document.getElementById('draft').value); // escapeHTML(
+    var draft = ''
+    if (Android.isGeoLocationEnabled() == "true") {
+        var plusCode = Android.getCurrentLocationAsPlusCode();
+        if (plusCode != null && plusCode.length > 0) //check if we actually received a location
+            draft += "pfx:loc/plus," + plusCode + "|";
+    }
+    draft += unicodeStringToTypedArray(document.getElementById('draft').value); // escapeHTML(
     if (draft.length == 0)
         draft = "null"
     else
@@ -144,16 +156,48 @@ function new_image_post() {
 function load_post_item(p) { // { 'key', 'from', 'when', 'body', 'to' (if group or public)>
     var pl = document.getElementById('lst:posts');
     var is_other = p["from"] != myId;
+    /*
     var box = "<div class=light style='padding: 3pt; border-radius: 4px; box-shadow: 0 0 5px rgba(0,0,0,0.7); word-break: break-word;'"
     if (p.voice != null)
         box += " onclick='play_voice(\"" + curr_chat + "\", \"" + p.key + "\");'";
+    */
+    var box = "<div class=light style='padding: 3pt; border-radius: 4px; box-shadow: 0 0 5px rgba(0,0,0,0.7); word-break: break-word;'";
+    var textOfBody = escapeHTML(p["body"]).replace(/\n/g, "<br>\n");
+    // split each message, so that we may access the fields of the message
+    var fieldsOfBody = textOfBody.split(/(\|)/g);
+    var geoLocPlusCode = null;
+    // here we check all prefixes that might be in a message, it is currently not possible to send a sketch with any prefixes since this completely breaks the sketch because uses the character '|'
+    var i = 0;
+    var otherText = "";
+    while (i < fieldsOfBody.length){
+        var field = fieldsOfBody[i];
+        if (field.startsWith("pfx:loc/plus")){
+            var partsOfGeoLoc = field.split(',');
+            geoLocPlusCode = partsOfGeoLoc[1];
+            i++;
+        } else {
+            otherText += field;
+        }
+        i++;
+    }
+    if ((p.voice != null) && geoLocPlusCode == null)
+        box += " onclick='play_voice(\"" + curr_chat + "\", \"" + p.key + "\");'";
+    if ((geoLocPlusCode != null) && (p.voice == null))
+        box += " onclick='showGeoMenu(\"" + geoLocPlusCode + "\");'";
+    if ((geoLocPlusCode != null) && (p.voice != null))
+        box += " onclick='showGeoVoiceMenu(\"" + geoLocPlusCode + "\",\"" + curr_chat + "\", \"" + p.key + "\");'";
+
     box += ">"
+
     // console.log("box=", box);
     if (is_other)
         box += "<font size=-1><i>" + fid2display(p["from"]) + "</i></font><br>";
+    // if  (geoLocPlusCode != null)
+    //     box += "<font size=-4><i>" + "this message contains geolocation" + "</i></font><br>";
     var txt = ""
     if (p["body"] != null) {
-        txt = escapeHTML(p["body"]).replace(/\n/g, "<br>\n");
+        // txt = escapeHTML(p["body"]).replace(/\n/g, "<br>\n");
+        txt = otherText;
         // Sketch app
         if (txt.startsWith("data:image/png;base64")) { // check if the string is a data url
                 let compressedBase64 = txt.split(',')[1];
@@ -231,6 +275,8 @@ function load_post_item(p) { // { 'key', 'from', 'when', 'body', 'to' (if group 
     box += txt
     var d = new Date(p["when"]);
     d = d.toDateString() + ' ' + d.toTimeString().substring(0, 5);
+    if  (geoLocPlusCode != null)
+        d = '📌 ' + d
     box += "<div align=right style='font-size: x-small;'><i>";
     box += d + "</i></div></div>";
     var row;

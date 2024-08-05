@@ -433,7 +433,7 @@ async function sketch_get_current_size() {
 
 // return the current sketch as a base64 string (including the preceding data type descriptor)
 async function sketch_getImage() {
-    // console.log('getImage', JSON.stringify(sketch.svg));
+    console.log('getImage', JSON.stringify(sketch.svg));
     const buf = new ArrayBuffer(bipf_encodingLength(sketch.svg))
     const e = bipf_encode(sketch.svg, buf, 0)
     // console.log('  bipf:', JSON.stringify(new Uint8Array(buf)))
@@ -474,6 +474,7 @@ async function sketch_getImage() {
     for (var i = 0; i < len; i++) {
        binary += String.fromCharCode( bytes[ i ] );
     }
+
     let shortenedDataURL = 'data:image/svg+bipf;base64,' + btoa(binary);
 
     return shortenedDataURL
@@ -481,33 +482,42 @@ async function sketch_getImage() {
 
 //function called by the drawing submit button
 async function chat_sendDrawing() {
-    let img = await sketch_getImage()
-    if (img.length == 0) {
+    var img = await sketch_getImage()
+    if (img.length == 0)
             return;
-    }
 
-    // send to backend
-    var ch = tremola.chats[curr_chat]
-    if (!(ch.timeline instanceof Timeline)) {
-        ch.timeline = Timeline.fromJSON(ch.timeline)
-    }
-    let tips = JSON.stringify(ch.timeline.get_tips())
-    if (curr_chat == "ALL") {
-        var cmd = `publ:post ${tips} ` + btoa(img) + " null"; // + recps
-        // console.log(cmd)
-        backend(cmd);
-    } else {
-        var recps = tremola.chats[curr_chat].members.join(' ');
-        var cmd = `priv:post ${tips} ` + btoa(img) + " null " + recps;
-        backend(cmd);
-    }
+    launch_snackbar("sending sketch ...")
+    setTimeout(function () { // delay sending (and getting location beforehand), allows snackbar to show
 
-    closeOverlay();
-    // setTimeout(function () { // let image rendering (fetching size) take place before we scroll
-        let c = document.getElementById('core');
-        c.scrollTop = c.scrollHeight;
-    // }, 100);
+        //add geolocation to message if enabled.
+        if (Android.isGeoLocationEnabled() == "true"){ //ony add if enabled
+            var plusCode = Android.getCurrentLocationAsPlusCode();
+            if (plusCode != null && plusCode.length > 0) //check if we actually received a location
+                img = "pfx:loc/plus," + plusCode + "|" + img;
+        }
 
-    // close sketch
-    chat_closeSketch();
+        // send to backend
+        var ch = tremola.chats[curr_chat]
+        if (!(ch.timeline instanceof Timeline))
+            ch.timeline = Timeline.fromJSON(ch.timeline)
+        let tips = JSON.stringify(ch.timeline.get_tips())
+        if (curr_chat == "ALL") {
+            var cmd = `publ:post ${tips} ` + btoa(img) + " null"; // + recps
+            // console.log(cmd)
+            backend(cmd);
+        } else {
+            var recps = tremola.chats[curr_chat].members.join(' ');
+            var cmd = `priv:post ${tips} ` + btoa(img) + " null " + recps;
+            backend(cmd);
+        }
+
+        closeOverlay();
+        // setTimeout(function () { // let image rendering (fetching size) take place before we scroll
+            let c = document.getElementById('core');
+            c.scrollTop = c.scrollHeight;
+        // }, 100);
+
+        // close sketch
+        chat_closeSketch();
+    }, 100);
 }

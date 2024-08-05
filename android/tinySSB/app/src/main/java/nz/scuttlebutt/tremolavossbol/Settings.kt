@@ -1,6 +1,7 @@
 package nz.scuttlebutt.tremolavossbol
 
 import android.content.Context
+import android.util.Log
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_SIMPLEPUB_URL
 import org.json.JSONObject
 
@@ -20,7 +21,8 @@ class Settings(val context: MainActivity) {
         "ble_enabled" to "true",
         "udp_multicast_enabled" to "true",
         "websocket_enabled" to "false",
-        "websocket_url" to TINYSSB_SIMPLEPUB_URL
+        "websocket_url" to TINYSSB_SIMPLEPUB_URL,
+        "geo_location_enabled" to "true"
     )
     fun getSettings(): String {
         val currentSettings = mutableMapOf<String, Any>()
@@ -40,6 +42,7 @@ class Settings(val context: MainActivity) {
 
     // Sets a value for the provided settingID and executes necessary backend actions to align with the updated setting.
     fun set(settingID: String, value: String): Boolean {
+        Log.d("set", "ID=${settingID} val=${value}")
         if (!defaultSettings.keys.contains(settingID)) {
             return false // default of setting id must be defined
         }
@@ -52,6 +55,7 @@ class Settings(val context: MainActivity) {
             "ble_enabled" -> handleBleEnabled(value.toBoolean())
             "udp_multicast_enabled" -> handleUdpMulticastEnabled(value.toBoolean())
             "websocket_url" -> handleWebsocketUrl(value)
+            "geo_location_enabled" -> handleGeoLocation(value.toBoolean())
         }
         return true
     }
@@ -73,6 +77,10 @@ class Settings(val context: MainActivity) {
 
     fun isUdpMulticastEnabled(): Boolean {
         return  sharedPreferences.getString("udp_multicast_enabled", defaultSettings["udp_multicast_enabled"]).toBoolean()
+    }
+
+    fun isGeoLocationEnabled(): Boolean {
+        return  sharedPreferences.getString("geo_location_enabled", defaultSettings["geo_location_enabled"]).toBoolean()
     }
 
     fun getWebsocketUrl(): String {
@@ -102,6 +110,15 @@ class Settings(val context: MainActivity) {
 
     fun handleWebsocketUrl(value: String) {
         context.websocket?.updateUrl(value)
+    }
+
+    fun handleGeoLocation(value: Boolean) {
+        Log.d("set", "no side effects yet for setting geoLocation to ${value}")
+        if (value) {
+            //TODO Stop sending location
+        } else {
+            //TODO start sending location
+        }
     }
 
 }

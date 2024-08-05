@@ -14,14 +14,17 @@ const BrowserOnlySettings = {
     'hide_forgotten_kanbans': true,
     'udp_multicast_enabled': true,
     'ble_enabled': true,
-    'websocket_url': "ws://meet.dmi.unibas.ch:8989"
+    'websocket_url': "ws://meet.dmi.unibas.ch:8989",
+    'geo_location': true
 }
 
 // button/toggle handler for boolean settings; settingID is determined by the id of the html object that emitted the event (e.id)
 function toggle_changed(e) {
-    // console.log("toggle ", e.id);
+    console.log("toggle:", e.id);
     tremola.settings[e.id] = e.checked;
-    backend("settings:set " + e.id + " " + e.checked)
+    var cmd = "settings:set " + e.id + " " + e.checked
+    backend(cmd)
+    console.log(`sent "${cmd}" to backend`)
     persist()
     applySetting(e.id, e.checked);
 }
