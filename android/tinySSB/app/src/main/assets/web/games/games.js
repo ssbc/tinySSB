@@ -15,9 +15,9 @@ function load_game_list() {
                    'text text text h aghjwd gldfhjs hlgsf hgljksf hgls fdhglf sdhgl hfgskj hls dfhgjl shgjkls hgl sfdhgjk sdfjklg hljs hfgl dfjlsfs');
     */
     load_game_item('Connect4 (dpi24.09)', 'games/dpi24-09-connect4/connect4.png', 'setScenario("connect4-game")',
-                   'text text text h aghjwd gldfhjs hlgsf hgljksf hgls fdhglf sdhgl hfgskj hls dfhgjl shgjkls hgl sfdhgjk sdfjklg hljs hfgl dfjlsfs');
+                   'Drop a coin in one of the slots - you win if four of your coins form a straight line.<br>Authors: Jan Büchele, Luigj Lazri and Jan Walliser');
     load_game_item('Blackjack (dpi24.10)', 'games/dpi24-10-blackjack/coins.svg', '',
-                   'crypto tokens based on CRDTs, no mining needed. Ideal for fidelity cards, bartering, recognition tokens in open SW communities, and more.');
+                   'dah dah dah.');
     load_game_item('Hangman (dpi24.11)', 'games/dpi24-11-hangman/hangman.svg', '',
                    'dah dah dah');
 }
