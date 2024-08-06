@@ -92,7 +92,7 @@ class Demux(val context: MainActivity) {
 
     fun on_rx(buf: ByteArray, sender: String? = null): Boolean { // crc already removed
         val h = buf.sha256().sliceArray(0..HASH_LEN - 1)
-        Log.d("demux", "on_rx ${buf.size} bytes: 0x${buf.toHex()}, h=${h.toHex()}")
+        // Log.d("demux", "on_rx ${buf.size} bytes: 0x${buf.toHex()}, h=${h.toHex()}")
         var rc = false
         val d = dmxt_find(buf.sliceArray(0..DMX_LEN-1))
         if (d != null && d.fct != null) {

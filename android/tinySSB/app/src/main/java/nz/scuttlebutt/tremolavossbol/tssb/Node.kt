@@ -172,7 +172,7 @@ class Node(val context: MainActivity) {
 
     fun publish_public_content(content: ByteArray) {
         val repo = context.tinyRepo
-        Log.d("node", "publish_public_content ${content.size}B")
+        // Log.d("node", "publish_public_content ${content.size}B")
         val seq = repo.mk_logEntry(content)
         //Log.d("node", "publish_public_content --> pkt ${if (pkt == null) 0 else pkt.size}B")
         //Log.d("node", "publish_public_content --> content ${if (pkt == null) 0 else pkt.toHex()}B")
@@ -256,7 +256,7 @@ class Node(val context: MainActivity) {
                 val curr_want_entries = wants["me"]?.first?.sum() ?: 0
                 val max_want_entries = max_want?.sum() ?: 0
 
-                Log.d("node","notify frontend: $min_want_entries, $old_min_entries, $old_want_entries, $curr_want_entries, $max_want_entries")
+                // Log.d("node","notify frontend: $min_want_entries, $old_min_entries, $old_want_entries, $curr_want_entries, $max_want_entries")
 
                 context.wai.eval("b2f_update_progress($min_want_entries, $old_min_entries, $old_want_entries, $curr_want_entries, $max_want_entries)")
             }

@@ -16,7 +16,7 @@ var game = "-"
 */
 
 function duel_openDuels() {
-    return;
+    // return;
     console.log('duel_openDuels()')
     setScenario('duels')
     /*
@@ -439,19 +439,34 @@ function show_duels() {
                 second: 'numeric',
                 hour12: true
             };
+            options = {
+                // weekday: 'none', //'long',
+                // year: 'numeric',
+                // month: 'long',
+                // day: 'numeric',
+                hour: 'numeric',
+                minute: 'numeric',
+                second: 'numeric',
+                hour12: false
+            };
             var startTime = new Intl.DateTimeFormat('en-US', options).format(date);
             var state = gameParts[4];
-            console.log('My Id: ' + JSON.stringify(myId));
-            var suffix = ".ed25519";
+            console.log('My Id: ' + JSON.stringify(myId) + ` part:${participantName}` + ` own:${ownerName}`);
+            var pname = '-';
+            if (participantName != '-')
+                pname = `${tremola.contacts[participantName].alias} (${id2b32(participantName)})`;
+            var oname = myId;
+            if (ownerName != myId)
+                oname = `${tremola.contacts[ownerName].alias} (${id2b32(ownerName)})`;
             if (ownerName == myId) {
-                ownerName = "Me"
-                participantName = id2b32(participantName);
+                ownerName = `Me (${tremola.contacts[myId].alias})`
+                participantName = pname;
             } else if (participantName == myId) {
-                participantName = "Me";
-                ownerName = id2b32(ownerName);
+                participantName = `Me (${tremola.contacts[myId].alias})`;
+                ownerName = oname;
             } else {
-                participantName = id2b32(participantName);
-                ownerName = id2b32(ownerName);
+                participantName = pname;
+                ownerName = oname;
             }
             var turn = gameList[5];
             var ships_rec_delivered = gameList[6];
@@ -489,7 +504,7 @@ function show_duels() {
             gameDiv.appendChild(img);
 
             // Create text for duel button
-            const span = document.createElement("span");
+            const span = document.createElement("div");
             span.className = "duel-text";
             span.innerHTML = `Owner: ${ownerName}<br>Participant: ${participantName}<br>Start Time: ${startTime}<br>State: ${state}`;
 

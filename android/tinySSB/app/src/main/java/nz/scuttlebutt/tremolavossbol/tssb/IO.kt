@@ -81,7 +81,7 @@ class IO(val context: MainActivity, val wai: WebAppInterface?) {
                         context.mc_group, Constants.SSB_VOSSBOL_MC_PORT
                     );
                     try {
-                        Log.d("tinyIO", "send ${msg.size} bytes via UDP mc")
+                        // Log.d("tinyIO", "send ${msg.size} bytes via UDP mc")
                         context.mc_socket?.send(dgram);
                     } catch (e: Exception) {
                         Log.d("WiFi sender exc", e.toString())
@@ -89,7 +89,7 @@ class IO(val context: MainActivity, val wai: WebAppInterface?) {
                 }
                 try { // BLE, no CRC added
                     if (context.ble != null && context.ble!!.peers.size > 0) { // && context.ble!!.peers.size > 0
-                        Log.d("tinyIO", "send ${buf.size} bytes via BLE")
+                        // Log.d("tinyIO", "send ${buf.size} bytes via BLE")
                         context.ble!!.write(buf)
                         //context.ble!!.advertise(buf)
                     }

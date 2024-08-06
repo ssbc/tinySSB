@@ -120,15 +120,18 @@ function onBackPressed() {
          setScenario(prev_scenario);
          return;
     }
+    // console.log('back ' + curr_scenario);
     if (curr_scenario == 'chats')
         backend("onBackPressed");
     else if (['productivity', 'games', 'contacts'].indexOf(curr_scenario) >= 0)
-        setScenario(prev_scenario)
-    else if (['connect4-game'].indexOf(curr_scenario) >= 0)
+        setScenario('chats')
+    else if (['duels','connect4-game'].indexOf(curr_scenario) >= 0) {
         setScenario('games')
-    else if (['kanban','scheduling'].indexOf(curr_scenario) >= 0)
+        prev_scenario = 'chats'
+    } else if (['kanban','scheduling'].indexOf(curr_scenario) >= 0) {
         setScenario('productivity')
-    else if (curr_scenario == 'posts')
+        prev_scenario = 'chats'
+    } else if (curr_scenario == 'posts')
         setScenario('chats')
     else if (curr_scenario == 'board')
         setScenario('kanban')

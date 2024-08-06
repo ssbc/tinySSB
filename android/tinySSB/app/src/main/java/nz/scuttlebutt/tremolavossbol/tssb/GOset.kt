@@ -69,7 +69,7 @@ class GOset(val context: MainActivity) {
     }
 
     fun rx(pkt: ByteArray, aux: ByteArray?) {
-        Log.d("goset", "rx ${pkt.size}")
+        // Log.d("goset", "rx ${pkt.size}")
 
         if (pkt.size <= DMX_LEN)
             return

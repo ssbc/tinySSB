@@ -122,7 +122,7 @@ class BlePeers(val act: MainActivity) {
     @SuppressLint("MissingPermission")
     fun write(buf: ByteArray) {
         for (p in peers) {
-            Log.d("BlePeers", "ble_rx sending (rx charact.) ${buf.size} bytes")
+            // Log.d("BlePeers", "ble_rx sending (rx charact.) ${buf.size} bytes")
             val service = p.value.getService(TINYSSB_BLE_REPL_SERVICE_2022)
             if(service == null) {
                 Log.d("BlePeers", "reply service not available")

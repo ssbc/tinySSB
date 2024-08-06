@@ -133,7 +133,7 @@ class Replica(val context: MainActivity, val datapath: File, val fid: ByteArray)
     }
 
     fun ingest_entry_pkt(pkt: ByteArray, seq: Int): Boolean {
-        Log.d("Replica", "ingest_entry_pkt")
+        // Log.d("Replica", "ingest_entry_pkt")
         var sendToFront = false
         if (pkt.size != TINYSSB_PKT_LEN) return false
         if (seq != state.max_seq + 1) {
@@ -355,7 +355,7 @@ class Replica(val context: MainActivity, val datapath: File, val fid: ByteArray)
                 return pkt.sliceArray(8 until 56)
             if (pkt[7].toInt() == PKTTYPE_chain20) { //read whole sidechain
                 val (content_len, sz) = Bipf.varint_decode(pkt, DMX_LEN + 1, DMX_LEN + 4)
-                Log.d("DEBUGLEN", "len: $content_len, sz: $sz")
+                // Log.d("DEBUGLEN", "len: $content_len, sz: $sz")
                 if (content_len <= (28-sz)) {
                     return pkt.sliceArray(8+sz until 8+sz+content_len)
                 }
@@ -450,7 +450,7 @@ class Replica(val context: MainActivity, val datapath: File, val fid: ByteArray)
         mid.appendBytes((nam + wire).sha256().sliceArray(0 until HASH_LEN))
         persist_frontier(seq, state.max_pos + log_entry.size, (nam + wire).sha256().sliceArray(0 until HASH_LEN))
         context.wai.sendTinyEventToFrontend(fid, seq, (nam + wire).sha256().sliceArray(0 until HASH_LEN), c)
-        Log.d("replica", "write success, len: ${log_entry.size}")
+        // Log.d("replica", "write success, len: ${log_entry.size}")
         return seq
     }
 

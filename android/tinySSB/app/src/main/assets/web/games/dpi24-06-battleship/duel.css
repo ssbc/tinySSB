@@ -122,6 +122,8 @@ button.square:active {
 .duel-text {
   font-size: 18px;
   font-weight: bold;
+  white-space: nowrap;
+  text-overflow: clip;
 }
 
 .board {

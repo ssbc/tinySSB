@@ -507,10 +507,12 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
     }
 
     fun public_post_with_voice(tips: ArrayList<String>, text: String?, voice: ByteArray?) {
+        /*
         if (text != null)
             Log.d("wai", "post_voice t- ${text}/${text.length}")
         if (voice != null)
             Log.d("wai", "post_voice v- ${voice}/${voice.size}")
+         */
         val lst = Bipf.mkList()
         Bipf.list_append(lst, TINYSSB_APP_TEXTANDVOICE)
         val tip_lst = Bipf.mkList()
@@ -521,7 +523,7 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
         Bipf.list_append(lst, if (text == null) Bipf.mkNone() else Bipf.mkString(text))
         Bipf.list_append(lst, if (voice == null) Bipf.mkNone() else Bipf.mkBytes(voice))
         val tst = Bipf.mkInt((System.currentTimeMillis() / 1000).toInt())
-        Log.d("wai", "send time is ${tst.getInt()}")
+        // Log.d("wai", "send time is ${tst.getInt()}")
         Bipf.list_append(lst, tst)
         val body = Bipf.encode(lst)
         if (body != null)
@@ -601,7 +603,7 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
         Bipf.list_append(lst, TINYSSB_APP_GAMETEXT)
         Bipf.list_append(lst, if (text == null) Bipf.mkNone() else Bipf.mkString(text))
         val tst = Bipf.mkInt((System.currentTimeMillis() / 1000).toInt())
-        Log.d("wai", "send time is ${tst.getInt()}")
+        // Log.d("wai", "send time is ${tst.getInt()}")
         Bipf.list_append(lst, tst)
         val body = Bipf.encode(lst)
         if (body != null)
@@ -761,7 +763,7 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
     }
 
     fun sendTinyEventToFrontend(fid: ByteArray, seq: Int, mid:ByteArray, body: ByteArray) {
-        Log.d("wai","sendTinyEvent ${body.toHex()}")
+        // Log.d("wai","sendTinyEvent ${body.toHex()}")
         var e = toFrontendObject(fid, seq, mid, body)
         if (e != null)
             eval("b2f_new_event($e)")
