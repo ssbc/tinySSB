@@ -31,7 +31,7 @@ class Constants{
         val TINYSSB_APP_BOX          = Bipf.mkString("BOX") // bytes
         val TINYSSB_APP_BOX2         = Bipf.mkString("BX2") //
 
-        val TINYSSB_APP_C4_START     = Bipf.mkString("C4N") // new     str str str str
+        val TINYSSB_APP_C4_BOARD     = Bipf.mkString("C4B") // new     str str str str
         val TINYSSB_APP_C4_END       = Bipf.mkString("C4E") // end     str str str
         val TINYSSB_APP_C4_INVITE    = Bipf.mkString("C4I") // invite  str str
         val TINYSSB_APP_C4_DECLINE   = Bipf.mkString("C4D") // decline str str

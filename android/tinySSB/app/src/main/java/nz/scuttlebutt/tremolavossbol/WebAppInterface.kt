@@ -20,14 +20,13 @@ import com.google.android.gms.tasks.Tasks
 
 import org.json.JSONArray
 import org.json.JSONObject
-import java.sql.Time
 import java.util.concurrent.TimeUnit
 
 import nz.scuttlebutt.tremolavossbol.utils.Bipf
 import nz.scuttlebutt.tremolavossbol.utils.Bipf.Companion.BIPF_BYTES
 import nz.scuttlebutt.tremolavossbol.utils.Bipf.Companion.BIPF_LIST
 
-import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_C4_START
+import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_C4_BOARD
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_C4_DECLINE
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_C4_END
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_C4_INVITE
@@ -692,7 +691,7 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
 
     fun connect_four(gameId: String, currentPlayer: String, members: String, stonePos: String) {
         val lst = Bipf.mkList()
-        Bipf.list_append(lst, TINYSSB_APP_C4_START)
+        Bipf.list_append(lst, TINYSSB_APP_C4_BOARD)
         Bipf.list_append(lst, Bipf.mkString(gameId))
         Bipf.list_append(lst, Bipf.mkString(currentPlayer))
         Bipf.list_append(lst, Bipf.mkString(members))

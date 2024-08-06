@@ -464,7 +464,7 @@ function b2f_new_in_order_event(e) {
             console.log("New kanban event")
             kanban_new_event(e)
             break
-        case "C4N":
+        case "C4B":
             connect4_game_new_event(e);
             break
         case "C4E":

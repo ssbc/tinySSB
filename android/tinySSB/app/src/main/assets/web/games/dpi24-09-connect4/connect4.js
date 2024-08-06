@@ -62,7 +62,11 @@ function connect4_send_invite() {
  */
 function connect4_load_games_list() {
     document.getElementById("lst:connect4-games").innerHTML = '';
+    if (typeof tremola.game_connect4 == "undefined")
+        tremola.game_connect4 = {}
+    console.log(`c4 obj ${JSON.stringify(tremola.game_connect4)}`)
     for (let gameId in tremola.game_connect4) {
+        console.log("c4 add " + gameId)
         connect4_build_game_item([gameId, tremola.game_connect4[gameId]]);
     }
 }
@@ -128,7 +132,8 @@ function connect4_game_new_event(e) {
     //Case if User is in members list.
     let idlePlayer = members.find(member => member != playerToMove);
 
-    if (tremola.game_connect4[gameId] && tremola.game_connect4[gameId].board) {
+    if (gameId in tremola.game_connect4 &&
+                      tremola.game_connect4[gameId] && tremola.game_connect4[gameId].board) {
         board = tremola.game_connect4[gameId].board; // Use the existing board
     } else {
         board = Array.from(new Array(7), () => Array.from(new Array(6), () => ({}))); // Initialize a new board
@@ -165,7 +170,7 @@ function connect4_game_new_event(e) {
  *
  */
 function connect4_game_end_event(e) {
-    console.log("c4 gae" + e + ' ' + myShortId)
+    console.log("c4 game end" + e + ' ' + myShortId)
     const gameId = e.public[1];
     const loser = e.public[2];
     const stonePos = e.public[3];
@@ -424,7 +429,7 @@ function connect4_leave_game(gameId) {
  * @param e invitation event
  */
 function connect4_recv_invite(e) {
-    console.log("c4 rxi " + e + ' ' + myShortId)
+    console.log("c4 invite " + JSON.stringify(e.public) + ' ' + myShortId)
     const inviterShort = e.public[1];
     const invitedShort = e.public[2];
 
@@ -485,6 +490,7 @@ function acceptInvite() {
             gameOver: false
         };
     }
+    console.log(`${JSON.stringify(tremola.game_connect4)}`)
 
     document.getElementById("div:connect4-confirm-player").style.display = 'none';
     connect4_open_game_session(gameId);
@@ -524,3 +530,5 @@ function connect4_invite_declined(e) {
         document.getElementById('connect4-decline-invite-message').innerText = `Your invitation to ${invitedAlias} has been declined.`;
     }
 }
+
+// eof

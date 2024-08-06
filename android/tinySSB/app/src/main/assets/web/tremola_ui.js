@@ -113,29 +113,33 @@ function onBackPressed() {
         closeOverlay();
         return;
     }
+    if (curr_scenario == 'settings') {
+         document.getElementById('div:settings').style.display = 'none';
+         document.getElementById('core').style.display = null;
+         document.getElementById('div:footer').style.display = null;
+         setScenario(prev_scenario);
+         return;
+    }
     if (curr_scenario == 'chats')
         backend("onBackPressed");
-    else if (['productivity', 'games', 'contacts'].indexOf(curr_scenario) >= 0) {
+    else if (['productivity', 'games', 'contacts'].indexOf(curr_scenario) >= 0)
         setScenario(prev_scenario)
-    } else if (curr_scenario == 'posts')
-            setScenario('chats')
+    else if (['connect4-game'].indexOf(curr_scenario) >= 0)
+        setScenario('games')
+    else if (['kanban','scheduling'].indexOf(curr_scenario) >= 0)
+        setScenario('productivity')
+    else if (curr_scenario == 'posts')
+        setScenario('chats')
     else if (curr_scenario == 'board')
-            setScenario('kanban')
+        setScenario('kanban')
     else if (curr_scenario == 'event')
-            setScenario('scheduling')
+        setScenario('scheduling')
     else if (curr_scenario == 'battleships') { // BATTLESHIP // TODO prev_scenario für duels unc posts und nicht in chat
-            reset_battleship_mode()
-            show_duels()
+        reset_battleship_mode()
+        show_duels()
     } else if (curr_scenario == 'connect4-game-session') {
-            connect4_load_games_list();
-            setScenario('connect4-game')
-    } else {
-        if (curr_scenario == 'settings') {
-            document.getElementById('div:settings').style.display = 'none';
-            document.getElementById('core').style.display = null;
-            document.getElementById('div:footer').style.display = null;
-        }
-        setScenario(prev_scenario);
+        connect4_load_games_list();
+        setScenario('connect4-game')
     }
 }
 
