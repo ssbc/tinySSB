@@ -154,6 +154,8 @@ function new_image_post() {
 }
 
 function load_post_item(p) { // { 'key', 'from', 'when', 'body', 'to' (if group or public)>
+    if ((typeof p) == 'undefined')
+        return;
     var pl = document.getElementById('lst:posts');
     var is_other = p["from"] != myId;
     /*
@@ -275,8 +277,13 @@ function load_post_item(p) { // { 'key', 'from', 'when', 'body', 'to' (if group 
     box += txt
     var d = new Date(p["when"]);
     d = d.toDateString() + ' ' + d.toTimeString().substring(0, 5);
+    if (p.status == 'DLV')
+        d += '<font color="green"> ✔</font>'
+    else if (p.status == 'ACK')
+        d += '<font color="green"> ✔✔</font>'
+
     if  (geoLocPlusCode != null)
-        d = '📌 ' + d
+        d = '📍  ' + d
     box += "<div align=right style='font-size: x-small;'><i>";
     box += d + "</i></div></div>";
     var row;
@@ -297,6 +304,9 @@ function load_chat(nm) {
     ch = tremola.chats[nm]
     if (ch.timeline == null)
         ch["timeline"] = new Timeline();
+    else if (!(ch.timeline instanceof Timeline))
+        ch.timeline = Timeline.fromJSON(ch.timeline)
+
     pl = document.getElementById("lst:posts");
     while (pl.rows.length) {
         pl.deleteRow(0);
@@ -304,7 +314,16 @@ function load_chat(nm) {
     pl.insertRow(0).innerHTML = "<tr><td>&nbsp;<td>&nbsp;<td>&nbsp;<td>&nbsp;<td>&nbsp;</tr>";
     curr_chat = nm;
     for (var n of ch.timeline.linear) {
-        load_post_item(ch.posts[n.name])
+        let p = ch.posts[n.name]
+        if (typeof p == "undefined")
+            continue;
+        load_post_item(p);
+        if (p.status == 'needs_ack') { // because we rendered this post
+            setTimeout(function () {
+                backend("conf_ack " + p.key + " " + p.from)
+            }, 200)
+            p.status = ''
+        }
     }
     /*
     var lop = []; // list of posts
@@ -320,7 +339,7 @@ function load_chat(nm) {
     setScenario("posts");
     document.getElementById("tremolaTitle").style.display = 'none';
     // update unread badge:
-    ch["lastRead"] = Date.now();
+    ch.lastRead = Object.keys(ch.posts).length; // Date.now();
     persist();
     document.getElementById(nm + '-badge').style.display = 'none' // is this necessary?
     /*
@@ -357,21 +376,21 @@ function load_chat_list() {
     }
     load_chat_item(meOnly)
     var lop = [];
-    for (var p in tremola.chats) {
-        if (p != "ALL" && p != meOnly && !tremola.chats[p]['forgotten'])
-            lop.push(p)
+    for (var nm in tremola.chats) {
+        if (nm != "ALL" && nm != meOnly && !tremola.chats[nm]['forgotten'])
+            lop.push(nm)
     }
     lop.sort(function (a, b) {
         return tremola.chats[b]["touched"] - tremola.chats[a]["touched"]
     })
-    lop.forEach(function (p) {
-        load_chat_item(p)
+    lop.forEach(function (nm) {
+        load_chat_item(nm)
     })
     // forgotten chats: unsorted
     if (!tremola.settings.hide_forgotten_conv)
-        for (var p in tremola.chats)
-            if (p != meOnly && tremola.chats[p]['forgotten'])
-                load_chat_item(p)
+        for (var nm in tremola.chats)
+            if (nm != "ALL" && nm != meOnly && tremola.chats[nm]['forgotten'])
+                load_chat_item(nm)
 }
 
 function load_chat_item(nm) { // appends a button for conversation with name nm to the conv list
@@ -437,12 +456,8 @@ function new_conversation() {
 }
 
 function getUnreadCnt(nm) {
-    var c = tremola.chats[nm], cnt = 0;
-    for (var p in c.posts) {
-        if (c.posts[p].when > c.lastRead)
-            cnt++;
-    }
-    return cnt;
+    var ch = tremola.chats[nm];
+    return Object.keys(ch.posts).length - ch.lastRead;
 }
 
 function set_chats_badge(nm) {

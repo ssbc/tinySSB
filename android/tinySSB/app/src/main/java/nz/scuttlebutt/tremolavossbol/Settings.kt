@@ -11,6 +11,8 @@ class Settings(val context: MainActivity) {
     // These settings are only used in the frontend and will not affect the backend
     // The settingID must match the one used in the frontend (tremola.settings).
     private var defaultSettings = mapOf<String, String>(
+        "confirmed_delivery_enabled" to "true",
+        "geo_location_enabled" to "true",
         "show_chat_preview" to "false",
         "show_background_map" to "true",
         "show_shortnames" to "true",
@@ -21,8 +23,7 @@ class Settings(val context: MainActivity) {
         "ble_enabled" to "true",
         "udp_multicast_enabled" to "true",
         "websocket_enabled" to "false",
-        "websocket_url" to TINYSSB_SIMPLEPUB_URL,
-        "geo_location_enabled" to "true"
+        "websocket_url" to TINYSSB_SIMPLEPUB_URL
     )
     fun getSettings(): String {
         val currentSettings = mutableMapOf<String, Any>()

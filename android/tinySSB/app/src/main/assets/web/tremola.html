@@ -764,6 +764,15 @@
     <!--  TOGGLES -->
 
     <div class="settings">
+      <div class="settingsText">Confirm reception of personal msgs</div>
+      <div style="float: right;"><label class="switch">
+        <input id="confirmed_delivery_enabled" type="checkbox" onchange="toggle_changed(this);">
+        <span class="slider round"></span></label>
+      </div>
+    </div>
+    <hr>
+
+    <div class="settings">
       <div class="settingsText">Send current location with messages</div>
       <div style="float: right;"><label class="switch">
         <input id="geo_location_enabled" type="checkbox" onchange="toggle_changed(this);">

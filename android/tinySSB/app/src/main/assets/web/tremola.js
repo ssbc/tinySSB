@@ -5,6 +5,7 @@
 var tremola;
 var myId;
 var myShortId;
+var qr;
 var shortToFidMap = {}
 var localPeers = {}; // feedID ~ [isOnline, isConnected] - TF, TT, FT - FF means to remove this entry
 var must_redraw = false;
@@ -519,8 +520,6 @@ function b2f_new_incomplete_event(e) {
     }
     persist();
     must_redraw = true;
-
-
 }
 
 /**
@@ -569,9 +568,9 @@ function b2f_new_event(e) { // incoming SSB log event: we get map with three ent
             }
             // console.log("new post 1")
             var ch = tremola.chats[conv_name];
-            if (!(ch.timeline instanceof Timeline)) {
+            if (!(ch.timeline instanceof Timeline))
                 ch.timeline = Timeline.fromJSON(ch.timeline)
-            }
+
             // console.log("new post 1 ", ch)
             if (!(e.header.ref in ch.posts)) { // new post
                 var a = e.public;
@@ -582,13 +581,13 @@ function b2f_new_event(e) { // incoming SSB log event: we get map with three ent
                 // console.log("new post 2 ", JSON.stringify(p))
                 // console.log("time: ", a[3])
                 ch["posts"][e.header.ref] = p;
-                // console.log(`chat add ${a[1]}`)
+                // console.log(`chat add tips ${a[1]}`)
                 ch.timeline.add(e.header.ref, a[1])
                 if (ch["touched"] < e.header.tst)
                     ch["touched"] = e.header.tst
                 if (curr_scenario == "posts" && curr_chat == conv_name) {
                     load_chat(conv_name); // reload all messages (not very efficient ...)
-                    ch["lastRead"] = Date.now();
+                    ch.lastRead = Object.keys(ch.posts).length; // Date.now();
                 }
                 set_chats_badge(conv_name)
             } else {
@@ -619,7 +618,6 @@ function b2f_new_event(e) { // incoming SSB log event: we get map with three ent
                     }
                 }
             }
-
         } else if (e.public[0] == "GAM") {
             // TODO autoretransmit answer if necessary
               if (window.GamesHandler && typeof window.GamesHandler.onGameBackendEvent === 'function') {
@@ -643,51 +641,78 @@ function b2f_new_event(e) { // incoming SSB log event: we get map with three ent
         must_redraw = true;
     }
     if (e.confid) {
-        if (e.confid[0] == 'TAV') { // text and voice
-            console.log("new priv post 0 ", tremola)
-            var conv_name = recps2nm(e.confid[5]);
+        var a = e.confid;
+        var rcpts = null;
+        if (a[0] == 'TAV')
+            rcpts = a[5];
+        else if (a[0] == 'DLV' || a[0] == 'ACK')
+            rcpts = [e.header.fid, myId]
+        if (rcpts != null) {
+            var conv_name = recps2nm(rcpts)
+            console.log("conv_name " + JSON.stringify(conv_name))
             if (!(conv_name in tremola.chats)) { // create new conversation if needed
                 console.log("xx")
                 tremola.chats[conv_name] = {
-                    "alias": recps2display(e.confid[5]), "posts": {},
-                    "members": e.confid[5], "touched": Date.now(), "lastRead": 0,
+                    "alias": recps2display(rctps), "posts": {},
+                    "members": rcpts, "touched": Date.now(), "lastRead": 0,
                     "timeline": new Timeline()
                 };
                 load_chat_list()
             }
-            // console.log("new priv post 1")
-            var ch = tremola.chats[conv_name];
-            if (ch.timeline == null)
-                ch["timeline"] = new Timeline();
-            else if (!(ch.timeline instanceof Timeline))
-                ch.timeline = Timeline.fromJSON(ch.timeline)
-            // console.log("new priv post 1 ", ch)
-            if (!(e.header.ref in ch.posts)) { // new post
-                var a = e.confid;
-                var p = {
-                    "key": e.header.ref, "from": e.header.fid, "body": a[2],
-                    "voice": a[3], "when": a[4] * 1000, "prev": a[1]
-                };
-                // console.log("new priv post 2 ", p)
-                // console.log("time: ", a[3])
-                ch["posts"][e.header.ref] = p;
-                // console.log(`chat add ${a[1]}`)
+            // console.log("new priv post 0")
+            let ch = tremola.chats[conv_name];
+
+            if (a[0] == 'DLV' || a[0] == 'ACK') { // remote delivery notification
+                console.log(JSON.stringify(ch.posts))
+                if (e.header.fid != myId && ch.members.length == 2 && a[1] in ch.posts) { // only for person-to-person
+                    var p = ch.posts[a[1]];
+                    if (p.status != 'ACC') // prevent downgrading to DLV
+                        p.status = a[0]
+                    console.log(`post status of ${e.header.ref} is now ${p.status}`)
+                    if (curr_scenario == 'posts' && curr_chat == conv_name)
+                        load_chat(conv_name)
+               }
+            } else if (a[0] == 'TAV') { // text and voice
+                if (ch.timeline == null)
+                    ch["timeline"] = new Timeline();
+                else if (!(ch.timeline instanceof Timeline))
+                    ch.timeline = Timeline.fromJSON(ch.timeline)
+                // console.log(`chat add tips ${a[1]}`)
                 ch.timeline.add(e.header.ref, a[1])
-                if (ch["touched"] < e.header.tst)
-                    ch["touched"] = e.header.tst
-                if (curr_scenario == "posts" && curr_chat == conv_name) {
-                    load_chat(conv_name); // reload all messages (not very efficient ...)
-                    ch["lastRead"] = Date.now();
+
+                console.log("new priv post 1 ", tremola)
+                // console.log("new priv post 1 ", ch)
+                if (!(e.header.ref in ch.posts)) { // new post
+                    var p = {
+                        "key": e.header.ref, "from": e.header.fid, "body": a[2],
+                        "voice": a[3], "when": a[4] * 1000, "prev": a[1], "status":""
+                    };
+                    // console.log("new priv post 2 ", p)
+                    // console.log("time: ", a[3])
+                    ch["posts"][e.header.ref] = p;
+                    // persist()
+                    // now that we have stored it, send a delivery confirmation
+                    if (e.header.fid != myId && ch.members.length == 2 && tremola.settings.confirmed_delivery_enabled)
+                        p.status = 'needs_ack';
+                        setTimeout(function () {
+                            // let tips = JSON.stringify(ch.timeline.get_tips())
+                            backend("conf_dlv " + e.header.ref + " " + e.header.fid)
+                        }, 200)
+                    // console.log(`chat add ${a[1]}`)
+                    if (ch["touched"] < e.header.tst)
+                        ch["touched"] = e.header.tst
+                    if (curr_scenario == "posts" && curr_chat == conv_name)
+                        load_chat(conv_name); // reload all messages (not very efficient ...)
+                    set_chats_badge(conv_name)
+                } else {
+                    console.log("known already?")
                 }
-                set_chats_badge(conv_name)
-            } else {
-                console.log("known already?")
+                // if (curr_scenario == "chats") // the updated conversation could bubble up
+                load_chat_list();
             }
-            // if (curr_scenario == "chats") // the updated conversation could bubble up
-            load_chat_list();
+            persist();
+            must_redraw = true;
         }
-        persist();
-        must_redraw = true;
     }
 }
 

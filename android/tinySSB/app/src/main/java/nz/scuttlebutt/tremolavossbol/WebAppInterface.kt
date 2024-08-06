@@ -43,6 +43,9 @@ import nz.scuttlebutt.tremolavossbol.utils.PlusCodesUtils
 import nz.scuttlebutt.tremolavossbol.games.battleships.BattleshipGame
 import nz.scuttlebutt.tremolavossbol.games.common.GamesHandler
 import nz.scuttlebutt.tremolavossbol.games.battleships.GameStates
+import nz.scuttlebutt.tremolavossbol.utils.Bipf_e
+import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_ACK
+import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_DLV
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_GAMETEXT
 
 
@@ -194,7 +197,6 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
                 //act.finishAffinity()
             }
             "add:contact" -> {
-
                 val id = args[1].substring(1,args[1].length-8)
                 Log.d("ADD", id)
                 act.tinyGoset._add_key(Base64.decode(id, Base64.NO_WRAP))
@@ -213,6 +215,14 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
                     return
             }
             */
+            "conf_dlv" -> { // conf_rcv ref rcpt
+                confirm_post(args, TINYSSB_APP_DLV)
+                return
+            }
+            "conf_ack" -> { // conf_ack ref rcpt
+                confirm_post(args, TINYSSB_APP_ACK)
+                return
+            }
             "publ:post" -> { // publ:post tips txt voice
                 val a = JSONArray(args[1])
                 val tips = ArrayList<String>(0)
@@ -458,6 +468,20 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
         })
     }
 
+    private fun mk_tip_list(tip_string: String): Bipf_e {
+        val a = JSONArray(tip_string)
+        val tips = ArrayList<String>(0)
+        for (i in 0..a.length()-1) {
+            val s = a[i].toString() // (a[i] as JSONObject).toString()
+            tips.add(s)
+        }
+        val lst = Bipf.mkList()
+        val tip_list = Bipf.mkList()
+        for (t in tips)
+            Bipf.list_append(tip_list, Bipf.mkString(t))
+        return tip_list
+    }
+
     private fun importIdentity(secret: String): Boolean {
         Log.d("D/importIdentity", secret)
         if (act.idStore.setNewIdentity(Base64.decode(secret, Base64.DEFAULT))) {
@@ -468,6 +492,19 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
         }
         Toast.makeText(act, "Import of new ID failed.", Toast.LENGTH_LONG).show()
         return false
+    }
+
+    private fun confirm_post(args: List<String>, typ: Bipf_e) {
+        val lst = Bipf.mkList()
+        Bipf.list_append(lst, typ) // DLV or ACK
+        Bipf.list_append(lst, Bipf.mkString(args[1])) // msg ref
+        val body_clear = Bipf.encode(lst)
+        val keys: MutableList<ByteArray> = mutableListOf()
+        keys.add(act.idStore.identity.toRef().deRef())
+        keys.add(args[2].deRef())
+        val encrypted = body_clear?.let { act.idStore.identity.encryptPrivateMessage(it, keys) }
+        if (encrypted != null)
+            Bipf.encode(Bipf.mkBytes(encrypted))?.let { act.tinyNode.publish_public_content(it) }
     }
 
     fun public_post_with_voice(tips: ArrayList<String>, text: String?, voice: ByteArray?) {
