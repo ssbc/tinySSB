@@ -555,10 +555,9 @@ function b2f_new_event(e) { // incoming SSB log event: we get map with three ent
 
     if (e.public) {
         if (e.public[0] == 'TAV') { // text and voice
-            console.log("new post 0 ", tremola)
+            // console.log("new post 0 ", tremola)
             var conv_name = "ALL";
             if (!(conv_name in tremola.chats)) { // create new conversation if needed
-                console.log("xx")
                 tremola.chats[conv_name] = {
                     "alias": "Public channel X", "posts": {},
                     "members": ["ALL"], "touched": Date.now(), "lastRead": 0,
@@ -646,14 +645,14 @@ function b2f_new_event(e) { // incoming SSB log event: we get map with three ent
         if (a[0] == 'TAV')
             rcpts = a[5];
         else if (a[0] == 'DLV' || a[0] == 'ACK')
-            rcpts = [e.header.fid, myId]
+            if (e.header.fid != myId) // ignore our own confirmation msgs
+                rcpts = [e.header.fid, myId]
         if (rcpts != null) {
             var conv_name = recps2nm(rcpts)
-            console.log("conv_name " + JSON.stringify(conv_name))
+            // console.log("conv_name " + JSON.stringify(conv_name))
             if (!(conv_name in tremola.chats)) { // create new conversation if needed
-                console.log("xx")
                 tremola.chats[conv_name] = {
-                    "alias": recps2display(rctps), "posts": {},
+                    "alias": recps2display(rcpts), "posts": {},
                     "members": rcpts, "touched": Date.now(), "lastRead": 0,
                     "timeline": new Timeline()
                 };
@@ -663,7 +662,6 @@ function b2f_new_event(e) { // incoming SSB log event: we get map with three ent
             let ch = tremola.chats[conv_name];
 
             if (a[0] == 'DLV' || a[0] == 'ACK') { // remote delivery notification
-                console.log(JSON.stringify(ch.posts))
                 if (e.header.fid != myId && ch.members.length == 2 && a[1] in ch.posts) { // only for person-to-person
                     var p = ch.posts[a[1]];
                     if (p.status != 'ACC') // prevent downgrading to DLV
@@ -680,7 +678,7 @@ function b2f_new_event(e) { // incoming SSB log event: we get map with three ent
                 // console.log(`chat add tips ${a[1]}`)
                 ch.timeline.add(e.header.ref, a[1])
 
-                console.log("new priv post 1 ", tremola)
+                // console.log("new priv post 1 ", tremola)
                 // console.log("new priv post 1 ", ch)
                 if (!(e.header.ref in ch.posts)) { // new post
                     var p = {
