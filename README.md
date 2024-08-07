@@ -2,12 +2,12 @@
 
 ![tinySSB logo](doc/_img/tinySSB-banner.png)
 
-## Overview
-
 tinySSB is a variation of Secure Scuttlebutt (SSB)
 [https://scuttlebutt.nz/](https://scuttlebutt.nz/), a radically
 decentral approach of implementing distributed applications. In a
-nutshell, with SSB we get "social media without servers".
+nutshell, with SSB we get "social media without servers".  tinySSB
+enabes the same, but is able to work in constraint environments thanks
+to its minuscule packet size of 120B.
 
 ## How it works
 
@@ -37,13 +37,14 @@ when the device reconnects. Go decentral!
 
 ## The difference between SSB and tinySSB
 
-tinySSB inherits the core concepts of "classic" SSB i.e., the
+tinySSB inherits the core concepts of classic SSB i.e., the
 append-only logs with signed entries, the encryption suite etc.  The
 novelty of tinySSB lies in its
 
 - binary packet format (instead of JSON)
 - “shadow packet headers” that avoid sending and storing redundant data
 - the absence of “blobs” outside the append-only logs, using side chains instead
+- a very simple and connectionless replication protocol.
 
 The data packet format has been made extremely small, namely 120
 Bytes.  The point is to enable the use of tinySSB in challenged
@@ -74,6 +75,6 @@ University of Basel.
 
 ## Documentation
 
--- 16 factsheets made for the [dWeb camp 2024](https://dwebcamp.org/), Aug 2024: [PDF](doc/tinySSB-factsheets-v2b.pdf)
+- 16 factsheets made for the [dWeb camp 2024](https://dwebcamp.org/), Aug 2024: [PDF](doc/tinySSB-factsheets-v2b.pdf)
 
 ---
