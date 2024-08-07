@@ -31,14 +31,16 @@ class Constants{
         val TINYSSB_APP_BOX          = Bipf.mkString("BOX") // bytes
         val TINYSSB_APP_BOX2         = Bipf.mkString("BX2") //
 
+        // connect4 game:
         val TINYSSB_APP_C4_BOARD     = Bipf.mkString("C4B") // new     str str str str
         val TINYSSB_APP_C4_END       = Bipf.mkString("C4E") // end     str str str
         val TINYSSB_APP_C4_INVITE    = Bipf.mkString("C4I") // invite  str str
         val TINYSSB_APP_C4_DECLINE   = Bipf.mkString("C4D") // decline str str
 
-        val TINYSSB_APP_DLV          = Bipf.mkString("DLV") // ref - this confirms delivery/arrival of msg w/ ref
-        val TINYSSB_APP_ACK          = Bipf.mkString("ACK") // ref - this confirms consumption of msg w/ ref
-        val TINYSSB_APP_GAMETEXT     = Bipf.mkString("GAM") // BATTLESHIP
+        val TINYSSB_APP_DLV          = Bipf.mkString("DLV") // confirms delivery of a TAV msg
+        val TINYSSB_APP_ACK          = Bipf.mkString("ACK") // confirms consumption of a TAV msg
+        val TINYSSB_APP_BATTLESHIP   = Bipf.mkString("GAM") // BATTLESHIP
+        val TINYSSB_APP_BLACKJACK    = Bipf.mkString("BJ")  // Blackjack
         val TINYSSB_APP_KANBAN       = Bipf.mkString("KAN") // kanban boards
         val TINYSSB_APP_KAHOOT       = Bipf.mkString("KAH") // Kahoot quiz
         val TINYSSB_APP_SCHEDULING   = Bipf.mkString("SCH") // event scheduling

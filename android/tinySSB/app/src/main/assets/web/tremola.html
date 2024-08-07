@@ -5,6 +5,12 @@
   <link rel="stylesheet" type="text/css" href="tremola.css" media="screen" />
   <link rel="stylesheet" type="text/css" href="games/dpi24-06-battleship/duel.css" media="screen" />
   <link rel="stylesheet" type="text/css" href="games/dpi24-09-connect4/connect4.css" media="screen" />
+  <link rel="stylesheet" type="text/css" href="games/dpi24-10-blackjack/styling/blackjack.css" media="screen" />
+  <link rel="stylesheet" type="text/css" href="games/dpi24-10-blackjack/styling/playerGameScreen.css" media="screen" />
+  <link rel="stylesheet" type="text/css" href="games/dpi24-10-blackjack/styling/waitingScreen.css" media="screen" />
+  <link rel="stylesheet" type="text/css" href="games/dpi24-10-blackjack/styling/playerWaitingLobby.css" media="screen" />
+  <link rel="stylesheet" type="text/css" href="games/dpi24-10-blackjack/styling/wrapUp.css" media="screen" />
+  <link rel="stylesheet" type="text/css" href="games/dpi24-10-blackjack/styling/wagerSelection.css" media="screen" />
   <link rel="stylesheet" type="text/css" href="prod/kanban/kanban.css" media="screen" />
   <link rel="stylesheet" type="text/css" href="prod/dpi24-14-sched/scheduling.css" media="screen" />
   <link rel="stylesheet" type="text/css" href="prod/dpi24-15-kahoot/kahoot.css" media="screen" />
@@ -27,6 +33,8 @@
   <script type="text/javascript" charset="UTF-8" src="games/games.js"></script>
   <script type="text/javascript" charset="UTF-8" src="games/dpi24-06-battleship/duel.js"></script>
   <script type="text/javascript" charset="UTF-8" src="games/dpi24-09-connect4/connect4.js"></script>
+  <script type="text/javascript" charset="UTF-8" src="games/dpi24-10-blackjack/blackjack.js"></script>
+  <script type="text/javascript" charset="UTF-8" src="games/dpi24-10-blackjack/blackjack_ui.js"></script>
   <script type="text/javascript" charset="UTF-8" src="util/qrcode.min.js"></script>
   <script type="text/javascript" charset="UTF-8" src="util/pinch-zoom.min.js"></script>
   <script type="text/javascript" charset="UTF-8" src="util/pako.min.js"></script>
@@ -73,7 +81,241 @@
   </div>
   </div>
 
-<div id='core' style="height: calc(100% - 118px); width: 100%;">
+  <!-- Blackjack -->
+
+  <div id='lst:blackjack' class=w100 style="overflow: hidden; display: none;"></div>
+
+  <div id='blackjack-start-game' class='qr-overlay-blackjack' style="display: none;">
+    <div class="blackjack-landing-page">
+      <div class="top-bottom-decoration">
+        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" fill="black" viewBox="0 0 16 16">
+          <path d="M11.5 12.5a3.5 3.5 0 0 1-2.684-1.254 20 20 0 0 0 1.582 2.907c.231.35-.02.847-.438.847H6.04c-.419 0-.67-.497-.438-.847a20 20 0 0 0 1.582-2.907 3.5 3.5 0 1 1-2.538-5.743 3.5 3.5 0 1 1 6.708 0A3.5 3.5 0 1 1 11.5 12.5"/>
+        </svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" fill="red"  viewBox="0 0 16 16">
+          <path d="M2.45 7.4 7.2 1.067a1 1 0 0 1 1.6 0L13.55 7.4a1 1 0 0 1 0 1.2L8.8 14.933a1 1 0 0 1-1.6 0L2.45 8.6a1 1 0 0 1 0-1.2"/>
+        </svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" fill="black" viewBox="0 0 16 16">
+          <path d="M7.184 11.246A3.5 3.5 0 0 1 1 9c0-1.602 1.14-2.633 2.66-4.008C4.986 3.792 6.602 2.33 8 0c1.398 2.33 3.014 3.792 4.34 4.992C13.86 6.367 15 7.398 15 9a3.5 3.5 0 0 1-6.184 2.246 20 20 0 0 0 1.582 2.907c.231.35-.02.847-.438.847H6.04c-.419 0-.67-.497-.438-.847a20 20 0 0 0 1.582-2.907"/>
+        </svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" fill="red" viewBox="0 0 16 16">
+          <path d="M4 1c2.21 0 4 1.755 4 3.92C8 2.755 9.79 1 12 1s4 1.755 4 3.92c0 3.263-3.234 4.414-7.608 9.608a.513.513 0 0 1-.784 0C3.234 9.334 0 8.183 0 4.92 0 2.755 1.79 1 4 1"/>
+        </svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" fill="black" viewBox="0 0 16 16">
+          <path d="M11.5 12.5a3.5 3.5 0 0 1-2.684-1.254 20 20 0 0 0 1.582 2.907c.231.35-.02.847-.438.847H6.04c-.419 0-.67-.497-.438-.847a20 20 0 0 0 1.582-2.907 3.5 3.5 0 1 1-2.538-5.743 3.5 3.5 0 1 1 6.708 0A3.5 3.5 0 1 1 11.5 12.5"/>
+        </svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" fill="red"  viewBox="0 0 16 16">
+          <path d="M2.45 7.4 7.2 1.067a1 1 0 0 1 1.6 0L13.55 7.4a1 1 0 0 1 0 1.2L8.8 14.933a1 1 0 0 1-1.6 0L2.45 8.6a1 1 0 0 1 0-1.2"/>
+        </svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" fill="black" viewBox="0 0 16 16">
+          <path d="M7.184 11.246A3.5 3.5 0 0 1 1 9c0-1.602 1.14-2.633 2.66-4.008C4.986 3.792 6.602 2.33 8 0c1.398 2.33 3.014 3.792 4.34 4.992C13.86 6.367 15 7.398 15 9a3.5 3.5 0 0 1-6.184 2.246 20 20 0 0 0 1.582 2.907c.231.35-.02.847-.438.847H6.04c-.419 0-.67-.497-.438-.847a20 20 0 0 0 1.582-2.907"/>
+        </svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" fill="red" viewBox="0 0 16 16">
+          <path d="M4 1c2.21 0 4 1.755 4 3.92C8 2.755 9.79 1 12 1s4 1.755 4 3.92c0 3.263-3.234 4.414-7.608 9.608a.513.513 0 0 1-.784 0C3.234 9.334 0 8.183 0 4.92 0 2.755 1.79 1 4 1"/>
+        </svg>
+      </div>
+
+      <!-- Initial Display -->
+      <div id="initial-display" class="initial-display">
+        <img src="games/dpi24-10-blackjack/blackjack-logo.png" alt="bj-logo" class="bj-logo"/>
+        <button class="blackjack_start_game_button" onclick="start_game_as_dealer_button_pressed()">Start as Dealer</button>
+        <button class="blackjack_start_game_button" onclick="start_game_as_player_button_pressed()">Join Game</button>
+        <!--  <button class="blackjack_start_game_button" onclick="debugPlayerGameScreen()">Debug Screen</button> -->
+      </div>
+
+      <!-- Button Pressed Display -->
+      <div id="current-game-screen" style="display:none;">
+        <div id="game-state" class="game-state">
+          <div id="dealer-hand-container" class="card-container">
+            <h4 style="color: white;">Dealers Hand</h4>
+            <div id="dealer-card-container" class="dealer-card-container">
+              <img src="games/dpi24-10-blackjack/bj_cards/KC.svg" alt="card" class="card-img" width="100" height="auto" />
+              <img class="card-img"  src="games/dpi24-10-blackjack/bj_cards/KC.svg" alt="card" width="100" height="auto" />
+            </div>
+          </div>
+          <div id="player-hand-container" class="card-container">
+            <h4 style="color: white;">Players Hand</h4>
+            <div id="player-card-container" class="player-card-container">
+              <img class="card-img" src="games/dpi24-10-blackjack/bj_cards/AH.svg" alt="card" width="100" height="auto"/>
+              <img class="card-img" src="games/dpi24-10-blackjack/bj_cards/5C.svg" alt="card" width="100" height="auto" />
+              <img class="card-img" src="games/dpi24-10-blackjack/bj_cards/KC.svg" alt="card" width="100" height="auto" />
+              <img class="card-img" src="games/dpi24-10-blackjack/bj_cards/7H.svg" alt="card" width="100" height="auto" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Confirmation Dialog -->
+      <diV id="confirmation-dialog" class="confirmation-dialog" style="display: none;">
+        <p>Are you sure that you want to start a new game as dealer?</p>
+        <br/>
+        <br/>
+        <div class="confirmation-dialog-button-container">
+          <button class="confirmation-dialog-button" onClick="dealer_confirmed_pressed()">YES</button>
+          <button class="confirmation-dialog-button" onClick="dealer_canceled_pressed()">CANCEL</button>
+        </div>
+      </diV>
+
+      <!-- Player Waiting Lobby -->
+      <div id="player-waiting-lobby" class="player-waiting-lobby" style="display: none;">
+        <h3>Player Waiting Lobby</h3>
+        <p>Games in your area: </p>
+        <div id="games-list">
+
+        </div>
+        <button class="confirmation-dialog-button" onClick="leave_player_lobby_pressed()">Back</button>
+      </div>
+
+      <!-- Player Wager Selection -->
+      <div id="player-wager-selection" class="player-wager-selection" style="display: none;">
+        <h3>Select your wager before joining a game!</h3>
+        <div class="wager-chip-container">
+          <button id="decrease-10" onclick="decreaseWager(10)" class="wager-chip-container-button">-</button>
+          <img src="games/dpi24-10-blackjack/green-chip.svg" alt="green chip"/>
+          <button id="increase-10" onclick="increaseWager(10)" class="wager-chip-container-button">+</button>
+          <p class="chip-description">10</p>
+        </div>
+        <div class="wager-chip-container">
+          <button id="decrease-20" onclick="decreaseWager(20)" class="wager-chip-container-button">-</button>
+          <img src="games/dpi24-10-blackjack/red-chip.svg" alt="red chip"/>
+          <button id="increase-20" onclick="increaseWager(20)" class="wager-chip-container-button">+</button>
+          <p class="chip-description">20</p>
+        </div>
+        <div class="wager-chip-container">
+          <button id="decrease-50" onclick="decreaseWager(50)" class="wager-chip-container-button">-</button>
+          <img src="games/dpi24-10-blackjack/black-chip.svg" alt="black chip"/>
+          <button id="increase-50" onclick="increaseWager(50)" class="wager-chip-container-button">+</button>
+          <p class="chip-description">50</p>
+        </div>
+        <div id="current-wager-container" class="current-wager-container">
+          <button onclick="leave_wager_selection_pressed()">Back</button>
+          <p id="current-wager">0</p>
+          <button id="confirm-current-wager-button" onclick="confirmWager()">Confirm</button>
+        </div>
+      </div>
+
+      <!-- Player Game Screen -->
+      <div id="player-game-screen" style="display: none;" class="player-game-screen">
+        <div id="player-game-screen-dealer-card-container" class="player-game-screen-card-container">
+
+        </div>
+        <div id="player-game-screen-player-card-container" class="player-game-screen-card-container">
+
+        </div>
+        <div id="dealer-message-display" class="dealer-message-display">
+
+        </div>
+        <!-- Player Option Bar -->
+        <div id="player-option-bar" class="player-option-bar" style="display: none;">
+          <button class="player-option-button" onclick="sendDecisionToDealer('Hit')">Hit</button>
+          <button class="player-option-button" onclick="sendDecisionToDealer('Stand')">Stand</button>
+          <button id="double-down-button" class="player-option-button" onclick="sendDecisionToDealer('DoubleDown')" style="display:none;">Double Down</button>
+          <button id="double-down-button-disabled" class="player-option-button-disabled" style="display:none;">Double Down</button>
+        </div>
+      </div>
+
+      <!-- Dealer Game Screen -->
+      <div id="dealer-game-screen" style="display: none;" class="player-game-screen">
+        <!-- Dealer Option Bar -->
+        <div id="dealer-option-bar" style="display: none; " class="dealer-option-bar">
+
+          <label for="dealer-message-input">Press Send to continue the game! ... and maybe give the player a hint ;)</label>
+          <div>
+            <input type="text" id="dealer-message-input" class="message-input" placeholder="Type your message...">
+            <button id="dealer-message-button" onclick="dealer_sends_current_status_to_player()">Send</button>
+          </div>
+        </div>
+        <div id="dealer-game-screen-dealer-card-container" class="player-game-screen-card-container">
+
+        </div>
+        <div id="dealer-game-screen-player-card-container" class="player-game-screen-card-container">
+
+        </div>
+        <div id="continue-to-finish-screen-button-container" class="finish-screen-button-container" style="display: none;">
+          <button id="continue-to-finish-screen" class="finish-screen-button" onclick="displayLooseScreen()">Finish</button>
+        </div>
+      </div>
+
+      <!-- Waiting Screen -->
+      <div id="waiting-screen" class="waiting-screen" style="display: none;">
+        <div class="waiting-content">
+          <svg class="spinner" width="174px" height="174px" viewBox="0 0 66 66" xmlns="http://www.w3.org/2000/svg">
+            <circle class="path" fill="transparent" stroke-width="2" cx="33" cy="33" r="30" stroke="url(#gradient)"/>
+            <linearGradient id="gradient">
+              <stop offset="50%" stop-color="#42d179" stop-opacity="1"/>
+              <stop offset="65%" stop-color="#42d179" stop-opacity=".5"/>
+              <stop offset="100%" stop-color="#42d179" stop-opacity="0"/>
+            </linearGradient>
+            <svg class="spinner-dot dot" width="5px" height="5px" viewBox="0 0 66 66" xmlns="http://www.w3.org/2000/svg" x="37" y="1.5">
+              <circle class="path" fill="#42d179" cx="33" cy="33" r="30"/>
+            </svg>
+          </svg>
+          <div id="waiting-text" class="waiting-text">Please Wait...</div>
+        </div>
+      </div>
+
+      <!-- Player Win Screen -->
+      <div id="player-win-screen" style="display: none;" class="win-screen">
+        <img src="games/dpi24-10-blackjack/player-win.png" alt="playerwins">
+        <p>The player wins! Yay!</p>
+        <div id="player-money-container-win" class="player-money-container">
+          <img src="games/dpi24-10-blackjack/poker-chips.svg" alt="poker-chips"/>
+          <p id="player-money-win"></p>
+        </div>
+        <button class="player-option-button" onclick="backToMainMenu()">Back to Main Menu</button>
+      </div>
+
+      <!-- Dealer Win Screen -->
+      <div id="dealer-win-screen" style="display: none;" class="win-screen">
+        <img src="games/dpi24-10-blackjack/dealer-win.png" alt="dealerwins">
+        <p>The dealer wins! Which he will the majority of times in the long run :)</p>
+        <div id="player-money-container-loss" class="player-money-container">
+          <img src="games/dpi24-10-blackjack/poker-chips.svg" alt="poker-chips"/>
+          <p id="player-money-loss"></p>
+        </div>
+        <button class="player-option-button" onclick="backToMainMenu()">Back to Main Menu</button>
+      </div>
+
+      <!-- Tie Screen -->
+      <div id="tie-screen" style="display: none;" class="win-screen">
+        <img src="games/dpi24-10-blackjack/Tie.png" alt="tie">
+        <p>The game ended in a tie! That doesn't happen very often. Maybe ask your statistics professor how likely that is</p>
+        <div id="player-money-container-tie" class="player-money-container">
+          <img src="games/dpi24-10-blackjack/poker-chips.svg" alt="poker-chips"/>
+          <p id="player-money-tie"></p>
+        </div>
+        <button class="player-option-button" onclick="backToMainMenu()">Back to Main Menu</button>
+      </div>
+
+      <div id="bottom-decoration" class="top-bottom-decoration">
+        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" fill="black" viewBox="0 0 16 16">
+          <path d="M11.5 12.5a3.5 3.5 0 0 1-2.684-1.254 20 20 0 0 0 1.582 2.907c.231.35-.02.847-.438.847H6.04c-.419 0-.67-.497-.438-.847a20 20 0 0 0 1.582-2.907 3.5 3.5 0 1 1-2.538-5.743 3.5 3.5 0 1 1 6.708 0A3.5 3.5 0 1 1 11.5 12.5"/>
+        </svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" fill="red"  viewBox="0 0 16 16">
+          <path d="M2.45 7.4 7.2 1.067a1 1 0 0 1 1.6 0L13.55 7.4a1 1 0 0 1 0 1.2L8.8 14.933a1 1 0 0 1-1.6 0L2.45 8.6a1 1 0 0 1 0-1.2"/>
+        </svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" fill="black" viewBox="0 0 16 16">
+          <path d="M7.184 11.246A3.5 3.5 0 0 1 1 9c0-1.602 1.14-2.633 2.66-4.008C4.986 3.792 6.602 2.33 8 0c1.398 2.33 3.014 3.792 4.34 4.992C13.86 6.367 15 7.398 15 9a3.5 3.5 0 0 1-6.184 2.246 20 20 0 0 0 1.582 2.907c.231.35-.02.847-.438.847H6.04c-.419 0-.67-.497-.438-.847a20 20 0 0 0 1.582-2.907"/>
+        </svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" fill="red" viewBox="0 0 16 16">
+          <path d="M4 1c2.21 0 4 1.755 4 3.92C8 2.755 9.79 1 12 1s4 1.755 4 3.92c0 3.263-3.234 4.414-7.608 9.608a.513.513 0 0 1-.784 0C3.234 9.334 0 8.183 0 4.92 0 2.755 1.79 1 4 1"/>
+        </svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" fill="black" viewBox="0 0 16 16">
+          <path d="M11.5 12.5a3.5 3.5 0 0 1-2.684-1.254 20 20 0 0 0 1.582 2.907c.231.35-.02.847-.438.847H6.04c-.419 0-.67-.497-.438-.847a20 20 0 0 0 1.582-2.907 3.5 3.5 0 1 1-2.538-5.743 3.5 3.5 0 1 1 6.708 0A3.5 3.5 0 1 1 11.5 12.5"/>
+        </svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" fill="red"  viewBox="0 0 16 16">
+          <path d="M2.45 7.4 7.2 1.067a1 1 0 0 1 1.6 0L13.55 7.4a1 1 0 0 1 0 1.2L8.8 14.933a1 1 0 0 1-1.6 0L2.45 8.6a1 1 0 0 1 0-1.2"/>
+        </svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" fill="black" viewBox="0 0 16 16">
+          <path d="M7.184 11.246A3.5 3.5 0 0 1 1 9c0-1.602 1.14-2.633 2.66-4.008C4.986 3.792 6.602 2.33 8 0c1.398 2.33 3.014 3.792 4.34 4.992C13.86 6.367 15 7.398 15 9a3.5 3.5 0 0 1-6.184 2.246 20 20 0 0 0 1.582 2.907c.231.35-.02.847-.438.847H6.04c-.419 0-.67-.497-.438-.847a20 20 0 0 0 1.582-2.907"/>
+        </svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" fill="red" viewBox="0 0 16 16">
+          <path d="M4 1c2.21 0 4 1.755 4 3.92C8 2.755 9.79 1 12 1s4 1.755 4 3.92c0 3.263-3.234 4.414-7.608 9.608a.513.513 0 0 1-.784 0C3.234 9.334 0 8.183 0 4.92 0 2.755 1.79 1 4 1"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <div id='core' style="height: calc(100% - 118px); width: 100%;">
 
   <div id='lst:chats'    class=w100 style='overflow: scroll;height: 100%;'></div>
   <div id='lst:prod'     class=w100 style='display: none; overflow: scroll;height: 100%;'></div>
@@ -361,6 +603,8 @@
       <div class='battleships_turn' id='battleships:turn' style='display:none'>Your Turn</div>
     </div>
   </div>
+
+  <!-- generic Tremola divs -->
 
   <div id="plus">
     <button class=float_button onclick="plus_button();">+</button>

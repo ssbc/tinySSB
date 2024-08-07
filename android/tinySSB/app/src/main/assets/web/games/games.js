@@ -16,8 +16,8 @@ function load_game_list() {
     */
     load_game_item('Connect4 (dpi24.09)', 'games/dpi24-09-connect4/connect4.png', 'setScenario("connect4-game")',
                    'Drop a coin in one of the slots - you win if four of your coins form a straight line.<br><em>Authors: Jan Büchele, Luigj Lazri and Jan Walliser</em>');
-    load_game_item('Blackjack (dpi24.10)', 'games/dpi24-10-blackjack/coins.svg', '',
-                   'dah dah dah.');
+    load_game_item('Blackjack (dpi24.10)', 'games/dpi24-10-blackjack/coins.svg', 'menu_start_game_of_blackjack()',
+                   'dah dah dah.<br><em>Authors: Niklas Hasenkopf, Henrik Lümkemann and Roman Ostermiller</em>');
     load_game_item('Hangman (dpi24.11)', 'games/dpi24-11-hangman/hangman.svg', '',
                    'dah dah dah');
 }

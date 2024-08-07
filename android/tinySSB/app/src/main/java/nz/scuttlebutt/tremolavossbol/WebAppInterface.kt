@@ -31,6 +31,7 @@ import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_C4_DE
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_C4_END
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_C4_INVITE
 
+import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_BLACKJACK
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_IAM
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_TEXTANDVOICE
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_KANBAN
@@ -45,7 +46,7 @@ import nz.scuttlebutt.tremolavossbol.games.battleships.GameStates
 import nz.scuttlebutt.tremolavossbol.utils.Bipf_e
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_ACK
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_DLV
-import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_GAMETEXT
+import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_BATTLESHIP
 
 
 
@@ -454,6 +455,22 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
             "connect_four_decline_invite" -> {
                 connect_four_decline_invite(args[1],args[2]);
             }
+            "blackjack:send" -> {
+                val message = Bipf.mkList()
+                Bipf.list_append(message, TINYSSB_APP_BLACKJACK)
+                Bipf.list_append(message, Bipf.mkString(args[1])) // gameId
+                Bipf.list_append(message, Bipf.mkString(args[2])) // gameStatus
+                Bipf.list_append(message, Bipf.mkString(args[3])) // turn
+                Bipf.list_append(message, Bipf.mkString(args[4])) // dealerCards
+                Bipf.list_append(message, Bipf.mkString(args[5])) // playerCards
+                Bipf.list_append(message, Bipf.mkString(args[6])) // playerAction
+                Bipf.list_append(message, Bipf.mkString(args[7])) // dealerMessage
+                val encodedMessage = Bipf.encode(message)
+
+                if (encodedMessage != null) {
+                    act.tinyNode.publish_public_content(encodedMessage)
+                }
+            }
 
             else -> {
                 Log.d("onFrontendRequest", "unknown")
@@ -600,7 +617,7 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
     // BATTLESHIP
     fun public_post_game_request(text: String?) {
         val lst = Bipf.mkList()
-        Bipf.list_append(lst, TINYSSB_APP_GAMETEXT)
+        Bipf.list_append(lst, TINYSSB_APP_BATTLESHIP)
         Bipf.list_append(lst, if (text == null) Bipf.mkNone() else Bipf.mkString(text))
         val tst = Bipf.mkInt((System.currentTimeMillis() / 1000).toInt())
         // Log.d("wai", "send time is ${tst.getInt()}")

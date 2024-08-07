@@ -1,0 +1,66 @@
+/* Basic styling for the waiting screen */
+.waiting-screen {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    width: 100%;
+}
+
+/* Center the content */
+.waiting-content {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-evenly;
+    width: 100%;
+    height: 100%;
+}
+
+.spinner {
+    animation: rotate 1.4s linear infinite;
+    -webkit-animation: rotate 1.4s linear infinite;
+    -moz-animation: rotate 1.4s linear infinite;
+    width:174px;
+    height:174px;
+    position: relative;
+}
+
+.spinner-dot {
+    width:274px;
+    height:274px;
+    position: relative;
+    top: 0;
+}
+
+
+@keyframes rotate {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@-webkit-keyframes rotate {
+    to {
+        -webkit-transform: rotate(360deg);
+    }
+}
+
+@-moz-keyframes rotate {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.path {
+    stroke-dasharray: 170;
+    stroke-dashoffset: 20;
+}
+
+/* Styling for the waiting text */
+.waiting-text {
+    color: #fff;
+    font-size: 18px;
+}

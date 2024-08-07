@@ -9,6 +9,7 @@ var display_or_not = [
     'lst:chats', 'lst:prod', 'lst:games', 'lst:contacts', 'lst:members',
     'div:posts', 'lst:kanban', 'div:board',
     'lst:duels', 'div:battleships', // battleship
+    'lst:blackjack',
     'lst:connect4-game', 'lst:connect4-players', 'the:connect4-game-session', // connect4
     'lst:kahoot',
     'lst:scheduling', 'div:event',
@@ -32,6 +33,7 @@ var scenarioDisplay = {
     'kahoot': ['div:back', 'core', 'lst:kahoot'],
     'duels': ['div:back', 'core', 'lst:duels', 'plus'], // BATTLESHIP
     'battleships': ['div:back', 'core', 'div:battleships'], // BATTLESHIP
+    'blackjack': ['div:back', 'lst:blackjack'],
     'connect4-game': ['div:back', 'core', 'lst:connect4-game', 'div:footer', 'plus'],
     'connect4-game-players': ['div:back', 'core', 'lst:connect4-players', 'div:connect4-confirm-player'],
     'connect4-game-session': ['div:back', 'core', 'the:connect4-game-session'],
@@ -83,6 +85,10 @@ var scenarioMenu = {
 
     'duels': [], // BATTLESHIP
     'battleships': [['Quit Game', 'quit_bsh']], // BATTLESHIP
+
+    'blackjack' : [
+            ['Settings', 'menu_settings'],
+            ['About', 'menu_about']],
 
     'connect4-game': [// ['New Game'], //, 'connect4_menu_game_players'],
             ['Settings', 'menu_settings'],
@@ -256,6 +262,10 @@ function setScenario(s) {
               }, 100);
         }
 
+        if(s == 'blackjack') {
+            menu_start_game_of_blackjack()
+        }
+
         if (s == 'connect4-game') {
             document.getElementById("tremolaTitle").style.display = 'none';
             var c = document.getElementById("conversationTitle");
@@ -373,6 +383,9 @@ function closeOverlay() {
     document.getElementById('btn:item_menu_description_cancel').style.display = 'none'
     document.getElementById('div:debug').style.display = 'none'
     document.getElementById("div:invite_menu").style.display = 'none'
+
+    // Blackjack
+    document.getElementById('blackjack-start-game').style.display = 'none';
 
     // scheduling overlays
     document.getElementById('scheduling-create-personal-event-overlay').style.display = 'none';
