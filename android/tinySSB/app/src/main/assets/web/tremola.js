@@ -158,8 +158,6 @@ function members_confirmed() {
         new_conversation()
     } else if (prev_scenario == 'kanban') {
         menu_new_board_name()
-    } else if (prev_scenario == 'scheduling') {
-        dpi_menu_new_event_name()
     }
 }
 
@@ -354,7 +352,6 @@ function resetTremola() { // wipes browser-side content
         "id": myId,
         "settings": {},
         "board": {},
-        "kahoot": {}
     }
 
     var n = recps2nm([myId])
@@ -463,26 +460,6 @@ function b2f_new_in_order_event(e) {
         case "KAN":
             console.log("New kanban event")
             kanban_new_event(e)
-            break
-        case "C4B":
-            connect4_game_new_event(e);
-            break
-        case "C4E":
-            connect4_game_end_event(e);
-            break
-        case "C4I":
-            connect4_recv_invite(e);
-            break
-        case "C4D":
-            connect4_invite_declined(e);
-            break
-        case "KAH":
-            console.log("New kahoot event")
-            Kahoot_new_event(e)
-            break
-        case "SCH":
-            console.log("New scheduling event")
-            dpi_scheduling_new_event(e)
             break
         default:
             return
@@ -617,24 +594,6 @@ function b2f_new_event(e) { // incoming SSB log event: we get map with three ent
                     }
                 }
             }
-        } else if (e.public[0] == "GAM") {
-            // TODO autoretransmit answer if necessary
-              if (window.GamesHandler && typeof window.GamesHandler.onGameBackendEvent === 'function') {
-                  var response = window.GamesHandler.onGameBackendEvent(e.public[1]);
-                  var responseList = response.split("!CERBERUS!")
-                  if (responseList.length >= 1 && responseList[0].startsWith("games")) {
-                      // TODO anpassen von GUI
-                      backend(responseList[0]);
-                  }
-                  if (responseList.length == 2) {
-                      update_game_gui(responseList[1])
-                  } else {
-                      update_game_gui(responseList[0])
-                  }
-              } else {
-                  console.error("GamesHandler.onGameBackendEvent is not a function");
-              }
-              //Android.onGameBackendEvent(e.public);
         }
         persist();
         must_redraw = true;
@@ -784,12 +743,6 @@ function b2f_initialize(id, settings) {
     load_game_list()
     load_contact_list()
     loadShortIds()
-    // load_kanban_list()
-    // dpi_load_event_list() // problem with access to tremola object
-    if (tremola.kahoot == undefined) {
-      tremola.kahoot = {};
-      persist();
-    }
 
     closeOverlay();
     setScenario('chats');

@@ -27,7 +27,6 @@ import nz.scuttlebutt.tremolavossbol.tssb.ble.BlePeers
 import nz.scuttlebutt.tremolavossbol.tssb.*
 import nz.scuttlebutt.tremolavossbol.tssb.ble.BluetoothEventListener
 import nz.scuttlebutt.tremolavossbol.utils.Constants
-import nz.scuttlebutt.tremolavossbol.games.common.GamesHandler
 import tremolavossbol.R
 import java.net.*
 import java.util.concurrent.locks.ReentrantLock
@@ -41,7 +40,6 @@ class MainActivity : Activity() {
     // lateinit var tremolaState: TremolaState
     lateinit var idStore: IdStore
     lateinit var wai: WebAppInterface
-    lateinit var gamesHandler: GamesHandler
     lateinit var tinyIO: IO
     var frontend_ready = false
     val tinyNode = Node(this)
@@ -99,10 +97,8 @@ class MainActivity : Activity() {
                 null
             ) // disable acceleration, needed for older WebViews
         }
-        gamesHandler = GamesHandler(idStore.identity)
-        webView.addJavascriptInterface(gamesHandler, "GameHandler")
 
-        wai = WebAppInterface(this, webView, gamesHandler)
+        wai = WebAppInterface(this, webView)
         // upgrades repo filesystem if necessary
         tinyRepo.upgrade_repo()
         tinyIO = IO(this, wai)
@@ -138,7 +134,6 @@ class MainActivity : Activity() {
         */
         // val webStorage = WebStorage.getInstance()
         webView.addJavascriptInterface(wai, "Android")
-        webView.addJavascriptInterface(gamesHandler, "GamesHandler")
 
         webView.settings.javaScriptEnabled = true
         webView.settings.domStorageEnabled = true

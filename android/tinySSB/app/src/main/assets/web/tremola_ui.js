@@ -8,10 +8,6 @@ var display_or_not = [
     'div:qr', 'div:back', 'core', 'plus',
     'lst:chats', 'lst:prod', 'lst:games', 'lst:contacts', 'lst:members',
     'div:posts', 'lst:kanban', 'div:board',
-    'lst:duels', 'div:battleships', // battleship
-    'lst:connect4-game', 'lst:connect4-players', 'the:connect4-game-session', // connect4
-    'lst:kahoot',
-    'lst:scheduling', 'div:event',
     'div:footer', 'div:textarea', 'div:confirm-members', 'div:settings'
 ];
 
@@ -29,14 +25,6 @@ var scenarioDisplay = {
     'settings': ['div:back', 'div:settings', 'core'],
     'kanban': ['div:back', 'core', 'lst:kanban', 'div:footer', 'plus'], // KANBAN
     'board': ['div:back', 'core', 'div:board'], // KANBAN
-    'kahoot': ['div:back', 'core', 'lst:kahoot'],
-    'duels': ['div:back', 'core', 'lst:duels', 'plus'], // BATTLESHIP
-    'battleships': ['div:back', 'core', 'div:battleships'], // BATTLESHIP
-    'connect4-game': ['div:back', 'core', 'lst:connect4-game', 'div:footer', 'plus'],
-    'connect4-game-players': ['div:back', 'core', 'lst:connect4-players', 'div:connect4-confirm-player'],
-    'connect4-game-session': ['div:back', 'core', 'the:connect4-game-session'],
-    'scheduling': ['div:back', 'core', 'lst:scheduling', 'div:footer', 'plus'],
-    'event': ['div:back', 'core', 'div:event']
 }
 
 var scenarioMenu = {
@@ -80,25 +68,6 @@ var scenarioMenu = {
         ['Leave', 'leave_curr_board'],
         ['(un)Forget', 'board_toggle_forget'],
         ['Debug', 'ui_debug']],
-
-    'duels': [], // BATTLESHIP
-    'battleships': [['Quit Game', 'quit_bsh']], // BATTLESHIP
-
-    'connect4-game': [// ['New Game'], //, 'connect4_menu_game_players'],
-            ['Settings', 'menu_settings'],
-            ['About', 'menu_about']],
-
-    'scheduling': [
-        // ['New Event', 'dpi_menu_new_event'],
-        ['Invitations', 'dpi_menu_event_invitations'],
-        ['Settings', 'menu_settings'],
-        ['About', 'menu_about']],
-
-    'event': [
-        ['Add appointment', 'dpi_menu_new_appointment'],
-        ['Invite Users', 'dpi_menu_invite'],
-        ['Reload', 'dpi_reload_curr_event'],
-        ['Debug', 'dpi_ui_debug']]
 }
 
 const QR_SCAN_TARGET = {
@@ -125,25 +94,13 @@ function onBackPressed() {
         backend("onBackPressed");
     else if (['productivity', 'games', 'contacts'].indexOf(curr_scenario) >= 0)
         setScenario('chats')
-    else if (['duels','connect4-game'].indexOf(curr_scenario) >= 0) {
-        setScenario('games')
-        prev_scenario = 'chats'
-    } else if (['kanban','scheduling'].indexOf(curr_scenario) >= 0) {
+    else if (['kanban'].indexOf(curr_scenario) >= 0) {
         setScenario('productivity')
         prev_scenario = 'chats'
     } else if (curr_scenario == 'posts')
         setScenario('chats')
     else if (curr_scenario == 'board')
         setScenario('kanban')
-    else if (curr_scenario == 'event')
-        setScenario('scheduling')
-    else if (curr_scenario == 'battleships') { // BATTLESHIP // TODO prev_scenario für duels unc posts und nicht in chat
-        reset_battleship_mode()
-        show_duels()
-    } else if (curr_scenario == 'connect4-game-session') {
-        connect4_load_games_list();
-        setScenario('connect4-game')
-    }
 }
 
 function setScenario(s) {
@@ -163,6 +120,7 @@ function setScenario(s) {
             if (lst.indexOf(d) < 0) {
                 document.getElementById(d).style.display = 'none';
             } else {
+            console.log(d)
                 document.getElementById(d).style.display = null;
                 // console.log(' l=' + d);
             }
@@ -172,13 +130,10 @@ function setScenario(s) {
             document.getElementById('tremolaTitle').style.position = null;
         }
 
-        if (s == "posts" || s == "settings" || s == "board" || s == "event" ||
-            s == 'battleships') {
+        if (s == "posts" || s == "settings" || s == "board") {
             document.getElementById('tremolaTitle').style.display = 'none';
             document.getElementById('conversationTitle').style.display = null;
             document.getElementById('plus').style.display = 'none';
-        } else if (s == "duels") {
-            document.getElementById('tremolaTitle').style.display = 'none';
         } else {
             document.getElementById('tremolaTitle').style.display = null;
             document.getElementById('conversationTitle').style.display = 'none';
@@ -236,17 +191,6 @@ function setScenario(s) {
             }
         }
 
-        if (s == 'kahoot') {
-            console.log('Kahoot scenario activated');
-            // Any additional initialization logic for Kahoot can go here
-            //document.getElementById('lst:kahoot').style.display = 'block';
-            document.getElementById('quiz-master-title').style.display = 'block';
-            document.getElementById('kahoot-buttons').style.display = 'block';
-            //document.getElementById('user-scores').style.display = 'block';
-            //document.getElementById('enter-quiz-button-list-container').style.display = 'block';
-            //document.getElementById('fill-quiz-button-list-container').style.display = 'block';
-        }
-
         if (s == 'posts') {
           setTimeout(function () { // let image rendering (fetching size) take place before we scroll
               let c = document.getElementById('core');
@@ -255,36 +199,6 @@ function setScenario(s) {
               p.scrollTop = p.scrollHeight;
               }, 100);
         }
-
-        if (s == 'connect4-game') {
-            document.getElementById("tremolaTitle").style.display = 'none';
-            var c = document.getElementById("conversationTitle");
-            c.style.display = null;
-            c.innerHTML = "<font size=+1><strong>Connect4 Sessions</strong></font><br>Pick or create a session";
-            connect4_load_games_list();
-        } else if (s == 'connect4-game-session') {
-           document.getElementById("tremolaTitle").style.display = 'none';
-           var c = document.getElementById("conversationTitle");
-           c.style.display = null;
-           c.innerHTML = "<font size=+2><strong>Connect4</strong></font>";
-        }
-
-        if (s == 'scheduling') {
-            document.getElementById("tremolaTitle").style.display = 'none';
-            var c = document.getElementById("conversationTitle");
-            c.style.display = null;
-            c.innerHTML = "<font size=+1><strong>List of Events</strong></font><br>Pick or create an event";
-        /*
-             var personalEventAlreadyExists = false
-             if(tremola && tremola.event && tremola.event.length > 0){
-             launch_snackbar("COUNT EVENTS" + tremola.event.length)
-             console.log(tremola.event)
-
-             } else {
-              dpi_menu_create_personal_event();
-        */
-        }
-
     }
 }
 
@@ -374,11 +288,6 @@ function closeOverlay() {
     document.getElementById('div:debug').style.display = 'none'
     document.getElementById("div:invite_menu").style.display = 'none'
 
-    // scheduling overlays
-    document.getElementById('scheduling-create-personal-event-overlay').style.display = 'none';
-    document.getElementById('add-appointment-overlay').style.display='none';
-    document.getElementById('scheduling-invitations-overlay').style.display='none';
-
     overlayIsActive = false;
 
     if (curr_img_candidate != null) {
@@ -419,12 +328,6 @@ function plus_button() {
         menu_new_contact();
     } else if (curr_scenario == 'kanban') {
         menu_new_board();
-    } else if (curr_scenario == 'duels') {
-        inviteForDuel('BSH');
-    } else if (curr_scenario == 'connect4-game' ) {
-        connect4_menu_game_players();
-    } else if (curr_scenario == 'scheduling') {
-        dpi_menu_new_event();
     }
 }
 

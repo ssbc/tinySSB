@@ -3,33 +3,33 @@
 <head>
   <meta charset="UTF-8">
   <link rel="stylesheet" type="text/css" href="tremola.css" media="screen" />
-  <link rel="stylesheet" type="text/css" href="games/dpi24-06-battleship/duel.css" media="screen" />
-  <link rel="stylesheet" type="text/css" href="games/dpi24-09-connect4/connect4.css" media="screen" />
+  <!-- link rel="stylesheet" type="text/css" href="games/dpi24-06-battleship/duel.css" media="screen" />
+  <!-- link rel="stylesheet" type="text/css" href="games/dpi24-09-connect4/connect4.css" media="screen" / -->
   <link rel="stylesheet" type="text/css" href="prod/kanban/kanban.css" media="screen" />
-  <link rel="stylesheet" type="text/css" href="prod/dpi24-14-sched/scheduling.css" media="screen" />
-  <link rel="stylesheet" type="text/css" href="prod/dpi24-15-kahoot/kahoot.css" media="screen" />
+  <!-- link rel="stylesheet" type="text/css" href="prod/dpi24-14-sched/scheduling.css" media="screen" / -->
+  <!-- link rel="stylesheet" type="text/css" href="prod/dpi24-15-kahoot/kahoot.css" media="screen" / -->
   <script type="text/javascript" charset="UTF-8" src="util/bipf.js"></script>
   <script type="text/javascript" charset="UTF-8" src="util/scuttlesort.js"></script>
   <script type="text/javascript" charset="UTF-8" src="tremola.js"></script>
-  <script type="text/javascript" charset="UTF-8" src="prod/settings.js"></script>
   <script type="text/javascript" charset="UTF-8" src="tremola_ui.js"></script>
+  <script type="text/javascript" charset="UTF-8" src="prod/settings.js"></script>
   <script type="text/javascript" charset="UTF-8" src="prod/chat.js"></script>
   <script type="text/javascript" charset="UTF-8" src="prod/contacts.js"></script>
   <script type="text/javascript" charset="UTF-8" src="prod/sketch.js"></script>
   <script type="text/javascript" charset="UTF-8" src="prod/tools.js"></script>
-  <script type="text/javascript" charset="UTF-8" src="prod/dpi24-14-sched/scheduling.js"></script>
-  <script type="text/javascript" charset="UTF-8" src="prod/dpi24-14-sched/scheduling_ui.js"></script>
-  <script type="text/javascript" charset="UTF-8" src="prod/dpi24-15-kahoot/Kahoot.js"></script>
-  <script type="text/javascript" charset="UTF-8" src="prod/dpi24-15-kahoot/Kahoot_ui.js"></script>
-  <script type="text/javascript" charset="UTF-8" src="prod/dpi24-15-kahoot/jakob_kahoot_ui.js"></script>
+  <!-- script type="text/javascript" charset="UTF-8" src="prod/dpi24-14-sched/scheduling.js"></script -->
+  <!-- script type="text/javascript" charset="UTF-8" src="prod/dpi24-14-sched/scheduling_ui.js"></script -->
+  <!-- script type="text/javascript" charset="UTF-8" src="prod/dpi24-15-kahoot/Kahoot.js"></script -->
+  <!-- script type="text/javascript" charset="UTF-8" src="prod/dpi24-15-kahoot/Kahoot_ui.js"></script -->
+  <!-- script type="text/javascript" charset="UTF-8" src="prod/dpi24-15-kahoot/jakob_kahoot_ui.js"></script -->
   <script type="text/javascript" charset="UTF-8" src="prod/kanban/board.js"></script>
   <script type="text/javascript" charset="UTF-8" src="prod/kanban/board_ui.js"></script>
   <script type="text/javascript" charset="UTF-8" src="games/games.js"></script>
-  <script type="text/javascript" charset="UTF-8" src="games/dpi24-06-battleship/duel.js"></script>
-  <script type="text/javascript" charset="UTF-8" src="games/dpi24-09-connect4/connect4.js"></script>
+  <!-- script type="text/javascript" charset="UTF-8" src="games/dpi24-06-battleship/duel.js"></script -->
+  <!-- script type="text/javascript" charset="UTF-8" src="games/dpi24-09-connect4/connect4.js"></script -->
   <script type="text/javascript" charset="UTF-8" src="util/qrcode.min.js"></script>
   <script type="text/javascript" charset="UTF-8" src="util/pinch-zoom.min.js"></script>
-  <script type="text/javascript" charset="UTF-8" src="util/pako.min.js"></script>
+  <!-- script type="text/javascript" charset="UTF-8" src="util/pako.min.js"></script -->
 </head>
 <body style="background-image: url('img/splash-as-background.jpg'); background-size: cover; background-color: white; overflow: hidden" onload="backend('ready');">
 <div style="width: 100%; height: 100%; margin: 0px">
@@ -118,248 +118,6 @@
   <div id='kanban-invitations-overlay' class='qr-overlay'>
     <div style="text-align: center;font-size:20px;">Invitations</div>
     <div id='kanban_invitations_list' style="padding-top: 15px;"></div>
-  </div>
-
-  <!-- Kahoot List -->
-  <div id='lst:kahoot' class="w100" style="overflow: hidden; display: none;">
-
-    <div id="quiz-master-title" class="title-container">
-      Welcome to Quiz Master!
-      <button id="infoButton" class="buttonInfo"></button>
-    </div>
-
-    <div id="kahoot-buttons" style="display: none">
-      <table width="100%" cellpadding="2pt">
-        <tr>
-          <td style="width: 33.33%;">
-            <button id="btn:ranking" class="w100 flat active buttontext" onclick="jakob_btnBridge(this);">
-              Ranking
-            </button>
-          </td>
-          <td style="width: 33.33%;">
-            <button id="btn:create_quiz" class="w100 flat passive buttontext" onclick="jakob_btnBridge(this);">
-              Enter Game
-            </button>
-          </td>
-          <td style="width: 33.33%;">
-            <button id="btn:enter_quiz" class="w100 flat passive buttontext" onclick="jakob_btnBridge(this);">
-              Create Game
-            </button>
-          </td>
-        </tr>
-      </table>
-    </div>
-
-    <!-- New Table for Username/ID and Scores -->
-    <div id="infoModal" class="modal" style="display: none;">
-      <div class="modal-content">
-        <h2>About the Game </h2>
-        <p>Authors: Anoozh, Prabavan and Jakob</p>
-        <p>This Game is made for fun and educational purposes. We ask you to create a Quiz Set, which is solvable
-          and reasonable. If you think a Question Set is not reasonably solvable, then please press the
-          "dislike"-button </p>
-        <h2>How does it work?</h2>
-        <p>"Ranking": Look at the current Rank-List</p>
-        <p>"Enter Game": If you want to answer some questions, just press on an open
-          Game. <p>There are two different Question-types:</p><p> "SCQ" single choice Question</p> <p> "MCQ" multiple choice Question </p> <p>In case you thought,
-        that the questions were not reasonable, then press the "dislike"-button. After two dislikes, the responsible player will loose two points. </p> </p>
-        <p>"Create Game: " If you want to create you own Game, press on "New Question Set" or if you
-          want to look at the Question Sets, that you created, press on "List Question Set". <p>You can create two different Questions: </p> <p> single choice Questions (SCQ)
-        and multiple choice Questions (MCQ)</p> <p>The choice depends on the type Box, you selected. If you choose SCQ, you can only select one correct Solution.</p> </p>
-
-      </div>
-    </div>
-    <div id="user-scores" style="display: none;">
-      <table id="rankingTable" width="100%" cellpadding="2pt" border="1" style="border-collapse: collapse; margin-top: 20px;">
-        <!-- Example rows; replace with actual data as needed -->
-        <tr>
-          <td class="score-background" style="width: 10%; text-align: center;">
-            1.
-          </td>
-          <td style="width: 60%;">
-            <button class="w100 flat buttontext" onclick="btnBridge(this);">
-              user1/12345
-            </button>
-          </td>
-          <td class="score-background" style="width: 30%; text-align: center;">
-            95
-          </td>
-        </tr>
-        <!-- Dynamically in JS add more rows as needed -->
-      </table>
-    </div>
-    <!-- Take it out later???, when only placeholder needed anymore??? -->
-
-    <!-- Buttons for the enter game screen -->
-    <div id="enter-quiz-button-list-container" class="QuestionSetContainerCSS" style="display: none;">
-      <div id="QuestionSetContainer">
-        <div class="button-list-title">Player 1</div>
-        <div class="button-list">
-          <button id="btn:game" class="w100 flat buttontext" onclick="jakob_btnBridge(this);">Game 1 <p>Score: 20</p></button>
-
-        </div>
-      </div>
-
-      <!--
-      <div class="button-list-section">
-        <div class="button-list-title">Title 2</div>
-        <div class="button-list">
-          <button id="btn:2game1" class="w100 flat buttontext" onclick="jakob_btnBridge(this);">Button 1</button>
-          <button id="btn:2game2" class="w100 flat buttontext" onclick="jakob_btnBridge(this);">Button 2</button>
-        </div>
-      </div>
-      -->
-    </div>
-
-    <!-- Buttons for the choose question screen -->
-    <div id="choose-answer" style="display: none;">
-      <div class="button-list-section">
-        <div id="QuestionField" class="button-list-title">What is the Answer to Question 1?</div>
-        <div class="button-list">
-          <button id="btn:answer1" class="w100 flat buttontext" onclick="storeAnswer(this);">Answer 1</button>
-          <button id="btn:answer2" class="w100 flat buttontext" onclick="storeAnswer(this);">Answer 2</button>
-          <button id="btn:answer3" class="w100 flat buttontext" onclick="storeAnswer(this);">Answer 3</button>
-          <button id="btn:answer4" class="w100 flat buttontext" onclick="storeAnswer(this);">Answer 4</button>
-        </div>
-        <button id="SubmitQuestion" style="display: none;"  class="w100_flat_buttontext3" onclick="storeAnswer(this, 'true');">Submit</button>
-      </div>
-    </div>
-
-    <div id="user-scores-container" class="hidden"></div>
-
-    <!-- Buttons for the enter game screen -->
-    <div id="fill-quiz-button-list-container" class="QuestionSetContainerCSS2" style="display: none;">
-      <div class="button-list-section">
-        <div id="QuestionList">
-          <button id="btn:question1" class="w100 flat buttontext" onclick="jakob_btnBridge(this);">Question 1</button>
-        </div>
-        <button id="btn:Submit" class="w100 flat buttontext" onclick="jakob_btnBridge(this);">Submit</button>
-      </div>
-    </div>
-
-    <!-- Buttons for the create game screen -->
-    <div id="create-game-entry" style="display: none;">
-      <div class="button-list-section">
-        <div class="points-gathered-container">
-          <div id="MyUsername" class="left-text"></div>
-          <div id="MyPoints" class="right-text"></div>
-        </div>
-        <div class="button-list-title">New Game</div>
-        <div class="button-list">
-          <button id="btn:new-question-set" class="w100 flat buttontext" onclick="jakob_btnBridge(this);">New Question Set</button>
-          <button id="btn:list-question-set" class="w100 flat buttontext" onclick="jakob_btnBridge(this);">List Question Set</button>
-        </div>
-      </div>
-    </div>
-
-    <div id="game-table" style="display: none;">
-      <table width="100%" cellpadding="2pt" border="1" style="border-collapse: collapse; margin-top: 20px;">
-        <thead>
-        <tr id="title-row">
-          <th style="width: 25%; text-align: center;">Game ID</th>
-          <th style="width: 25%; text-align: center;">Number of Questions</th>
-          <th style="width: 25%; text-align: center;">Points</th>
-          <th style="width: 25%; text-align: center;">Dislikes</th>
-        </tr>
-        </thead>
-        <tbody id="MyList">
-        <!-- Example rows; replace with actual data as needed -->
-        <tr id="data-rows">
-          <td class="score-background" style="width: 33%; text-align: center;">
-            1
-          </td>
-          <td class="score-background" style="width: 33%; text-align: center;">
-            13
-          </td>
-          <td class="score-background" style="width: 33%; text-align: center;">
-            40
-          </td>
-        </tr>
-        <!-- Dynamically add more rows in JS as needed -->
-        </tbody>
-      </table>
-    </div>
-
-  </div>
-  <!-- PRABA HTML -->
-  <div id='new-question-set-overlay' class='qr-overlay' style="display: none;">
-    <div style="display:flex; justify-content: center;align-items: center; flex-direction: column; gap: 20px">
-
-      <div id="question-set-form">
-        <form id="questionset-form" onsubmit="praba_submitQuestionSet(event)">
-          <div id="questions-container" class="scroll-area">
-            <!-- Questions dynamically added here -->
-          </div>
-          <div style="text-align: center;">
-            <b>Create New Questionset</b>
-          </div>
-          <button id="btn:addQuestion" type="button" onclick="praba_addQuestion()">Add Question</button>
-          <button id="btn:submitQuestion" type="submit">Submit Questionset</button>
-          <button id="btn:cancelQuestionSet" type="button" onclick="praba_btn_new_question_set_cancel()">Cancel</button>
-        </form>
-      </div>
-    </div>
-  </div>
-
-  <!-- scheduling -->
-  <div id='lst:scheduling' class=w100 style="overflow: hidden; display: none;">
-  </div>
-
-  <div id='scheduling-create-personal-event-overlay' class='qr-overlay'>
-    <div style="display:flex; justify-content: center;align-items: center; flex-direction: column; gap: 20px">
-      <div style="text-align: center">
-        <b>Would you like to create your own event?</b> <br>
-        (You can generate new event using the + icon)
-      </div>
-    </div>
-  </div>
-
-  <div id='scheduling-invitations-overlay' class='qr-overlay'>
-    <div style="text-align: center;font-size:20px;">
-      Invitations
-    </div>
-    <div id='scheduling_invitations_list' style="padding-top: 15px;">
-
-    </div>
-  </div>
-
-  <div id="lst:duels" style="display: none; height: calc(100% - 45px);">
-    <div style="height: 100%; overflow-y: scroll; margin: 6px;">
-      <hr>
-      <div id="duels-container"></div>
-    </div>
-  </div>
-
-  <!-- battleship -->
-  <div id="div:battleships" style="display:none;">
-    <div class="board" id="battleships:board">
-      <div class="displays">
-        <div class="top" id="battleships:top">
-          <div class="grid" id="battleships:topgrid"></div>
-        </div>
-        <div class="battleships:bottom">
-          <div class="grid" id='battleships:bottomgrid'></div>
-        </div>
-      </div>
-    </div>
-    <div class="div:battleships_control" id="battleships:control">
-      <button class='battleships_big_button' id='battleships:invite'
-              onclick='battleships_invite()' style='display:none' type='button'>Invite
-      </button>
-      <button class='battleships_big_button' id='battleships:invited'
-              onclick='battleships_accept_button()' style='display:none' type='button'>Waiting ...
-      </button>
-      <div class='battleships_info' id='battleships:waiting' style='display:none'>Waiting for
-        the other player
-      </div>
-      <div class='battleships_placer' id='battleships:placer' style='display:none'>
-        <div class='battleships_length' id='battleships:length'>Boat Length: 0</div>
-        <button class='battleships_orientation_button' id='battleships:orientation'
-                onclick='battleships_flip()' type='button'>Horizontal
-        </button>
-      </div>
-      <div class='battleships_turn' id='battleships:turn' style='display:none'>Your Turn</div>
-    </div>
   </div>
 
   <div id="plus">
@@ -553,43 +311,6 @@
     <div id='connection-overlay-hdr' style='font-size:18px; padding-bottom: 10px;'><b>Connected Devices</b></div>
     <div id='connection-overlay-content'></div>
   </div>
-
-  <!-- Connect 4-->
-  <div id='lst:connect4-players' style="display: none; margin: 3px;">
-    <!-- populated by connect4_fill_players() in tremola.js -->
-  </div>
-  <div id='lst:connect4-game' class=w100 style="display: none; margin: 5pt;">
-    <div id='lst:connect4-games' >
-      <!-- populated by load_games() in tremola.js -->
-    </div>
-  </div>
-  <div id='the:connect4-game-session' class=w100 style="display: none; margin: 5pt;">
-    <h1 id='connect4-game-session-title'>
-      <!-- Filled by connect4_open_game_session() in tremola.js -->
-    </h1>
-    <div id='connect4-game-board'>
-      <!-- Filled by connect4_open_game_session() in tremola.js -->
-    </div>
-    <div style="display:flex; flex-direction: column; align-items: center;">
-      <h1 id='connect4-game-turn-indicator'>TEST<!-- Filled by connect4_open_game_session() in tremola.js --></h1>
-      <div>
-        <button id="connect4-game-end-button">Give up</button>
-        <button id="connect4-game-leave-button" style="display:none;">End!</button>
-      </div>
-    </div>
-  </div>
-  <div id="connect4-game-invite-popup" class="qr-overlay" style="display: none; text-align: center;">
-    <h2>Game Invitation</h2>
-    <p id="connect4-invite-message"></p>
-    <button class="passive" onclick="acceptInvite()">Accept</button>
-    <button class="passive" onclick="declineInvite()">Decline</button>
-  </div>
-  <div id="connect4-game-decline-invite-popup" class="qr-overlay" style="display: none; text-align: center;">
-    <h2>Game Invitation declined</h2>
-    <p id="connect4-decline-invite-message"></p>
-     <button class="passive" onclick="hideDeclinePopup()">Ok</button>
-  </div>
-
   <div id='qr-overlay' class='qr-overlay'>
     <div id="qr-code" style="padding-bottom: 5pt; align: center;"></div>
     <div id="qr-text" align=left style='overflow-wrap: anywhere; font-family: Courier;font-size: small;'>did</div>
