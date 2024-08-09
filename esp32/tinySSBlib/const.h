@@ -4,13 +4,13 @@
 
 #define LORA_LOG // enable macro for logging received pkts
 #define LORA_LOG_FILENAME    "/lora_log.txt"
-#define PEERS_DATA_FILENAME  "/peers_log.txt"
+#define PEERS_DATA_FILENAME  "/peer_log.txt"
 
 #define FID_LEN         32
 #define HASH_LEN        20
 #define FID_HEX_LEN     (2*FID_LEN)
 #define FID_B64_LEN     ((FID_LEN + 2) / 3 * 4)
-#define FEED_DIR        "/feeds"
+// #define FEED_DIR        "/feeds"
 #define MAX_FEEDS       100
 #define FEED_PATH_SIZE  sizeof(FEED_DIR) + 1 + 2 * FID_LEN
 

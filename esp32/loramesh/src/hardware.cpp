@@ -3,12 +3,37 @@
 // collects hardware-specific init code (other than UI) for all boards
 
 #include "lib/tinySSBlib.h"
+#include "hardware.h"
 
 // ---------------------------------------------------------------------------
 #ifdef TINYSSB_BOARD_HELTEC
 
+#ifdef USING_SX1276
+SX1276 radio = new Module(SS, DI0, RST);
+#endif
+#ifdef USING_SX1278
+SX1278 radio = new Module(SS, DI0, RST);
+#endif
+
 void hw_init()
 {
+  // SX1278 has the following connections:
+  // NSS pin:   10
+  // DIO0 pin:  2
+  // NRST pin:  9
+  // DIO1 pin:  3
+  // = new Module(10, 2, 9, 3);
+
+  int state = radio.begin();
+  if (state == RADIOLIB_ERR_NONE) {
+    Serial.println("RadioLib success!");
+  } else {
+    while (true) {
+      Serial.print(F("RadioLib failed, code "));
+      Serial.println(state);
+      delay(2000);
+    }
+  }  
 }
 
 #endif
@@ -32,6 +57,15 @@ AXP20X_Class axp;
 #ifdef HAS_GPS
 TinyGPSPlus gps;
 HardwareSerial GPS(1);
+#endif
+
+#ifdef USE_RADIO_LIB
+# ifdef USING_SX1262
+    SX1262 radio = new Module(SS, DI0, RST); // , RADIO_BUSY_PIN);
+# endif
+# ifdef USING_SX1276
+    SX1276 radio = new Module(SS, DI0, RST); // , RADIO_BUSY_PIN);
+# endif
 #endif
 
 void hw_init()
@@ -76,6 +110,11 @@ void hw_init()
 
 // ---------------------------------------------------------------------------
 #ifdef TINYSSB_BOARD_TDECK
+
+#ifdef USE_RADIO_LIB
+   SX1262 radio = new Module(RADIO_CS_PIN, RADIO_DIO1_PIN,
+                             RADIO_RST_PIN, RADIO_BUSY_PIN);
+#endif
 
 void hw_init()
 {

@@ -95,7 +95,7 @@ void GOsetClass::_add_pending(unsigned char *claim)
 
 bool GOsetClass::in_sync()
 {
-  return largest_claim_span == 0 || largest_claim_span == goset_len;
+  return goset_len >= largest_claim_span;
 }
 
 void GOsetClass::dump()
@@ -125,7 +125,7 @@ void GOsetClass::add(unsigned char *key)
   this->goset_len++;
   qsort(this->goset_keys, this->goset_len, GOSET_KEY_LEN, _cmp_key32);
 
-  theRepo->add_replica(key);
+  theRepo->create_replica(key);
 
   if (this->goset_len >= this->largest_claim_span) { // only rebroadcast if we are up to date
     if (this->novelty_credit-- > 0) {
@@ -209,8 +209,9 @@ void GOsetClass::tick()
       else {
         char path[90];
         unsigned char *fid = this->goset_keys + ndx * FID_LEN;
-        sprintf(path, "%s/%s", FEED_DIR, to_hex(fid, FID_LEN, 0));
-        theRepo->reset(path);
+        // FIXME: disabled for now:
+        // sprintf(path, "%s/%s", FEED_DIR, to_hex(fid, FID_LEN, 0));
+        // theRepo->reset(path);
       }
     }
     if (now < this->zap_state && now > this->zap_next) { // phase I

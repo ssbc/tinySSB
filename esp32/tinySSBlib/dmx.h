@@ -37,7 +37,6 @@ struct chain_s {
   unsigned char *fid;
   unsigned short seq;
   unsigned short cnr;
-  unsigned short last_cnr;
 };
 
 class DmxClass {
@@ -60,7 +59,7 @@ class DmxClass {
                unsigned char *aux=NULL, /*int ndx=-1,*/ int seq=0);
   void arm_hsh(unsigned char *h,
                void (*fct)(unsigned char*, int, int, struct face_s*)=NULL,
-               unsigned char *fid=NULL, int seq=-1, int cnr=-1, int last=0);
+               unsigned char *fid=NULL, int seq=-1, int cnr=-1, bool only_if_space=false);
   void compute_dmx(unsigned char *dst, unsigned char *buf, int len);
   int on_rx(unsigned char *buf, int len, unsigned char *hash, struct face_s *f);
   void set_want_dmx();

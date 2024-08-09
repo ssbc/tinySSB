@@ -23,10 +23,11 @@
 # define HAS_LORA
 # define HAS_OLED
 
-// # define USE_RADIO_LIB // try out both (RadioLib and LoRa)
-// # define USING_SX1262
+# define USE_RADIO_LIB
+# define USING_SX1276 // 868/915 MHz
+//# define USING_SX1278 // 433 MHz
 
-# define USE_LORA_LIB
+// # define USE_LORA_LIB
 
 #endif // TINYSSB_BOARD_HELTEC
 
@@ -49,10 +50,11 @@
 # define HAS_LORA
 # define HAS_OLED
 
-// # define USE_RADIO_LIB // try out both (RadioLib and LoRa)
+# define USE_RADIO_LIB // try out both (RadioLib and LoRa)
+# define USING_SX1276 // 868/916 MHz
 // # define USING_SX1262
 
-# define USE_LORA_LIB
+// # define USE_LORA_LIB
 
 #endif // TINYSSB_BOARD_TBEAM
 
@@ -84,16 +86,26 @@
 
 #ifdef USE_RADIO_LIB
 # include "RadioLib.h"
+# ifdef USING_SX1262
   extern SX1262 radio;
+# endif
+# ifdef USING_SX1276
+  extern SX1276 radio;
+# endif
 #endif
 
 #ifdef USE_LORA_LIB
 # include "LoRa.h"
 #endif
 
+/*
 // #include <SD.h>
 #include <LittleFS.h>
 #define MyFS LittleFS
+*/
+#include <SPIFFS.h>
+#define MyFS SPIFFS
+
 
 
 // GPS ----------------------------------------------------------------

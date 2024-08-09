@@ -33,6 +33,7 @@ int DmxClass::_chkt_index(unsigned char *h)
   return -1;
 }
 
+
 void DmxClass::arm_dmx(unsigned char *dmx,
              void (*fct)(unsigned char*, int, unsigned char*, struct face_s*),
                        unsigned char *fid, /*int ndx,*/ int seq)
@@ -60,9 +61,10 @@ void DmxClass::arm_dmx(unsigned char *dmx,
   this->dmxt[fndx].seq = seq;
 }
 
+
 void DmxClass::arm_hsh(unsigned char *h,
              void (*fct)(unsigned char*, int, int, struct face_s*),
-                       unsigned char *fid, int snr, int cnr, int is_last)
+                       unsigned char *fid, int snr, int cnr, bool only_if_space)
 {
   int ndx = _chkt_index(h);
   struct hsh_s *bptr = ndx < 0 ? NULL : chkt + ndx;
@@ -83,6 +85,8 @@ void DmxClass::arm_hsh(unsigned char *h,
   if (bptr == NULL) {
     if (this->chkt_cnt == CHKT_SIZE) { // remove first (=oldest) entry
       // Serial.printf("  shrink chunk table\r\n");
+      if (only_if_space)
+        return;
       bptr = chkt;
       while (bptr->front) { // remove chain
         struct chain_s *tp = bptr->front->next;
@@ -111,10 +115,10 @@ void DmxClass::arm_hsh(unsigned char *h,
   tp->fid = fid; // (unsigned char*) malloc(FID_LEN);
   tp->seq = snr;
   tp->cnr = cnr;
-  tp->last_cnr = is_last;
   tp->next = bptr->front;
   bptr->front = tp;
 }
+
 
 void DmxClass::compute_dmx(unsigned char *dst, unsigned char *buf, int len)
 {
@@ -146,7 +150,6 @@ int DmxClass::on_rx(unsigned char *buf, int len, unsigned char *h, struct face_s
     this->chkt[ndx].fct(buf, len, ndx, f);
     rc = 0;
   }
-
   return rc;
 }
 

@@ -93,7 +93,7 @@ int incoming(struct face_s *f, unsigned char *pkt, int len, int has_crc)
 
   if (!theDmx->on_rx(pkt, hlen, h, f))
     return 0;
-  Serial.println(String("   unknown DMX ") + to_hex(pkt, DMX_LEN, 0));
+  Serial.println("   unknown DMX or hash");
   return -1;
 }
 
@@ -475,14 +475,17 @@ void io_init()
   udp_face.next_delta = UDP_INTERPACKET_TIME;
   udp_face.send = udp_send;
 #endif
+  Serial.printf("heap before BLE init %d\r\n", ESP.getFreeHeap());
 #if defined(HAS_BLE)
   ble_init();
+  Serial.printf("heap while BLE init %d\r\n", ESP.getFreeHeap());
   ble_face.name = (char*) "ble";
   ble_face.has_crc = false;
   ble_face.next_delta = UDP_INTERPACKET_TIME;
-  ble_face.in_buf = new RingBuffer(BLE_RING_BUF_SIZE, MAX_PKT_LEN);
+  ble_face.in_buf = new RingBuffer(4, MAX_PKT_LEN);
   ble_face.send = ble_send;
 #endif
+  Serial.printf("heap after BLE init %d\r\n", ESP.getFreeHeap());
 #if defined(HAS_BT)
   bt_face.name = (char*) "BT";
   bt_face.has_crc = false;

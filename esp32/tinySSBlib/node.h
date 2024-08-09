@@ -41,7 +41,7 @@ void incoming_want_request(unsigned char *buf, int len, unsigned char *aux, stru
       unsigned char *pkt = theRepo->fid2replica(fid)->get_entry_pkt(seq);
       if (pkt == NULL)
         continue;
-      Serial.printf("  have entry %d.%d  %s..\r\n", fNDX, seq, to_hex(pkt, 8));
+      // Serial.printf("   have entry %d.%d  %s..\r\n", fNDX, seq, to_hex(pkt, 8));
       // io_enqueue(pkt, TINYSSB_PKT_LEN);
       unsigned char *tmp = (unsigned char*) malloc(TINYSSB_PKT_LEN);
       memcpy(tmp, pkt, TINYSSB_PKT_LEN);
@@ -130,9 +130,9 @@ void incoming_chnk_request(unsigned char *buf, int len, unsigned char *aux, stru
       }
       unsigned char h[crypto_hash_sha256_BYTES];
       crypto_hash_sha256(h, chunk, TINYSSB_PKT_LEN);
-      Serial.printf("   have chunk %d.%d.%d  %s..",
-                    fNDX, seq, cnr, to_hex(chunk, 8));
-      Serial.printf(" #%s#\r\n", to_hex(h, HASH_LEN));
+      // Serial.printf("   have chunk %d.%d.%d  %s..",
+      //               fNDX, seq, cnr, to_hex(chunk, 8));
+      Serial.printf("   have %d.%d.%d #%s#\r\n", fNDX, seq, cnr, to_hex(h, HASH_LEN));
       // io_enqueue(chunk, TINYSSB_PKT_LEN, NULL, f);
       unsigned char *tmp = (unsigned char*) malloc(TINYSSB_PKT_LEN);
       memcpy(tmp, chunk, TINYSSB_PKT_LEN);
@@ -169,8 +169,11 @@ void incoming_entry(unsigned char *buf, int len, unsigned char *fid, struct face
   // Serial.println("   incoming log entry");
   if (len != TINYSSB_PKT_LEN) return;
   unsigned long now = millis();
-  ReplicaClass *r = theRepo->fid2replica(fid);
+  Replica3Class *r = theRepo->fid2replica(fid);
+  int old_pendscc = r->pendscc;
   if (r->ingest_entry_pkt(buf)) {
+    // Serial.printf("   .. worked\r\n");
+    theRepo->update_feed_rec(r);
     theRepo->want_is_valid = 0;
     theRepo->entry_cnt++;
     theDmx->arm_dmx(buf); // remove old DMX handler for this packet
@@ -193,6 +196,8 @@ void incoming_entry(unsigned char *buf, int len, unsigned char *fid, struct face
                    ns-1, 0, p->u.list[1]->u.i);
     }
     */
+    if (r->pendscc != old_pendscc)
+      theRepo->update_feed_rec(r);
     theUI->refresh();
   } else
     Serial.printf("   .. not a valid pkt\r\n");
@@ -214,20 +219,21 @@ void incoming_chunk(unsigned char *buf, int len, int chkt_ndx, struct face_s *f)
   for (struct chain_s *tp = bp->front; tp; tp = tp->next) {
     int ndx = theGOset->_key_index(tp->fid);
     int next_cnr = tp->cnr;
-    if (theRepo->fid2replica(tp->fid)->ingest_chunk_pkt(buf, tp->seq, &next_cnr)) {
+    Replica3Class *r = theRepo->fid2replica(tp->fid);
+    int old_pendscc = r->pendscc;
+    if (r->ingest_chunk_pkt(buf, tp->seq, &next_cnr)) {
       is_valid = 1;
       Serial.printf("   persisted chunk %d.%d.%d", ndx, tp->seq, tp->cnr);
       theRepo->chnk_is_valid = 0;
       theRepo->chunk_cnt++;
-      // FIXME: cannot do the following as rearming can dealloc the linked list
-      /*
       if (next_cnr > 0)
-        theDmx->arm_hsh(buf+100, incoming_chunk, tp->fid, tp->seq, tp->cnr+1, tp->last_cnr);
-      */
+        theDmx->arm_hsh(buf+100, incoming_chunk, tp->fid, tp->seq, tp->cnr+1, true);
+      if (r->pendscc != old_pendscc)
+        theRepo->update_feed_rec(r);
       theUI->refresh();
     } else 
-      Serial.printf("  invalid chunk %d.%d.%d/%d or file problem?",
-                    ndx, tp->seq, tp->cnr, tp->last_cnr);
+      Serial.printf("  invalid chunk %d.%d.%d or file problem?",
+                    ndx, tp->seq, tp->cnr);
     io_loop();
     // io_dequeue();
     theSched->tick();

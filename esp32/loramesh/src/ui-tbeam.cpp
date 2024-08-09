@@ -289,7 +289,14 @@ void UI_TBeam_Class::refresh_screen(int scr)
     theDisplay.drawString(0, 30, stat_line);
 
     theDisplay.setFont(ArialMT_Plain_16);
-    right_aligned(theRepo->rplca_cnt, 'F', 0); 
+    if (theGOset->in_sync())
+      right_aligned(theRepo->rplca_cnt, 'F', 0);
+    else {
+      char buf[20];
+      sprintf(buf, "%d/%d", theGOset->goset_len, theGOset->largest_claim_span);
+      int w = theDisplay.getStringWidth(buf);
+      theDisplay.drawString(128-w, 0, buf);
+    }
     right_aligned(theRepo->entry_cnt, 'E', 22); 
     right_aligned(theRepo->chunk_cnt, 'C', 44); 
 
@@ -383,6 +390,13 @@ void UI_TBeam_Class::show_boot_msg(char *s)
   cnt++;
 #endif
 }
+
+
+void UI_TBeam_Class::lora_advance_wheel()
+{
+  lora_wheel++;
+  refresh();
+};
 
 #endif // TINYSSB_BOARD_TBEAM
 

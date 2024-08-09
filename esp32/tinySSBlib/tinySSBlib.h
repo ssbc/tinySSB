@@ -35,7 +35,7 @@ extern UIClass *theUI;
 extern GOsetClass *theGOset;
 #include "dmx.h"
 extern DmxClass   *theDmx;
-#include "replica.h"
+#include "replica3.h"
 #include "repo.h"
 extern Repo2Class *theRepo;
 #include "sched.h"

@@ -15,12 +15,15 @@
 
 struct lora_config_s lora_configs[] = {
   // FIXME: these values are copying TNN values - we should step around these
-  {"AU915.a", 917500000, 500000, 8, 5, LORA_tSSB_SYNC, LORA_TX_POWER},
-  {"AU915.b", 917500000, 125000, 7, 5, LORA_tSSB_SYNC, LORA_TX_POWER},
-  {"EU868.a", 868300000, 250000, 7, 5, LORA_tSSB_SYNC, LORA_TX_POWER},
-  {"EU868.b", 868300000, 125000, 7, 5, LORA_tSSB_SYNC, LORA_TX_POWER},
-  {"US915.a", 904600000, 500000, 8, 5, LORA_tSSB_SYNC, LORA_TX_POWER},
-  {"US915.b", 904600000, 125000, 7, 5, LORA_tSSB_SYNC, LORA_TX_POWER}
+  {"AU915.a", 917500000, 125000, 7, 5, LORA_tSSB_SYNC, LORA_TX_POWER},
+  {"AU915.b", 917500000, 250000, 7, 5, LORA_tSSB_SYNC, LORA_TX_POWER},
+  {"AU915.c", 917500000, 500000, 7, 5, LORA_tSSB_SYNC, LORA_TX_POWER},
+  {"EU868.a", 868300000, 125000, 7, 5, LORA_tSSB_SYNC, LORA_TX_POWER},
+  {"EU868.b", 868300000, 250000, 7, 5, LORA_tSSB_SYNC, LORA_TX_POWER},
+  {"EU868.c", 868300000, 500000, 7, 5, LORA_tSSB_SYNC, LORA_TX_POWER},
+  {"US915.a", 904600000, 125000, 7, 5, LORA_tSSB_SYNC, LORA_TX_POWER},
+  {"US915.b", 904600000, 250000, 7, 5, LORA_tSSB_SYNC, LORA_TX_POWER},
+  {"US915.c", 904600000, 500000, 7, 5, LORA_tSSB_SYNC, LORA_TX_POWER}
 };
 
 short lora_configs_cnt = sizeof(lora_configs) / sizeof(struct lora_config_s);
@@ -33,16 +36,16 @@ struct lora_config_s *the_lora_config = lora_configs;
 
 struct bipf_s* config_load() // returns a BIPF dict with the persisted config dict
 {
-  File f = MyFS.open(CONFIG_FILENAME, FILE_READ, false);
+  File f = MyFS.open(CONFIG_FILENAME, FILE_READ); // , false);
 
-  if (f == NULL) { // not found: define some defaults
+  if (f == NULL || f.size() == 0) { // not found: define some defaults
     struct bipf_s *dict = bipf_mkDict();
     
     bipf_dict_set(dict, bipf_mkString("bubbles"),
                   bipf_mkList()); // empty list of bubble publ keys
 
     bipf_dict_set(dict, bipf_mkString("lora_plan"),
-                  bipf_mkString("AU915.b"));
+                  bipf_mkString("AU915.a"));
 
     unsigned char key[crypto_auth_hmacsha512_KEYBYTES]; // 48B
     memset(key, 1, crypto_auth_hmacsha512_KEYBYTES);    // default is #0101...
@@ -79,7 +82,7 @@ struct bipf_s* config_load() // returns a BIPF dict with the persisted config di
 void config_save(struct bipf_s *dict) // persist the BIPF dict
 {
   // FIXME: we should not print the mgmt signing key to the console
-  // Serial.printf("storing config %s\r\n", bipf2String(dict).c_str());
+  Serial.printf("storing config %s\r\n", bipf2String(dict).c_str());
   int len = bipf_encodingLength(dict);
   unsigned char *buf = (unsigned char*) malloc(len);
   if (!buf) {
@@ -87,9 +90,13 @@ void config_save(struct bipf_s *dict) // persist the BIPF dict
     return;
   }
   bipf_encode(buf, dict);
-  File f = MyFS.open(CONFIG_FILENAME, FILE_WRITE, true);
-  f.write(buf, len);
-  f.close();
+  File f = MyFS.open(CONFIG_FILENAME, FILE_WRITE);
+  if (!f) {
+    Serial.println("could not save the config file");
+  } else {
+    f.write(buf, len);
+    f.close();
+  }
   free(buf);
 }
 

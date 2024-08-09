@@ -46,6 +46,7 @@ void cmd_rx(String cmd) {
     case '?':
       Serial.println("  ?        help");
       Serial.println("  d        dump GoSET, DMXT and CHKT");
+      Serial.println("  e        erase all log content (but keep feed IDs)");
       Serial.println("  f        list file system");
       Serial.println("  i        pretty print the confIg values");
       Serial.println("  l        list log file");
@@ -60,7 +61,9 @@ void cmd_rx(String cmd) {
       Serial.println("Installed feeds:");
       for (int i = 0; i < theRepo->rplca_cnt; i++) {
         unsigned char *key = theGOset->get_key(i);
-        Serial.printf("  %d %s, next_seq=%d\r\n", i, to_hex(key, 32, 0), theRepo->fid2replica(key)->get_next_seq(NULL));
+        Replica3Class *r = theRepo->fid2replica(key);
+        Serial.printf("  %d %s, next_seq=%d fsize=%d\r\n", i, to_hex(key, 32, 0),
+                      r->get_next_seq(NULL), r->fsize);
       }
       Serial.printf("DMX table: (%d entries)\r\n", theDmx->dmxt_cnt);
       for (int i = 0; i < theDmx->dmxt_cnt; i++) {
@@ -98,6 +101,14 @@ void cmd_rx(String cmd) {
         }
         Serial.printf("\r\n");
       }
+      break;
+
+    case 'e': // empty all log content
+      Serial.printf(">> empty cmd, rebooting afterwards\r\n");
+      lora_log.close();
+      peers_log.close();
+      theRepo->clean("/");
+      esp_restart();
       break;
 
     case 'f': // Directory dump
@@ -141,8 +152,11 @@ void cmd_rx(String cmd) {
       break;
 
     case 'r': // reset
+      lora_log.close();
+      peers_log.close();
       theRepo->reset(NULL); // does not return
-      Serial.println("reset done");
+      Serial.println("all data wiped, rebooting now");
+      esp_restart();
       break;
 
     case 'x': // reboot

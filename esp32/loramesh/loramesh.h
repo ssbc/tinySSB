@@ -20,17 +20,12 @@
 # include "src/lib/kiss.h"
 #endif
 
+#include "./src/lib/la_wifi_web.h"
+
 struct bipf_s *the_config;
 
 unsigned char my_mac[6];
 char ssid[sizeof(tSSB_WIFI_SSID) + 6];
-
-#ifdef USE_RADIO_LIB
-# if defined(TINYSSB_BOARD_TBEAM) || defined(TINYSSB_BOARD_TDECK)
-   SX1262 radio = new Module(RADIO_CS_PIN, RADIO_DIO1_PIN,
-                             RADIO_RST_PIN, RADIO_BUSY_PIN);
-#endif
-#endif
 
 DmxClass   *theDmx;
 UIClass    *theUI;
@@ -164,18 +159,20 @@ void setup()
 #endif
   // theUI->show_node_name(ssid);
   theUI->spinner(true);
+  theUI->show_boot_msg("mounting file system");
+
 
   if (!MyFS.begin(true)) {
-    msg = "LittleFS Mount Failed, partition was reformatted";
+    msg = "FS mount failed, partition was reformatted";
     theUI->show_boot_msg(msg);
     Serial.println(msg);
     // return;
   } else
-    theUI->show_boot_msg("mounted LittleFS");
+    theUI->show_boot_msg("mounted FS");
   // MyFS.format(); // uncomment and run once after a change in partition size
 
-  MyFS.mkdir(FEED_DIR);
-  Serial.printf("LittleFS: %d total bytes, %d used\r\n",
+  // MyFS.mkdir(FEED_DIR);
+  Serial.printf("file system: %d total bytes, %d used\r\n",
                 MyFS.totalBytes(), MyFS.usedBytes());
 
   theUI->show_boot_msg("load config");
@@ -204,7 +201,9 @@ void setup()
   lora_log_wr(msg);
   peers_log = MyFS.open(PEERS_DATA_FILENAME, FILE_APPEND);
   peers_log_wr(msg);
-  
+
+  // cmd_rx("f");
+
 #ifdef USE_LORA_LIB
   theUI->show_boot_msg("init LoRa");
   SPI.begin(SCK,MISO,MOSI,SS);
@@ -231,6 +230,7 @@ void setup()
                             probe_for_peers_beacon,
                             probe_for_want_vect,
                             probe_for_chnk_vect);
+
   {
     unsigned char h[32];
     crypto_hash_sha256(h, (unsigned char*) GOSET_DMX_STR, strlen(GOSET_DMX_STR));
@@ -251,6 +251,7 @@ void setup()
   // the_TVA_app = new App_TVA_Class(posts);
   // the_TVA_app->restream();
 
+  setup_la_wifi_web();
 
   theUI->spinner(false);
   theUI->buzz();
