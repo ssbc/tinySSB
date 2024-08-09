@@ -36,7 +36,7 @@ import nz.scuttlebutt.tremolavossbol.utils.PlusCodesUtils
 import nz.scuttlebutt.tremolavossbol.utils.Bipf_e
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_ACK
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_DLV
-
+import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_TICTACTOE
 
 
 // pt 3 in https://betterprogramming.pub/5-android-webview-secrets-you-probably-didnt-know-b23f8a8b5a0c
@@ -307,6 +307,13 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
             "settings:get" -> {
                 val settings = act.settings!!.getSettings()
                 act.wai.eval("b2f_get_settings('${settings}')")
+            }
+            "tictactoe" -> {
+                val lst = Bipf.mkList()
+                Bipf.list_append(lst, TINYSSB_APP_TICTACTOE)
+                for (a in args.slice(1 ..args.size-1))
+                    Bipf.list_append(lst, Bipf.mkString(a))
+                Bipf.encode(lst)?.let {act.tinyNode.publish_public_content(it)}
             }
 
             else -> {

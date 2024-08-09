@@ -4,6 +4,8 @@
 
 function load_game_list() {
     document.getElementById("lst:games").innerHTML = '';
+    load_game_item('Tic Tac Toe', 'games/tictactoe/tic-tac-toe.svg', 'setScenario("tictactoe-list")',
+                   "For a quick demo, try out this classic game: Bring three of your marks in a row and you win.");
     load_game_item('Battleship (dpi24.06)', 'games/dpi24-06-battleship/battleship.svg', null /*'show_duels()'*/,
                    "Strategy game for two, played on ruled grids on which each player's fleet of warships (randomly generated) are positioned.<br><em>Authors: Mirco Franco and Lars Schneider</em>");
     /* excluded because chrome emulator-only

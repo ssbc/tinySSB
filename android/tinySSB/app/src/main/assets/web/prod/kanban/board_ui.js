@@ -402,7 +402,7 @@ function btn_invite_decline(bid) {
 
 function menu_new_board() {
     closeOverlay()
-    fill_members();
+    fill_members(false);
     prev_scenario = 'kanban';
     setScenario("members");
 

@@ -9,7 +9,7 @@ var curr_img_candidate = null;
 // --- menu callbacks
 
 function menu_new_conversation() {
-    fill_members();
+    fill_members(false);
     prev_scenario = 'chats';
     setScenario("members");
     document.getElementById("div:textarea").style.display = 'none';

@@ -158,6 +158,8 @@ function members_confirmed() {
         new_conversation()
     } else if (prev_scenario == 'kanban') {
         menu_new_board_name()
+    } else if (prev_scenario == 'tictactoe-list') {
+        ttt_new_game_confirmed()
     }
 }
 
@@ -166,11 +168,13 @@ function menu_dump() {
     closeOverlay();
 }
 
-function fill_members() {
+function fill_members(single) {
     var choices = '';
     for (var m in tremola.contacts) {
-        choices += '<div style="margin-bottom: 10px;"><label><input type="checkbox" id="' + m;
-        choices += '" style="vertical-align: middle;"><div class="contact_item_button light" style="white-space: nowrap; width: calc(100% - 40px); padding: 5px; vertical-align: middle;">';
+        var cb = single ? ` onclick="fill_members_onlyone('${m}')"` : ''
+        choices += '<div style="margin-bottom: 10px;">'
+        choices += `<label ${cb}><input type="checkbox" id="${m}" style="vertical-align: middle;">`
+        choices += '<div class="contact_item_button light" style="white-space: nowrap; width: calc(100% - 40px); padding: 5px; vertical-align: middle;">';
         choices += '<div style="text-overflow: ellipis; overflow: hidden;">' + escapeHTML(fid2display(m)) + '</div>';
         choices += '<div style="text-overflow: ellipis; overflow: hidden;"><font size=-2>' + m + '</font></div>';
         choices += '</div></label></div>\n';
@@ -183,6 +187,18 @@ function fill_members() {
     */
     document.getElementById(myId).checked = true;
     document.getElementById(myId).disabled = true;
+}
+
+function fill_members_onlyone(m) {
+    console.log("only one " + m)
+    if (document.getElementById(m).checked) {
+        // uncheck all other contacts except myId
+        for (var nm in tremola.contacts) {
+            if (nm == myId || nm == m)
+                continue;
+            document.getElementById(nm).checked = false;
+        }
+    }
 }
 
 // --- util
@@ -261,7 +277,7 @@ function fid2display(fid) {
     if (fid in tremola.contacts)
         a = tremola.contacts[fid].alias;
     if (a == '')
-        a = fid.substring(0, 9);
+        a = id2b32(fid) // fid.substring(0, 9);
     return a;
 }
 
@@ -515,9 +531,9 @@ function b2f_new_event(e) { // incoming SSB log event: we get map with three ent
                             // console.log('hdr', JSON.stringify(e.header))
     console.log("New Frontend Event: " + JSON.stringify(e.header))
     if (e.public)
-        console.log('pub', JSON.stringify(e.public))
+        console.log('pub ' + JSON.stringify(e.public))
     if (e.confid)
-        console.log('cfd', JSON.stringify(e.confid))
+        console.log('cfd ' + JSON.stringify(e.confid))
 
     //add
     if (!(e.header.fid in tremola.contacts)) {
@@ -584,7 +600,6 @@ function b2f_new_event(e) { // incoming SSB log event: we get map with three ent
                 contact.initial = contact.alias.substring(0, 1).toUpperCase()
                 load_contact_list()
                 load_kanban_list()
-                dpi_load_event_list(tremola)
 
                 // update names in connected devices menu
                 for (var l in localPeers) {
@@ -594,7 +609,9 @@ function b2f_new_event(e) { // incoming SSB log event: we get map with three ent
                     }
                 }
             }
-        }
+        } else if (e.public[0] == "TTT")
+            ttt_on_rx(e.header.ref, e.header.fid, e.public.slice(1))
+
         persist();
         must_redraw = true;
     }

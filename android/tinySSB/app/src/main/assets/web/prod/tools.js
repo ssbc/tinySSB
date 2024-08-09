@@ -10,7 +10,7 @@ function load_prod_list() {
                    'Collaboratively find suitable dates by collecting availability of participants.<br><em>Authors: Sascha Schumacher and Jasra Mohamed Yoosuf</em>');
     load_prod_item('Kahoot Quiz (dpi24.15)', 'prod/dpi24-15-kahoot/quiz.svg', null /* 'setScenario("kahoot")' */,
                    'Create and participate in quizzes - a fun way for users to test their knowledge and learn new information.<br><em>Authors: Anoozh Akileswaran, Prabavan Balasubramaniam and Jakob Spiess</em>');
-    load_prod_item('Lokens (coming soon)', 'img/hand_and_coins.svg', null /* 'xyz' */,
+    load_prod_item('Lokens (coming soon)', 'prod/hand_and_coins.svg', null /* 'xyz' */,
                    'see Erick Lavoie: <em>GOC-Ledger: State-based Conflict-Free Replicated Ledger from Grow-Only Counters</em>, <a href="https://arxiv.org/abs/2305.16976">https://arxiv.org/abs/2305.16976</a>');
 }
 
