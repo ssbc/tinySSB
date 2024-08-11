@@ -17,12 +17,13 @@ class Constants{
         val LOCAL_URL_PREFIX = "http://appassets.androidplatform.net/blobs/"
 
         // tinySSB:
+        val TINYSSB_NETWORK_KEY = ""
         val TINYSSB_PKT_LEN = 120
         val FID_LEN = 32
         val HASH_LEN = 20
         val DMX_LEN = 7
-        val DMX_PFX = "tinyssb-v0".encodeToByteArray()
-        val GOSET_DMX_STR = "tinySSB-0.1 GOset 1"
+        val DMX_PFX = (TINYSSB_NETWORK_KEY + "tinyssb-v0").encodeToByteArray()
+        val GOSET_DMX = (TINYSSB_NETWORK_KEY + "tinySSB-0.1 GOset 1").encodeToByteArray()
         val PKTTYPE_plain48 = 0
         val PKTTYPE_chain20 = 1
 

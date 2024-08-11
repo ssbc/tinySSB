@@ -5,7 +5,7 @@ import nz.scuttlebutt.tremolavossbol.MainActivity
 import nz.scuttlebutt.tremolavossbol.crypto.SodiumAPI.Companion.sha256
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.DMX_LEN
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.FID_LEN
-import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.GOSET_DMX_STR
+import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.GOSET_DMX
 import nz.scuttlebutt.tremolavossbol.utils.HelperFunctions.Companion.byteArrayCmp
 import nz.scuttlebutt.tremolavossbol.utils.HelperFunctions.Companion.fromEncodedUByte
 import nz.scuttlebutt.tremolavossbol.utils.HelperFunctions.Companion.toEncodedUByte
@@ -48,7 +48,7 @@ class GOset(val context: MainActivity) {
     val HELP_PER_ROUND  =      2
     val ZAP_ROUND_LEN   =   4500
 
-    val goset_dmx = GOSET_DMX_STR.encodeToByteArray().sha256().sliceArray(0..DMX_LEN-1)
+    val goset_dmx = GOSET_DMX.sha256().sliceArray(0..DMX_LEN-1)
 
     // unsigned short version; ??
     // const char* fname;
