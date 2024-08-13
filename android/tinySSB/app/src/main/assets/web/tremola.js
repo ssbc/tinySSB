@@ -755,16 +755,7 @@ function b2f_initialize(id, settings) {
     var nm, ref;
     for (nm in tremola.settings)
         setSetting(nm, tremola.settings[nm])
-
-    var fn;
-    if ('dark_mode' in tremola.settings && tremola.settings['dark_mode']) {
-        document.documentElement.setAttribute('data-theme', 'dark');
-        fn = 'img/splash-as-background-inverted.jpg';
-    } else {
-        document.documentElement.setAttribute('data-theme', 'light');
-        fn = 'img/splash-as-background.jpg';
-    }
-    document.body.style.backgroundImage = `url(${fn})`;
+    apply_background()
 
     load_chat_list()
     load_prod_list()

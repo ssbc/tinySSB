@@ -24,7 +24,7 @@ var scenarioDisplay = {
     'members': ['div:back', 'core', 'lst:members', 'div:confirm-members'],
     'productivity': ['div:back', 'core', 'lst:prod', 'div:footer'],
     'settings': ['div:back', 'core', 'div:settings'],
-    'kanban': ['div:back', 'core', 'lst:kanban', 'div:footer', 'plus'], // KANBAN
+    'kanban': ['div:back', 'core', 'lst:kanban', 'plus'], // KANBAN
     'board': ['div:back', 'core', 'div:board'], // KANBAN
     'tictactoe-list': ['div:back', 'core', 'div:tictactoe_list', 'plus'],
     'tictactoe-board': ['div:back', 'core', 'div:tictactoe_board'],
@@ -86,18 +86,6 @@ const QR_SCAN_TARGET = {
 }
 
 var curr_qr_scan_target = QR_SCAN_TARGET.ADD_CONTACT
-
-function apply_background() {
-    var fn;
-    if ('dark_mode' in tremola.settings && tremola.settings['dark_mode']) {
-        document.documentElement.setAttribute('data-theme', 'dark');
-        fn = 'img/splash-as-background-inverted.jpg';
-    } else {
-        document.documentElement.setAttribute('data-theme', 'light');
-        fn = 'img/splash-as-background.jpg';
-    }
-    document.body.style.backgroundImage = `url(${fn})`;
-}
 
 function onBackPressed() {
     if (overlayIsActive) {
@@ -195,12 +183,14 @@ function setScenario(s) {
             c.innerHTML = `<font size=+2><strong>${t}</strong></font>`;
         }
 
-        if (s == 'board') // a specific Kanban board: use all space (beyond the footer)
+        if (['board','kanban'].indexOf(s) >= 0) // a specific Kanban board: use all space (beyond the footer)
             document.getElementById('core').style.height = 'calc(100% - 60px)';
         else
             document.getElementById('core').style.height = 'calc(100% - 118px)';
 
         if (s == 'kanban') {
+            load_kanban_list();
+
             document.getElementById("tremolaTitle").style.display = 'none';
             var c = document.getElementById("conversationTitle");
             c.style.display = null;
@@ -515,6 +505,8 @@ function menu_connection() {
 }
 
 function refresh_connection_entry(id) {
+    if (tremola.settings['simple_mode'])
+        return;
     var content = document.getElementById('connection-overlay-content')
 
     // only update existing entry
@@ -556,6 +548,8 @@ function refresh_connection_entry(id) {
 }
 
 function refresh_goset_progressbar(curr, max) {
+    if (tremola.settings['simple_mode'])
+        return;
     console.log("refresh_goset_progressbar", curr, max)
     var delta = max - curr
 
@@ -582,6 +576,8 @@ function refresh_goset_progressbar(curr, max) {
 
 var max_chnks = 0
 function refresh_chunk_progressbar(remaining) {
+    if (tremola.settings['simple_mode'])
+        return;
     if (remaining != 0) {
         max_chnks = Math.max(max_chnks, remaining)
     } else {
@@ -604,6 +600,8 @@ function refresh_chunk_progressbar(remaining) {
 }
 
 function refresh_connection_progressbar(min_entries, old_min_entries, old_want_entries, curr_want_entries, max_entries) {
+    if (tremola.settings['simple_mode'])
+        return;
     console.log(`refresh_connection_progressbar - min:${min_entries} old_min:${old_min_entries} ` +
                 `old_curr:${old_want_entries} curr:${curr_want_entries} max:${max_entries}`)
     if(curr_want_entries == 0)
@@ -636,8 +634,6 @@ function refresh_connection_progressbar(min_entries, old_min_entries, old_want_e
 }
 
 function show_geo_location(locPlus) {
-//    var win = window.open("https://maps.app.goo.gl/Z7WWLG8UTAnfyJpb7", '_blank');
-
     var win = window.open("https://plus.codes/" + locPlus, '_blank');
     win.focus();
 }

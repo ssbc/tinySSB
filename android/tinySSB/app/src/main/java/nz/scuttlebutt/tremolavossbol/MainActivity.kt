@@ -119,7 +119,7 @@ class MainActivity : Activity() {
             }
         }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             webView.setLayerType(
                 View.LAYER_TYPE_SOFTWARE,
                 null

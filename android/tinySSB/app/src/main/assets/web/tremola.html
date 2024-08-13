@@ -81,12 +81,12 @@
 
 <div id='core' style="height: calc(100% - 118px); width: 100%;">
 
-  <div id='lst:chats'    class=w100 style='overflow: scroll;height: 100%;'></div>
-  <div id='lst:prod'     class=w100 style='display: none; overflow: scroll;height: 100%;'></div>
-  <div id='lst:games'    class=w100 style='display: none; overflow: scroll;height: 100%;'></div>
-  <div id='lst:contacts' class=w100 style="display: none; overflow: scroll;height: 100%;"></div>
+  <div id='lst:chats'    class='w100 coreScroll'></div>
+  <div id='lst:prod'     class='w100 coreScroll' style='display: none;'></div>
+  <div id='lst:games'    class='w100 coreScroll' style='display: none;'></div>
+  <div id='lst:contacts' class='w100 coreScroll' style="display: none;"></div>
 
-  <div id='div:posts' style="height: 100%; overflow-x: auto; display: none;">
+  <div id='div:posts'    class='w100 coreScroll' style="display: none;">
     <table id='lst:posts' style="width: 100%; table-layout: auto;">
       <colgroup>
         <col span="1" style="width: 2%;"/>
@@ -100,13 +100,13 @@
     </table>
   </div>
 
-  <div id='lst:members' style="height: 100%; overflow-y: scroll; overflow-x: hidden; display: none; margin: 3px;">
+  <div id='lst:members'   class='w100 coreScroll' style="display: none; margin: 3px;">
     <div style="margin-top: 10pt;"><label><input type="checkbox" id="toggleSwitches1" style="margin-right: 10pt;">
       <div class="contact_item_button light" style="display: inline-block;padding: 5pt;">Choice1<br>more text</div></label>
     </div>
   </div>
 
-  <div id='lst:kanban' class=w100 style="overflow: hidden; display: none;"></div>
+  <div id='lst:kanban' class='w100 coreScroll' style="display: none;"></div>
 
   <div id='kanban-create-personal-board-overlay' class='qr-overlay'>
     <div style="display:flex; justify-content: center;align-items: center; flex-direction: column; gap: 20px">
@@ -510,9 +510,17 @@
 
   <div id="div:settings" style="display: none; height: 100%; overflow-y: scroll; overflow-x: hidden; margin: 6px;">
     <div class="settingsTitle"><em>Configurations</em></div>
-    <hr>
 
     <!--  TOGGLES -->
+
+    <div class="settings">
+      <div class="settingsText">Simple mode</div>
+      <div style="float: right;"><label class="switch">
+        <input id="simple_mode" type="checkbox" onchange="toggle_changed(this);">
+        <span class="slider round"></span></label>
+      </div>
+    </div>
+    <hr>
 
     <div class="settings">
       <div class="settingsText">Dark mode</div>
@@ -520,6 +528,22 @@
         <input id="dark_mode" type="checkbox" onchange="toggle_changed(this);">
         <span class="slider round"></span></label>
       </div>
+    </div>
+    <hr>
+
+    <div class="settings">
+      <div class="settingsText">Background map</div>
+      <div style="float: right;"><label class="switch">
+        <input id="show_background_map" type="checkbox" onchange="toggle_changed(this);">
+        <span class="slider round"></span></label></div>
+    </div>
+    <hr>
+
+    <div class="settings">
+      <div class="settingsText">Preview before sending</div>
+      <div style="float: right;"><label class="switch">
+        <input id="show_chat_preview" type="checkbox" onchange="toggle_changed(this);">
+        <span class="slider round"></span></label></div>
     </div>
     <hr>
 
@@ -573,14 +597,6 @@
     <hr>
 
     <div class="settings">
-      <div class="settingsText">Preview before sending</div>
-      <div style="float: right;"><label class="switch">
-        <input id="show_chat_preview" type="checkbox" onchange="toggle_changed(this);">
-        <span class="slider round"></span></label></div>
-    </div>
-    <hr>
-
-    <div class="settings">
       <div class="settingsText">Hide forgotten contacts</div>
       <div style="float: right;"><label class="switch">
         <input id="hide_forgotten_contacts" type="checkbox" onchange="toggle_changed(this);">
@@ -612,31 +628,28 @@
     </div>
     <hr>
 
-    <div class="settings">
-      <div class="settingsText">Background map</div>
-      <div style="float: right;"><label class="switch">
-        <input id="show_background_map" type="checkbox" onchange="toggle_changed(this);">
-        <span class="slider round"></span></label></div>
-    </div>
-    <hr>
-
     <!--  DANGER ZONE -->
 
     <div class="settingsTitle">&nbsp;<br><em>Danger Zone</em></div>
     <hr>
 
-
-    <p><button class="w100 button active item" style="height: 2.5em;" onclick="settings_restream_posts();">
-      Re-stream posts</button><hr>
-    <p><button class="w100 button active item" style="height: 2.5em;" onclick="settings_reset_ui();">
-      Reset UI + Re-stream (but keep ID)</button><hr>
-    <p><button class="w100 button active item" style="height: 2.5em;" onclick="settings_clear_other_feeds()">
-      Delete all logs except your own (but keep ID)</button><hr>
-    <p><button class="w100 button active item" style="height: 2.5em;" onclick="menu_import_id()">
-      Import new secret key (also erases DB)</button><hr>
-    <p><button class="w100 button active item" style="height: 3em;" onclick="backend('exportSecret');">
-      Export secret key</button><hr>
-    <p>&nbsp;<br>&nbsp;<br>&nbsp;<br><button class="w100 button active item" onclick="settings_wipe();"
+    <div><div><div><p id="danger_restream">
+      <button class="w100 button active item" style="height: 2.5em;" onclick="settings_restream_posts();">
+        Re-stream posts</button></p></div></div></div>
+    <div><div><div><div><p id="danger_reset">
+      <button class="w100 button active item" style="height: 2.5em;" onclick="settings_reset_ui();">
+      Reset UI + Re-stream (but keep ID)</button></p></div></div></div></div>
+    <div><div><div><p id="danger_delete">
+      <button class="w100 button active item" style="height: 2.5em;" onclick="settings_clear_other_feeds()">
+      Delete all logs except your own (but keep ID)</button></p></div></div></div>
+    <div><div><div><p id="danger_import">
+      <button class="w100 button active item" style="height: 2.5em;" onclick="menu_import_id()">
+        Import new secret key (also erases DB)</button></p></div></div></div>
+    <div><div><div><p id="danger_export"></div>
+      <button class="w100 button active item" style="height: 3em;" onclick="backend('exportSecret');">
+      Export secret key</button></p></div></div>
+    <p>&nbsp;<br>&nbsp;<br>
+      <button class="w100 button active item" onclick="settings_wipe();"
                               style="height: 2.5em;color: #e85132; font-weight: 900; text-align: center;">
       WIPE EVERYTHING IMMEDIATELY</button><hr>
     &nbsp;
@@ -670,16 +683,15 @@
 
         <textarea id='draft' rows=3 placeholder='Tap here to type' style="padding-right: 40px;"></textarea>
         <!-- ('img/paperclip.svg') class="flat buttontext img-gray-filter" -->
-        <button id="attachmentButton" onclick="chat_open_attachments_menu()" class="flat buttontext" style="background-image: url('img/pencil.png'); background-color: transparent; width: 40px; height: 40px; position: absolute; right: 2px; top: 46%; transform: translateY(-50%);"></button>
+        <button id="attachmentButton" onclick="chat_open_attachments_menu()" class="flat buttontext" style="width: 40px; height: 40px; position: absolute; right: 3px; top: 5px; background-image: url('img/pencil.png'); background-color: transparent; background-size: 100% 100%;"></button>
         </div>
-      <!-- td width=5% height=100%><button id='btn:attach' class="flat passive buttontext"><font size=+2>&#x1F4CE;</font><br><font size=small>Attach</font></button></td -->
-      <td width=8% height=100%><button id='btn:attach' class="flat buttontext" onclick="btnBridge(this);" style="background-image: url('img/record.svg'); fill: #fff; width: 50px; height: 50px; margin-bottom: 4px;"></button>
-      <td width=5% height=100%><button id='btn:preview' class="flat passive buttontext" onclick="showPreview();" style="background-image: url('img/send-button.svg'); width: 50px; height: 50px; margin-bottom: 4px;">&nbsp;<!-- font size=+2>&#x1F440;</font><br><font size=small>Preview</font --></button>
+      <td height=100%><button id='btn:attach' class="flat buttontext" onclick="btnBridge(this);" style="width: 50px; height: 50px; margin-bottom: 4px; background-image: url('img/record.svg'); fill: #fff;"></button>
+      <td height=100%><button id='btn:preview' class="flat passive buttontext" onclick="showPreview();" style="width: 50px; height: 50px; margin-bottom: 4px; background-image: url('img/send-button.svg'); background-size: 100% 100%;"></button>
   </table>
 
   <div id='div:confirm-members' class=neutral style="height: 36px; align-content: center; border: 3px inset #ebf4fa /*var(--light)*/; border-radius: 2pt; margin: 3px; margin-top: 20px; display: none; flex-direction: row; justify-content: center; align-items: center;">
     <!-- button class="flat passive buttontext" style="background-image: url('img/cancel.svg'); width: 50%; height: 50px; margin: 5px;" onclick="onBackPressed();">&nbsp;</--button -->
-    <button class="flat passive buttontext" style="background-image: url('img/checked.svg');background-repeat: no-repeat; width: 100%; height: 30px; margin: 3px;" onclick="members_confirmed();">&nbsp;</button>
+    <button class="flat passive buttontext" style="width: 100%; height: 30px; margin: 3px; background-image: url('img/checked.svg'); background-size: 100% 100%;" onclick="members_confirmed();">&nbsp;</button>
   </div>
 
   <div id='div:connect4-confirm-player' class=neutral style="height: 36px; align-content: center; border: 3px inset #ebf4fa /*var(--light)*/; border-radius: 2pt; margin: 3px; margin-top: 20px; display: none; flex-direction: row; justify-content: center; align-items: center;">
