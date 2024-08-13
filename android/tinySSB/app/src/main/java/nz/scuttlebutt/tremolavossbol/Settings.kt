@@ -11,6 +11,7 @@ class Settings(val context: MainActivity) {
     // These settings are only used in the frontend and will not affect the backend
     // The settingID must match the one used in the frontend (tremola.settings).
     private var defaultSettings = mapOf<String, String>(
+        "dark_mode" to "true",
         "confirmed_delivery_enabled" to "true",
         "geo_location_enabled" to "true",
         "show_chat_preview" to "false",

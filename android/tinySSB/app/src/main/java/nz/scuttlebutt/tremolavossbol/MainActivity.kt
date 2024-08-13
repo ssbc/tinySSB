@@ -11,7 +11,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.ActivityInfo
-import android.net.*
+import android.net.NetworkInfo
+import android.net.Uri
 import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.Bundle
@@ -19,16 +20,27 @@ import android.os.Handler
 import android.util.Log
 import android.view.View
 import android.view.Window
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import androidx.annotation.RequiresApi
+import androidx.webkit.WebViewAssetLoader
+import androidx.webkit.WebViewAssetLoader.AssetsPathHandler
+import androidx.webkit.WebViewClientCompat
 import com.google.zxing.integration.android.IntentIntegrator
 import nz.scuttlebutt.tremolavossbol.crypto.IdStore
+import nz.scuttlebutt.tremolavossbol.tssb.Demux
+import nz.scuttlebutt.tremolavossbol.tssb.GOset
+import nz.scuttlebutt.tremolavossbol.tssb.IO
+import nz.scuttlebutt.tremolavossbol.tssb.Node
+import nz.scuttlebutt.tremolavossbol.tssb.Repo
+import nz.scuttlebutt.tremolavossbol.tssb.WebsocketIO
 import nz.scuttlebutt.tremolavossbol.tssb.ble.BlePeers
-import nz.scuttlebutt.tremolavossbol.tssb.*
 import nz.scuttlebutt.tremolavossbol.tssb.ble.BluetoothEventListener
 import nz.scuttlebutt.tremolavossbol.utils.Constants
 import tremolavossbol.R
-import java.net.*
+import java.net.InetAddress
+import java.net.MulticastSocket
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.thread
 
@@ -91,6 +103,22 @@ class MainActivity : Activity() {
         Log.d("IDENTITY", "is ${idStore.identity.toRef()} (${idStore.identity.verifyKey})")
 
         val webView = findViewById<WebView>(R.id.webView)
+        val assetLoader = WebViewAssetLoader.Builder()
+            .addPathHandler("/assets/", AssetsPathHandler(this))
+            .build()
+        webView.webViewClient = object : WebViewClientCompat() {
+            override fun shouldInterceptRequest(
+                view: WebView,
+                request: WebResourceRequest
+            ): WebResourceResponse? {
+                return assetLoader.shouldInterceptRequest(request.url)
+            }
+            @Suppress("deprecation") // for API < 21
+            override fun shouldInterceptRequest(view: WebView, url: String): WebResourceResponse? {
+                return assetLoader.shouldInterceptRequest(Uri.parse(url))
+            }
+        }
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             webView.setLayerType(
                 View.LAYER_TYPE_SOFTWARE,
@@ -110,49 +138,12 @@ class MainActivity : Activity() {
         tinyDemux.arm_dmx(tinyDemux.chnk_dmx!!, { buf:ByteArray, aux:ByteArray?, _ -> tinyNode.incoming_chunk_request(buf,aux)})
 
         webView.clearCache(true)
-        /* no image support in tinyTremola
-        webView.webViewClient = object : WebViewClient() {
-            override fun shouldInterceptRequest(
-                view: WebView,
-                request: WebResourceRequest
-            ): WebResourceResponse? {
-                Log.d("load", "request for URI ${request.url}")
-                val bName = request.url.toString().substring(LOCAL_URL_PREFIX.length)
-                try {
-                    val inputStream = tremolaState.blobStore.fetch(bName)
-                    val x = WebResourceResponse(
-                        "image/jpeg", null,
-                        inputStream
-                    )
-                    return x
-                } catch (e: Exception) {
-                    Log.d("fetch error", "${e}")
-                }
-                return null
-            }
-        }
-        */
-        // val webStorage = WebStorage.getInstance()
         webView.addJavascriptInterface(wai, "Android")
 
         webView.settings.javaScriptEnabled = true
         webView.settings.domStorageEnabled = true
 
-        webView.loadUrl("file:///android_asset/web/tremola.html")
-        // webSettings?.javaScriptCanOpenWindowsAutomatically = true
-
-        // prepare for connectivity changes:
-        /*
-        if (networkCallback == null) {
-            networkCallback = object : ConnectivityManager.NetworkCallback() {
-                override fun onLinkPropertiesChanged(nw: Network, prop: LinkProperties) {
-                    // Log.d("onLinkPropertiesChanged", "${nw} ${prop}")
-                    super.onLinkPropertiesChanged(nw, prop)
-                    // mkSockets()
-                }
-            }
-        }
-        */
+        webView.loadUrl("https://appassets.androidplatform.net/assets/web/tremola.html")
 
         broadcastReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {

@@ -5,6 +5,7 @@
 // These default settings are only used for browser-only testing
 // Normally, these settings below WILL BE IGNORED and loaded via the provided backend.
 const BrowserOnlySettings = {
+    'dark_mode': false,
     'show_chat_preview': false,
     'show_background_map': true,
     'websocket_enabled': false,
@@ -36,10 +37,12 @@ function getSetting(settingID) {
 
 // frontend handler when settings have changed
 function applySetting(nm, val) {
-    if (nm == 'show_background_map') {
+    if (nm == 'dark_mode')
+        apply_background();
+    else if (nm == 'show_background_map') {
         if (val)
-            document.body.style.backgroundImage = "url('img/splash-as-background.jpg')";
-        else
+            apply_background();
+         else
             document.body.style.backgroundImage = null;
     } else if (nm == 'hide_forgotten_conv') {
         load_chat_list();

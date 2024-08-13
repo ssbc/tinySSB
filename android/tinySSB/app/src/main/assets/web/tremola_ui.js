@@ -23,7 +23,7 @@ var scenarioDisplay = {
     'games': ['div:back', 'core', 'lst:games', 'div:footer'],
     'members': ['div:back', 'core', 'lst:members', 'div:confirm-members'],
     'productivity': ['div:back', 'core', 'lst:prod', 'div:footer'],
-    'settings': ['div:back', 'div:settings', 'core'],
+    'settings': ['div:back', 'core', 'div:settings'],
     'kanban': ['div:back', 'core', 'lst:kanban', 'div:footer', 'plus'], // KANBAN
     'board': ['div:back', 'core', 'div:board'], // KANBAN
     'tictactoe-list': ['div:back', 'core', 'div:tictactoe_list', 'plus'],
@@ -86,6 +86,18 @@ const QR_SCAN_TARGET = {
 }
 
 var curr_qr_scan_target = QR_SCAN_TARGET.ADD_CONTACT
+
+function apply_background() {
+    var fn;
+    if ('dark_mode' in tremola.settings && tremola.settings['dark_mode']) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        fn = 'img/splash-as-background-inverted.jpg';
+    } else {
+        document.documentElement.setAttribute('data-theme', 'light');
+        fn = 'img/splash-as-background.jpg';
+    }
+    document.body.style.backgroundImage = `url(${fn})`;
+}
 
 function onBackPressed() {
     if (overlayIsActive) {
@@ -175,11 +187,12 @@ function setScenario(s) {
             */
         }
 
-        if (s == 'contacts') {
+        if (['productivity', 'games', 'contacts'].indexOf(s) >= 0) {
             document.getElementById("tremolaTitle").style.display = 'none';
             var c = document.getElementById("conversationTitle");
             c.style.display = null;
-            c.innerHTML = "<font size=+2><strong>Contacts</strong></font>";
+            var t = s.slice(0,1).toUpperCase() + s.slice(1);
+            c.innerHTML = `<font size=+2><strong>${t}</strong></font>`;
         }
 
         if (s == 'board') // a specific Kanban board: use all space (beyond the footer)

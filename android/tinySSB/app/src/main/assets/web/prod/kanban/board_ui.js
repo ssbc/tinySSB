@@ -375,8 +375,8 @@ function menu_board_invitation_create_entry(bid) {
     invHTML += "<div style='grid-area: btns;justify-self:end;display: flex;justify-content: center;align-items: center;'>"
     invHTML += "<div style='padding-right:8px;'>"
     //invHTML += "<div style='padding-right:10px;'>"
-    invHTML += "<button class='flat passive buttontext' style=\"height: 40px; background-image: url('img/checked.svg'); width: 35px;margin-right:10px;background-color: var(--passive)\" onclick='btn_invite_accept(\"" + bid + "\")'>&nbsp;</button>"//</div>"
-    invHTML += "<button class='flat passive buttontext' style=\"height: 40px; color: red; background-image: url('img/cancel.svg');width: 35px;background-color: var(--passive)\" onclick='btn_invite_decline(\"" + bid + "\")'>&nbsp;</button>"
+    invHTML += "<button class='flat passive buttontext' style=\"height: 40px; background-image: url('img/checked.svg'); width: 35px;margin-right:10px;background-color: var(--passiveCol)\" onclick='btn_invite_accept(\"" + bid + "\")'>&nbsp;</button>"//</div>"
+    invHTML += "<button class='flat passive buttontext' style=\"height: 40px; color: red; background-image: url('img/cancel.svg');width: 35px;background-color: var(--passiveCol)\" onclick='btn_invite_decline(\"" + bid + "\")'>&nbsp;</button>"
     invHTML += "</div></div></div>"
 
     document.getElementById("kanban_invitations_list").innerHTML += invHTML

@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <link rel="stylesheet" type="text/css" href="tremola.css" media="screen" />
   <link rel="stylesheet" type="text/css" href="games/tictactoe/ttt.css" media="screen" />
-  <!-- link rel="stylesheet" type="text/css" href="games/dpi24-06-battleship/duel.css" media="screen" />
+  <!-- link rel="stylesheet" type="text/css" href="games/dpi24-06-battleship/duel.css" media="screen" / -->
   <!-- link rel="stylesheet" type="text/css" href="games/dpi24-09-connect4/connect4.css" media="screen" / -->
   <link rel="stylesheet" type="text/css" href="prod/kanban/kanban.css" media="screen" />
   <!-- link rel="stylesheet" type="text/css" href="prod/dpi24-14-sched/scheduling.css" media="screen" / -->
@@ -33,7 +33,7 @@
   <script type="text/javascript" charset="UTF-8" src="util/pinch-zoom.min.js"></script>
   <!-- script type="text/javascript" charset="UTF-8" src="util/pako.min.js"></script -->
 </head>
-<body style="background-image: url('img/splash-as-background.jpg'); background-size: cover; background-color: white; overflow: hidden" onload="backend('ready');">
+<body style="background-color: #808080; overflow: hidden" onload="backend('ready');">
 <div style="width: 100%; height: 100%; margin: 0px">
 
   <div id='menu' class='menu-overlay'>
@@ -59,8 +59,12 @@
 
   <div id='hdr' style="height: 45px;margin: 3px; width: calc(100% - 6px);">
   <div style="display:flex; flex-direction: row; justify-content: center; align-items: center;">
-    <div id="div:qr" style="align: left;"><button id='btn:qr' class="flat" onclick="showQR();" style="background-color: transparent;"><font size=+2><strong>&nbsp;&#x2680;&nbsp;</strong></font></button></div>
-    <div id="div:back" style="display: none; padding-right: 10px;"><button id='back' class="flat buttontext" style="background-image: url('img/back.svg'); background-color: transparent; height: 25px; width: 25px; margin-left: 5px; margin-top: 2px;" onclick="onBackPressed();">&nbsp;<!--font size=+2><strong>&nbsp;&#x276E;&nbsp;</strong></font --></button></div>
+    <div id="div:qr" style="align: left;width: 20vw;">
+      <button id='btn:qr' class="flat qrButton" onclick="showQR();"><strong>&nbsp;&#x2680;&nbsp;</strong></button></div>
+    <div id="div:back" style="display: none; padding-right: 10px;">
+      <button id='back' class="flat buttontext backButton" onclick="onBackPressed();" style="background-color: transparent; height: 9vw; width: 13vw; margin-left: 5px; margin-top: 2px; fill: var(--strokeCol);">
+        <object type="image/svg+xml" data="img/back.svg" onload="this.replaceWith(this.contentDocument.documentElement);"></object></button>
+    </div>
     <div id='tremolaTitle' align=center style="padding-top: 2pt; width: 100%;font-family: Helvetica;font-weight: 900;"><font size=+2 color=#e85132>t i n y S S B<!-- &#x26F0; --></font></div>
     <div id='conversationTitle' style="display: none; padding-left: 5px; padding-right: 5px; padding-top: 2px; color: #e85132; font-size: small; overflow: hidden; width: 100%;">List of Chat Channels</div>
     <button id='btn:syncStat' onclick='menu_connection()' style='padding: 0px;border: 0px;'><div id='progressBars' style="position: relative; width: 24px; height: 18px; background: gray;">
@@ -71,7 +75,7 @@
     <div id='gosetBar' style="position: relative; width: 24px; height: 18px; background: gray; display: none">
       <div id='gosetBarKnown'  style="position: absolute; top: 0px; height: 18px; width: 75%; background: #2ecc71;"></div>
     </div>
-    <div><button id='btn:menu' class="flat neutral" onclick="btnBridge(this);" style="vertical-align: top; background-color: transparent; padding-top: 3pt;"><font size=+1>&nbsp;<strong>&#9776;</strong>&nbsp;</font></button></div>
+    <div><button id='btn:menu' class="flat neutral qrButton" onclick="btnBridge(this);" style="vertical-align: top; background-color: transparent; padding-top: 3pt;">&nbsp;<strong>&#9776;</strong>&nbsp;</button></div>
   </div>
   </div>
 
@@ -111,7 +115,7 @@
         (You can also generate new kanban boards using the + icon)
       </div>
       <div>
-        <button class="kanban_create_personal_btn" style="background-image: url('img/checked.svg');" onclick="btn_create_personal_board_accept()"></button>
+        <button class="kanban_create_personal_btn" style="background-image: url('img/checked.svg');background-repeat: no-repeat;" onclick="btn_create_personal_board_accept()"></button>
         <button class="kanban_create_personal_btn" style="background-image: url('img/cancel.svg'); background-position-x: -1.5px;" onclick="btn_create_personal_board_decline()"></button>
       </div>
     </div>
@@ -150,7 +154,7 @@
     <br>or enter their SSB identity as text:<br>&nbsp;
     <div style="display: flex;">
       <textarea rows="2" id="contact_id" placeholder="Tap here to type" style="width: calc(100% - 50px); vertical-align: middle;"></textarea>
-      <button class="passive buttontext" onclick="qr_scan_success(document.getElementById('contact_id').value);" style="background-image: url('img/checked.svg'); background-color: var(--passive); margin-left: 8px; border: 0pt; height: 3em; width: 3em; vertical-align: middle;">&nbsp;</button>
+      <button class="passive buttontext" onclick="qr_scan_success(document.getElementById('contact_id').value);" style="background-image: url('img/checked.svg'); background-color: var(--passiveCol); background-repeat: no-repeat;margin-left: 8px; border: 0pt; height: 3em; width: 3em; vertical-align: middle;">&nbsp;</button>
     </div>
     <div style='font-size: x-small; text-align: left;'><tt>
       &nbsp;<br>
@@ -165,7 +169,7 @@
     <div id="old_contact_alias_hdr">Alias:</div>
     <div style="display: flex; margin-top: 5px;">
       <textarea rows=1 id="old_contact_alias" placeholder="Tap here to type" style="width: calc(100% - 50px); vertical-align: middle;"></textarea>
-      <button class="passive buttontext" onclick="save_content_alias();" style="background-image: url('img/checked.svg'); background-color: var(--passive); margin-left: 8px; border: 0pt; height: 3em; width: 3em; vertical-align: middle;">&nbsp;</button>
+      <button class="passive buttontext" onclick="save_content_alias();" style="background-image: url('img/checked.svg'); background-color: background-repeat: no-repeat;var(--passiveCol); margin-left: 8px; border: 0pt; height: 3em; width: 3em; vertical-align: middle;">&nbsp;</button>
     </div>
     <div id=old_contact_details style='text-align: left; padding-top: 3px; display: block;'>
       &nbsp;<br><div>Shortname: &nbsp;XYS2?-?TEYX</div>
@@ -347,7 +351,7 @@
     <div>
       <table><tr>
         <td width=90% height=100%><button class="flat passive buttontext" onclick="closeOverlay();" style="height: 40px; color: red; background-image: url('img/cancel.svg'); width: 100%;">&nbsp;</button>
-        <td width=10% height=100%><button class="flat passive buttontext" style="height: 40px; background-image: url('img/checked.svg'); width: 35px;" onclick="new_text_post(document.getElementById('draft').value);">&nbsp;</button>
+        <td width=10% height=100%><button class="flat passive buttontext" style="height: 40px; background-image: url('img/checked.svg');background-repeat: no-repeat; width: 35px;" onclick="new_text_post(document.getElementById('draft').value);">&nbsp;</button>
       </table>
     </div>
   </div>
@@ -358,7 +362,7 @@
     <div height=40px>
       <table><tr>
         <td width=90% height=100%><button class="flat passive buttontext" onclick="closeOverlay();" style="height: 40px; color: red; background-image: url('img/cancel.svg'); width: 100%;">&nbsp;</button>
-        <td width=10% height=100%><button class="flat passive buttontext" style="height: 40px; background-image: url('img/checked.svg'); width: 35px;" onclick="new_image_post();">&nbsp;</button>
+        <td width=10% height=100%><button class="flat passive buttontext" style="height: 40px; background-image: url('img/checked.svg'); background-repeat: no-repeat;width: 35px;" onclick="new_image_post();">&nbsp;</button>
       </table>
     </div>
   </div>
@@ -366,7 +370,7 @@
   <div id='edit-overlay' class='qr-overlay'>
     <div id="edit_title" style='margin-bottom: 25px;'>Edit X:</div>
     <input type="text" id="edit_text" onkeypress="onEnter(event)" minlength="1" size="64" style="width: calc(100% - 10px); height: 30px;">&nbsp;
-    <div style='text-align: right;'><button class="passive buttontext" onclick="edit_confirmed();" style="background-image: url('img/checked.svg'); margin-right: 5px; border: 0pt; height: 30px; width: 30px;">&nbsp;</button></div>
+    <div style='text-align: right;'><button class="passive buttontext" onclick="edit_confirmed();" style="background-image: url('img/checked.svg');background-repeat: no-repeat; margin-right: 5px; border: 0pt; height: 30px; width: 30px;background-repeat: no-repeat;">&nbsp;</button></div>
   </div>
 
   <div id="div:event" style="display: none; height: calc(100% - 10px); margin-top: 10px;">
@@ -404,7 +408,7 @@
     <br>
     <div style='text-align: center; margin-left: 10px; margin-right: 10px;margin-bottom: 15px;'><b>Import via copied secret key</b></div>
     <textarea placeholder='{"curve": "ed25519", "secret": "YOUR SECRECT KEY"}' id="import-id-input" rows="3" onkeypress="onEnter(event)"></textarea>
-    <button class="passive buttontext" style="background-image: url('img/checked.svg');border: 0pt; height: 40px; width: 40px;" onclick="btn_import_id()" ></button>
+    <button class="passive buttontext" style="background-image: url('img/checked.svg');background-repeat: no-repeat;border: 0pt; height: 40px; width: 40px;" onclick="btn_import_id()" ></button>
     <div></div>
   </div>
 
@@ -504,11 +508,20 @@
     </div>
   </div>
 
-  <div id="div:settings" style="display: none; height: calc(100% - 45px); overflow-y: scroll; overflow-x: hidden; margin: 6px;">
-    <div style="text-align: center;"><em>Configurations</em></div>
+  <div id="div:settings" style="display: none; height: 100%; overflow-y: scroll; overflow-x: hidden; margin: 6px;">
+    <div class="settingsTitle"><em>Configurations</em></div>
     <hr>
 
     <!--  TOGGLES -->
+
+    <div class="settings">
+      <div class="settingsText">Dark mode</div>
+      <div style="float: right;"><label class="switch">
+        <input id="dark_mode" type="checkbox" onchange="toggle_changed(this);">
+        <span class="slider round"></span></label>
+      </div>
+    </div>
+    <hr>
 
     <div class="settings">
       <div class="settingsText">Confirm reception of personal msgs</div>
@@ -555,7 +568,7 @@
     <div id="container:settings_ws_url" class="websocket_url_settings" style="display:none;">
       <div class="settingsText" style="margin-right: 10px;font-size: 16px;margin-bottom: 5px;">URL: </div>
       <input type="text" id="settings_urlInput" onkeypress="onEnter(event)" placeholder="Websocket-Url (ws://...)" required style="height:30px; width: 70%">
-      <button id="btn:url" class ="flat passive buttontext" onclick="btn_setWebsocketUrl()" style="background-image: url('img/checked.svg'); width:35px; height:35px; margin-left: 5px;"></button>
+      <button id="btn:url" class ="flat passive buttontext" onclick="btn_setWebsocketUrl()" style="background-image: url('img/checked.svg');background-repeat: no-repeat; width:35px; height:35px; margin-left: 5px;"></button>
     </div>
     <hr>
 
@@ -609,7 +622,7 @@
 
     <!--  DANGER ZONE -->
 
-    <div style="text-align: center;">&nbsp;<br><em>Danger Zone</em></div>
+    <div class="settingsTitle">&nbsp;<br><em>Danger Zone</em></div>
     <hr>
 
 
@@ -623,20 +636,29 @@
       Import new secret key (also erases DB)</button><hr>
     <p><button class="w100 button active item" style="height: 3em;" onclick="backend('exportSecret');">
       Export secret key</button><hr>
-    <p>&nbsp;<br>&nbsp;<br>&nbsp;<br><button class="w100 button active item" style="height: 2.5em;" onclick="settings_wipe();">
-      <span style="color: #e85132 /* var(--red) */;font-weight: 900;">WIPE EVERYTHING IMMEDIATELY</span></button><hr>
+    <p>&nbsp;<br>&nbsp;<br>&nbsp;<br><button class="w100 button active item" onclick="settings_wipe();"
+                              style="height: 2.5em;color: #e85132; font-weight: 900; text-align: center;">
+      WIPE EVERYTHING IMMEDIATELY</button><hr>
     &nbsp;
   </div>
 
 </div>
 
-<div id='div:footer' class=neutral style="height: 56px; align-content: center; border: 3px inset #ebf4fa /*var(--light)*/; border-radius: 2px; margin: 3px; width: calc(100% - 12px);">
+<div id='div:footer' class=neutral style="height: 56px; align-content: center; border: 3px inset var(--light); border-radius: 2px; margin: 3px; width: calc(100% - 12px);">
 
   <table width=100% cellpadding="2pt"><tr>
-    <td width=25%><button id='btn:chats'        class="w100 flat active buttontext"  onclick="btnBridge(this);" style="background-image: url('img/chat.svg');">&nbsp;</button>
-    <td width=25%><button id='btn:productivity' class="w100 flat passive buttontext" onclick="btnBridge(this);" style="background-image: url('img/productivity.svg');"> </button>
-    <td width=25%><button id='btn:games'        class="w100 flat passive buttontext" onclick="btnBridge(this);" style="background-image: url('img/game-controller.svg');">&nbsp;</button>
-    <td width=25%><button id='btn:contacts'     class="w100 flat passive buttontext" onclick="btnBridge(this);" style="background-image: url('img/contacts.svg');"> </button>
+    <td width=25%><button id='btn:chats'        class="w100 flat active buttontext" onclick="btnBridge(this);" style="fill: var(--strokeCol);">
+        <object type="image/svg+xml" data="img/chat.svg" onload="this.replaceWith(this.contentDocument.documentElement);"></object></button>
+    <td width=25%><button id='btn:productivity' class="w100 flat passive buttontext" onclick="btnBridge(this);" style="fill: var(--strokeCol);">
+        <object type="image/svg+xml" data="img/productivity.svg" onload="this.replaceWith(this.contentDocument.documentElement);"></object></button>
+    <td width=25%><button id='btn:games'        class="w100 flat passive buttontext" onclick="btnBridge(this);" style="fill: var(--strokeCol);">
+        <object type="image/svg+xml" data="img/game-controller.svg" onload="this.replaceWith(this.contentDocument.documentElement);"></object></button>
+    <td width=25%><button id='btn:contacts'        class="w100 flat passive buttontext" onclick="btnBridge(this);" style="fill: var(--strokeCol);">
+      <object type="image/svg+xml" data="img/contacts.svg" onload="this.replaceWith(this.contentDocument.documentElement);"></object></button>
+    <!-- td width=25%><button id='btn:chats'        class="w100 flat active buttontext"  onclick="btnBridge(this);" style="background-image: url('img/chat.svg');">&nbsp;</button -->
+    <!-- td width=25%><button id='btn:productivityX' class="w100 flat passive buttontext" onclick="btnBridge(this);" style="background-image: url('img/productivity.svg');"> </button -->
+    <!-- td width=25%><button id='btn:games'        class="w100 flat passive buttontext" onclick="btnBridge(this);" style="background-image: url('img/game-controller.svg');">&nbsp;</button -->
+    <!-- td width=25%><button id='btn:contacts'     class="w100 flat passive buttontext" onclick="btnBridge(this);" style="background-image: url('img/contacts.svg');"> </button -->
   </table>
 
 </div>
@@ -651,17 +673,17 @@
         <button id="attachmentButton" onclick="chat_open_attachments_menu()" class="flat buttontext" style="background-image: url('img/pencil.png'); background-color: transparent; width: 40px; height: 40px; position: absolute; right: 2px; top: 46%; transform: translateY(-50%);"></button>
         </div>
       <!-- td width=5% height=100%><button id='btn:attach' class="flat passive buttontext"><font size=+2>&#x1F4CE;</font><br><font size=small>Attach</font></button></td -->
-      <td width=8% height=100%><button id='btn:attach' class="flat white buttontext" onclick="btnBridge(this);" style="background-image: url('img/record.svg'); fill: #fff; width: 50px; height: 50px; margin-bottom: 4px;"></button>
+      <td width=8% height=100%><button id='btn:attach' class="flat buttontext" onclick="btnBridge(this);" style="background-image: url('img/record.svg'); fill: #fff; width: 50px; height: 50px; margin-bottom: 4px;"></button>
       <td width=5% height=100%><button id='btn:preview' class="flat passive buttontext" onclick="showPreview();" style="background-image: url('img/send-button.svg'); width: 50px; height: 50px; margin-bottom: 4px;">&nbsp;<!-- font size=+2>&#x1F440;</font><br><font size=small>Preview</font --></button>
   </table>
 
   <div id='div:confirm-members' class=neutral style="height: 36px; align-content: center; border: 3px inset #ebf4fa /*var(--light)*/; border-radius: 2pt; margin: 3px; margin-top: 20px; display: none; flex-direction: row; justify-content: center; align-items: center;">
     <!-- button class="flat passive buttontext" style="background-image: url('img/cancel.svg'); width: 50%; height: 50px; margin: 5px;" onclick="onBackPressed();">&nbsp;</--button -->
-    <button class="flat passive buttontext" style="background-image: url('img/checked.svg'); width: 100%; height: 30px; margin: 3px;" onclick="members_confirmed();">&nbsp;</button>
+    <button class="flat passive buttontext" style="background-image: url('img/checked.svg');background-repeat: no-repeat; width: 100%; height: 30px; margin: 3px;" onclick="members_confirmed();">&nbsp;</button>
   </div>
 
   <div id='div:connect4-confirm-player' class=neutral style="height: 36px; align-content: center; border: 3px inset #ebf4fa /*var(--light)*/; border-radius: 2pt; margin: 3px; margin-top: 20px; display: none; flex-direction: row; justify-content: center; align-items: center;">
-    <button class="flat passive buttontext" style="background-image: url('img/checked.svg'); width: 100%; height: 30px; margin: 3px;" onclick="connect4_send_invite();">&nbsp;</button>
+    <button class="flat passive buttontext" style="background-image: url('img/checked.svg');background-repeat: no-repeat; width: 100%; height: 30px; margin: 3px;" onclick="connect4_send_invite();">&nbsp;</button>
   </div>
 
 </div>
