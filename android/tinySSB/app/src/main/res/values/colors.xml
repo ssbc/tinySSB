@@ -2,16 +2,9 @@
 <resources>
     <color name="colorPrimary">#F4511E</color>
     <color name="colorPrimaryDark">#B83106</color>
-    <color name="colorAccent">#FB8C00</color>
     <color name="colorBackground">#FAFAFA</color>
-    <color name="colorBox">#1D7FFF</color>
     <color name="colorGray">#F0F0F0</color>
     <color name="colorGrayDark">#7C7C7C</color>
     <color name="colorText">#2B2B2B</color>
     <color name="colorDisabled">#CFCFCF</color>
-
-    <color name="orange">#F4511E</color>
-    <color name="gray">#ECECEC</color>
-    <color name="grayDark">#656565</color>
-    <color name="grayDarkDisabled">#8F8F8F</color>
 </resources>

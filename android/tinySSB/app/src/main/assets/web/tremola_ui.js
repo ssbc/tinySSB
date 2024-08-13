@@ -184,9 +184,9 @@ function setScenario(s) {
         }
 
         if (['board','kanban'].indexOf(s) >= 0) // a specific Kanban board: use all space (beyond the footer)
-            document.getElementById('core').style.height = 'calc(100% - 60px)';
+            document.getElementById('core').style.height = 'calc(100% - 45pt)';
         else
-            document.getElementById('core').style.height = 'calc(100% - 118px)';
+            document.getElementById('core').style.height = 'calc(100% - 110pt)';
 
         if (s == 'kanban') {
             load_kanban_list();
@@ -222,7 +222,7 @@ function setScenario(s) {
             document.getElementById("tremolaTitle").style.display = 'none';
             var c = document.getElementById("conversationTitle");
             c.style.display = null;
-            c.innerHTML = "<font size=+1><strong>Tic Tac Toe</strong><br>Pick or create a new game</font>";
+            c.innerHTML = "<font size=+1><strong>Tic Tac Toe</strong></font><br>Pick or create a new game";
             ttt_load_list();
         }
         if (s == 'tictactoe-board') {

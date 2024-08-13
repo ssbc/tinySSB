@@ -1,56 +1,6 @@
 <resources>
-    <!-- Base application theme. -->
-    <style name="AppTheme" parent="Theme.MaterialComponents.Light.NoActionBar">
-        <!-- Customize your theme here. -->
-        <item name="colorPrimary">@color/colorPrimary</item>
-        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
-        <item name="colorAccent">@color/colorAccent</item>
-        <item name="android:statusBarColor">@color/colorBackground</item>
-        <item name="android:textColor">@color/colorText</item>
+    <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
         <item name="android:homeAsUpIndicator">@drawable/ic_back</item>
-
-
-        <!-- status bar text color -->
-        <item name="android:windowLightStatusBar">true</item>
-    </style>
-
-    <style name="TextAppearance.App.CollapsingToolbar.Expanded" parent="TextAppearance.MaterialComponents.Headline5">
-        <item name="android:textColor">@color/colorText</item>
-        <item name="android:textSize">34sp</item>
-        <item name="android:textStyle">normal</item>
-    </style>
-
-    <style name="TextAppearance.App.CollapsingToolbar.Collapsed" parent="TextAppearance.MaterialComponents.Headline6">
-        <item name="android:textColor">@color/colorText</item>
-    </style>
-
-    <style name="EditTextSearch" parent="Widget.MaterialComponents.TextInputLayout.OutlinedBox">
-        <item name="endIconMode">clear_text</item>
-        <item name="boxBackgroundColor">@color/colorGray</item>
-        <item name="boxStrokeWidth">0dp</item>
-        <item name="boxStrokeWidthFocused">0dp</item>
-        <item name="boxCornerRadiusBottomEnd">36dp</item>
-        <item name="boxCornerRadiusBottomStart">36dp</item>
-        <item name="boxCornerRadiusTopStart">36dp</item>
-        <item name="boxCornerRadiusTopEnd">36dp</item>
-        <item name="startIconDrawable">@drawable/ic_search</item>
-        <item name="android:layout_margin">16dp</item>
-    </style>
-
-    <style name="TextInputStyle" parent="Widget.MaterialComponents.TextInputLayout.OutlinedBox">
-        <item name="android:layout_marginTop">20dp</item>
-        <item name="android:layout_marginBottom">20dp</item>
-        <item name="boxBackgroundColor">@color/gray</item>
-        <item name="boxStrokeColor">@color/colorBox</item>
-        <item name="boxCornerRadiusBottomEnd">26dp</item>
-        <item name="boxCornerRadiusBottomStart">26dp</item>
-        <item name="boxCornerRadiusTopEnd">26dp</item>
-        <item name="boxCornerRadiusTopStart">26dp</item>
-    </style>
-
-    <style name="spinnerItemStyle">
-        <item name="android:textColor">#f1f1</item>
-        <item name="android:textSize">120sp</item>
-        <item name="android:textStyle">bold</item>
+        <item name="android:windowLightStatusBar">false</item>
     </style>
 </resources>

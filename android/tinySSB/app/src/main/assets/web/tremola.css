@@ -33,7 +33,7 @@
     --passiveCol: #6f6666; /* #c05010;  #51a4d2; */
     --activeCol:  #a8a0a0; /* #a4cbe2; */
     --light:      #ea9a66; /* #ebf4fa; */
-    --neutralCol: #4c4747; /* #cbd4da; */
+    --neutralCol: #3c3737; /* #cbd4da; */
     --gray:       #423f3f; /* #d0d0d0; */
     --red:        #ea9a66; /* #a02000; /* #e85132; */
     --darkRed:    #ea9a66; /* #800000; /* #ff3300; */
@@ -110,7 +110,7 @@
     width: 100%;
   }
   .buttontext {
-    height: 50px;
+    height: 45pt;
     padding: 4px 10px 10px 10px;
   }
   .item {
