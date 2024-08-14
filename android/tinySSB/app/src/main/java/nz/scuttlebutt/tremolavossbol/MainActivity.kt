@@ -91,13 +91,13 @@ class MainActivity : Activity() {
 
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
-        AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
-
-        settings = Settings(this)
         super.onCreate(savedInstanceState)
 
-        setRequestedOrientation (ActivityInfo.SCREEN_ORIENTATION_PORTRAIT)
+        AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
         requestWindowFeature(Window.FEATURE_NO_TITLE)
+        setRequestedOrientation (ActivityInfo.SCREEN_ORIENTATION_PORTRAIT)
+
+        setContentView(R.layout.activity_main)
 
         val windowInsetsController =
             WindowCompat.getInsetsController(window, window.decorView)
@@ -105,8 +105,7 @@ class MainActivity : Activity() {
             WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         windowInsetsController.hide(WindowInsetsCompat.Type.navigationBars())
 
-        setContentView(R.layout.activity_main)
-        // tremolaState = TremolaState(this)
+        settings = Settings(this)
         idStore = IdStore(this)
 
         // wifiManager = applicationContext.getSystemService(WIFI_SERVICE) as WifiManager
