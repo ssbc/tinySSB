@@ -86,6 +86,7 @@ const QR_SCAN_TARGET = {
 }
 
 var curr_qr_scan_target = QR_SCAN_TARGET.ADD_CONTACT
+var FEED_CNT, ENTRY_CNT, CHUNK_CNT, NOCHUNK_CNT;
 
 function onBackPressed() {
     if (overlayIsActive) {
@@ -550,7 +551,7 @@ function refresh_connection_entry(id) {
 function refresh_goset_progressbar(curr, max) {
     if (tremola.settings['simple_mode'])
         return;
-    console.log("refresh_goset_progressbar", curr, max)
+    // console.log("refresh_goset_progressbar", curr, max)
     var delta = max - curr
 
     document.getElementById('connection-overlay-progressbar-goset').value = (curr / max) * 100
@@ -575,7 +576,7 @@ function refresh_goset_progressbar(curr, max) {
 }
 
 var max_chnks = 0
-function refresh_chunk_progressbar(remaining) {
+function refresh_chunk_progressbar(remaining, arrived) {
     if (tremola.settings['simple_mode'])
         return;
     if (remaining != 0) {
@@ -583,7 +584,7 @@ function refresh_chunk_progressbar(remaining) {
     } else {
         max_chnks = 0 // reset
     }
-    console.log(`refresh_chunk_progressbar - remaining:${remaining} max_chnks:${max_chnks}`)
+    // console.log(`refresh_chunk_progressbar - remaining:${remaining} max_chnks:${max_chnks}`)
 
     if (remaining > 0) {
         var percentage = Math.round( (1 - ((remaining - 0) / (max_chnks - 0))) * 100 )
@@ -597,13 +598,22 @@ function refresh_chunk_progressbar(remaining) {
         document.getElementById('connection-overlay-progressbar-chnk').value = 100;
         document.getElementById('connection-overlay-progressbar-label-chnk').textContent = "Chunks — Synchronized"
     }
+
+    CHUNK_CNT = arrived;
+    NOCHUNK_CNT = remaining;
+    show_stats();
 }
 
-function refresh_connection_progressbar(min_entries, old_min_entries, old_want_entries, curr_want_entries, max_entries) {
+function refresh_connection_progressbar(min_entries, old_min_entries, old_want_entries,
+                                        curr_want_entries, max_entries,
+                                        f_cnt, e_cnt, c_cnt, r_cnt) {
     if (tremola.settings['simple_mode'])
         return;
+    /*
     console.log(`refresh_connection_progressbar - min:${min_entries} old_min:${old_min_entries} ` +
-                `old_curr:${old_want_entries} curr:${curr_want_entries} max:${max_entries}`)
+                `old_curr:${old_want_entries} curr:${curr_want_entries} max:${max_entries} ` +
+                `F:${f_cnt} E:${e_cnt} C:{c_cnt} R:{r_cnt}`)
+    */
     if(curr_want_entries == 0)
       return
 
@@ -631,6 +641,16 @@ function refresh_connection_progressbar(min_entries, old_min_entries, old_want_e
         document.getElementById('connection-overlay-progressbar-gift').value = newPosOff
         document.getElementById('connection-overlay-progressbar-label-gift').textContent = "Ahead - " + (curr_want_entries - min_entries) + " entries left"
     }
+
+    FEED_CNT  = f_cnt;
+    ENTRY_CNT = e_cnt;
+    CHUNK_CNT = c_cnt;
+    NOCHUNK_CNT = r_cnt;
+    show_stats();
+}
+
+function show_stats(){
+    document.getElementById('connection-overlay-stats').innerHTML = `F=${FEED_CNT} E=${ENTRY_CNT} C=${CHUNK_CNT}/${CHUNK_CNT+NOCHUNK_CNT}`
 }
 
 function show_geo_location(locPlus) {

@@ -97,10 +97,10 @@ function apply_simple_mode() {
 
 // setter, this will also save the given settingID and its value in the backend
 function setSetting(nm, val) {
-    console.log("setting", nm, val)
+    // console.log("setting", nm, val);
     if (nm == "websocket_url") {
-      document.getElementById("settings_urlInput").value = val
-      return
+      document.getElementById("settings_urlInput").value = val;
+      return;
     }
     applySetting(nm, val);
     document.getElementById(nm).checked = val;

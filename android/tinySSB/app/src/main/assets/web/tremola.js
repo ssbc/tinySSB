@@ -406,8 +406,11 @@ function b2f_ble_disabled() {
     //ble_status = "disabled"
 }
 
-function b2f_update_progress(min_entries, old_min_entries, old_want_entries, curr_want_entries, max_entries) {
-    refresh_connection_progressbar(min_entries, old_min_entries, old_want_entries, curr_want_entries, max_entries)
+function b2f_update_progress(min_entries, old_min_entries, old_want_entries,
+                             curr_want_entries, max_entries, f_cnt, e_cnt, c_cnt, r_cnt) {
+    refresh_connection_progressbar(min_entries, old_min_entries, old_want_entries,
+                                   curr_want_entries, max_entries,
+                                   f_cnt, e_cnt, c_cnt, r_cnt)
 }
 
 function b2f_local_peer(type, identifier, displayname, status) {
@@ -766,6 +769,7 @@ function b2f_initialize(id, settings) {
     closeOverlay();
     setScenario('chats');
     // load_chat("ALL");
+    refresh_connection_progressbar(1,0,0,1,1,0,0,0,0)
 }
 
 

@@ -30,6 +30,22 @@ class Repo(val context: MainActivity) {
     private var chnk_offs = 0
     private var numberOfPendingChunks = 0
 
+    fun get_feed_cnt(): Int {
+        return replicas.size
+    }
+    fun get_entry_cnt() : Int {
+        var E = 0
+        for (r in replicas)
+            E += r.state.max_seq
+        return E
+    }
+    fun get_chunk_cnt() : Int {
+        var C = 0
+        for (r in replicas)
+            C += r.state.cnk_cnt
+        return C
+    }
+
     private fun clean(dir: File) {
         for (f in dir.listFiles() ?: emptyArray()) {
             if (f.isDirectory)
@@ -44,7 +60,7 @@ class Repo(val context: MainActivity) {
 
     fun reset() {
         val fdir = File(context.getDir(TINYSSB_DIR, MODE_PRIVATE), FEED_DIR)
-        clean(fdir);
+        clean(fdir)
     }
 
     fun load() {
@@ -157,7 +173,7 @@ class Repo(val context: MainActivity) {
                 continue
             }
             new_want_offs++
-            val (ns, ndmx) = r.get_next_seq()
+            val (ns, _ndmx) = r.get_next_seq()
             encoding_len += Bipf.encodingLength(ns) // Bipf.encode(Bipf.mkInt(ns))!!.size
             lst.add(ns)
             v += (if (v.length == 0) "[" else " ") + "$ndx.$ns"
@@ -266,7 +282,7 @@ class Repo(val context: MainActivity) {
                 continue // frontier, mid and log file are already successfully upgraded
             }
             val old_log = RandomAccessFile(File(feed_dir, "log"), "r")
-            var buffer = ByteArray(TINYSSB_PKT_LEN)
+            val buffer = ByteArray(TINYSSB_PKT_LEN)
             var pos = 0
             val new_log = File(feed_dir, "log.bin.tmp")
 
@@ -347,7 +363,7 @@ class Repo(val context: MainActivity) {
 
     fun addNumberOfPendingChunks(amount: Int) {
         numberOfPendingChunks += amount
-        context.wai.eval("refresh_chunk_progressbar($numberOfPendingChunks)")
+        context.wai.eval("refresh_chunk_progressbar($numberOfPendingChunks, ${context.tinyRepo.get_chunk_cnt()})")
     }
 
     fun getNumberOfPendingCHunks(): Int {

@@ -105,8 +105,8 @@ class BlePeers(val act: MainActivity) {
         startBleScan()
         startServer()
 
-        //inform frontend that ble is enabled
-        act.wai.eval("b2f_ble_enabled()")
+        if (act.frontend_ready) //inform frontend that ble is enabled
+            act.wai.eval("b2f_ble_enabled()")
     }
 
     @SuppressLint("MissingPermission")
@@ -116,7 +116,9 @@ class BlePeers(val act: MainActivity) {
             p.value.close()
         }
         stopServer()
-        act.wai.eval("b2f_ble_disabled()")
+
+        if (act.frontend_ready)
+            act.wai.eval("b2f_ble_disabled()")
     }
 
     @SuppressLint("MissingPermission")

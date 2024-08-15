@@ -40,10 +40,12 @@ class Pending(var cnr: Int, var rem: Int, var hptr: ByteArray, var pos: Int) {
 
 class State {
 
-    var max_seq = 0
-    var max_pos = 0
-    var prev = ByteArray(20)
-    var pend_sc = mutableMapOf<Int, Pending>()
+    var max_seq = 0 // number of log entries
+    var cnk_cnt = 0 // total number of received chunk (sidechain) packets
+    var cnk_rem = 0 // total number of remaining chunks to be received
+    var max_pos = 0 // last byte of log file (remembered in case we crash while extending the log)
+    var prev = ByteArray(20) // hash of log's last entry
+    var pend_sc = mutableMapOf<Int, Pending>() // list of chunk sequences we still await
 
     private fun toDict(): MutableMap<String, *> {
         val dict = mutableMapOf<String, Any?>()
@@ -52,6 +54,8 @@ class State {
         dict["prev"] = prev
         val it = pend_sc.mapValues { it.value.toList() }
         dict["pend_sc"] = pend_sc.mapValues { it.value.toList() }
+        dict["cnk_cnt"] = cnk_cnt
+        dict["cnk_ren"] = cnk_rem
         return dict
     }
 
@@ -66,6 +70,10 @@ class State {
         max_pos = dict["max_pos"] as Int
         prev = dict["prev"] as ByteArray
         pend_sc = (dict["pend_sc"] as Map<Int, ArrayList<Any>>).mapValues { Pending.fromList(it.value) }.toMutableMap()
+        if ("cnk_cnt" in dict)
+            cnk_cnt = dict["cnk_cnt"] as Int
+        if ("cnk_rem" in dict)
+            cnk_rem = dict["cnk_rem"] as Int
     }
 }
 
@@ -83,11 +91,12 @@ class Replica(val context: MainActivity, val datapath: File, val fid: ByteArray)
         log.createNewFile()
         mid.createNewFile()
         if (fnt.baseFile.createNewFile()) {
-            persist_frontier(0, 0, fid.sliceArray(0 until 20))
+            persist_frontier(0, 0, fid.sliceArray(0 until 20),
+                             0, 0)
         }
         state.loadFromWire(fnt.readFully())
         Log.d("replica", "loaded prev: ${state.prev.toHex()} (fid: ${fid.toHex()}), length: ${log.length()}, max pos: ${state.max_pos}")
-        while (log.length() > state.max_pos) {
+        while (log.length() > state.max_pos) { // log was extended, but crash prevented flushing of fnt
             RandomAccessFile(log, "rwd").use { f ->
                 var pos = state.max_pos
                 f.seek(pos.toLong())
@@ -112,21 +121,27 @@ class Replica(val context: MainActivity, val datapath: File, val fid: ByteArray)
                     }
 
                 }
+                val need_chunks = chunk_cnt
+                val empty = ByteArray(TINYSSB_PKT_LEN)
                 while (chunk_cnt > 0) {
-                    f.write(ByteArray(TINYSSB_PKT_LEN))
+                    f.write(empty)
                     chunk_cnt--
                 }
                 f.write(pos.toByteArray())
                 pos = f.filePointer.toInt()
-                persist_frontier(seq, pos, (nam + pkt).sha256().sliceArray(0 until HASH_LEN))
+                persist_frontier(seq, pos,
+                                 (nam + pkt).sha256().sliceArray(0 until HASH_LEN),
+                                 state.cnk_cnt, state.cnk_rem + need_chunks)
             }
         }
     }
 
-    fun persist_frontier(seq: Int, pos: Int, prev: ByteArray) {
+    fun persist_frontier(seq: Int, pos: Int, prev: ByteArray, have_chunks: Int, need_chunks: Int) {
         state.max_seq = seq
         state.max_pos = pos
         state.prev = prev
+        state.cnk_cnt = have_chunks
+        state.cnk_rem = need_chunks // chunks remaining to be received
         val f = fnt.startWrite()
         f.write(state.toWire())
         fnt.finishWrite(f)
@@ -166,6 +181,7 @@ class Replica(val context: MainActivity, val datapath: File, val fid: ByteArray)
         log_entry += state.max_pos.toByteArray()
         log.appendBytes(log_entry)
         if (chunk_cnt > 0) {
+            state.cnk_rem += chunk_cnt
             val ptr = pkt.sliceArray(36 until 56)
             state.pend_sc[seq] = Pending(0, chunk_cnt, ptr, state.max_pos + TINYSSB_PKT_LEN)
             context.tinyRepo.addNumberOfPendingChunks(chunk_cnt)
@@ -177,7 +193,9 @@ class Replica(val context: MainActivity, val datapath: File, val fid: ByteArray)
 
         mid.appendBytes((nam + pkt).sha256().sliceArray(0 until HASH_LEN))
         val pos = state.max_pos + log_entry.size
-        persist_frontier(seq, pos, (nam + pkt).sha256().sliceArray(0 until HASH_LEN))
+        persist_frontier(seq, pos,
+                         (nam + pkt).sha256().sliceArray(0 until HASH_LEN),
+                         state.cnk_cnt, state.cnk_rem)
 
         context.tinyDemux.arm_dmx(dmx) // remove old dmx handler
         // arm dmx handler for next entry
@@ -231,11 +249,12 @@ class Replica(val context: MainActivity, val datapath: File, val fid: ByteArray)
             val chunk_fct = { chunk: ByteArray, fid: ByteArray?, seq: Int -> context.tinyNode.incoming_chunk(chunk,fid,seq) }
             context.tinyDemux.arm_blb(pend.hptr, chunk_fct, fid, seq, pend.cnr)
         }
+        state.cnk_cnt += 1
+        state.cnk_rem -= 1
         context.tinyRepo.addNumberOfPendingChunks(-1)
         val f = fnt.startWrite()
         f.write(state.toWire())
         fnt.finishWrite(f)
-
 
         return true
     }
@@ -398,7 +417,9 @@ class Replica(val context: MainActivity, val datapath: File, val fid: ByteArray)
         ))
             return -1
         log.appendBytes(wire + state.max_pos.toByteArray())
-        persist_frontier(seq, wire.size + 4, (nam +wire).sha256().sliceArray(0 until HASH_LEN))
+        persist_frontier(seq, wire.size + 4,
+                         (nam +wire).sha256().sliceArray(0 until HASH_LEN),
+                         state.cnk_cnt, state.cnk_rem)
         return seq
     }
 
@@ -448,7 +469,9 @@ class Replica(val context: MainActivity, val datapath: File, val fid: ByteArray)
         log.appendBytes(log_entry)
         // save mid
         mid.appendBytes((nam + wire).sha256().sliceArray(0 until HASH_LEN))
-        persist_frontier(seq, state.max_pos + log_entry.size, (nam + wire).sha256().sliceArray(0 until HASH_LEN))
+        persist_frontier(seq, state.max_pos + log_entry.size,
+                         (nam + wire).sha256().sliceArray(0 until HASH_LEN),
+                         state.cnk_cnt + chunks.size-1, state.cnk_rem)
         context.wai.sendTinyEventToFrontend(fid, seq, (nam + wire).sha256().sliceArray(0 until HASH_LEN), c)
         // Log.d("replica", "write success, len: ${log_entry.size}")
         return seq
