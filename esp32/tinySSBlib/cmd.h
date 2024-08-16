@@ -74,15 +74,15 @@ void cmd_rx(String cmd) {
         } else {
           char *d = "?";
           if (!memcmp(dmx_val, thePeers->peer_dmx_rep, DMX_LEN))
-            d = "<PEER>";
+            d = "<PreP>";
           if (!memcmp(dmx_val, thePeers->peer_dmx_req, DMX_LEN))
-            d = "<PEEQ>";
+            d = "<PreQ>";
           if (!memcmp(dmx_val, theDmx->goset_dmx, DMX_LEN))
-            d = "<GOST>";
+            d = "<GosX>";
           else if (!memcmp(dmx_val, theDmx->want_dmx, DMX_LEN))
-            d = "<WANT>";
+            d = "<DreQ>";
           else if (!memcmp(dmx_val, theDmx->chnk_dmx, DMX_LEN))
-            d = "<CHNK>";
+            d = "<CreQ>";
           else if (!memcmp(dmx_val, theDmx->mgmt_dmx, DMX_LEN))
             d = "<MGMT>";
           Serial.printf("  %s\r\n", d);

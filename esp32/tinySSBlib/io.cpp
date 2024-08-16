@@ -77,7 +77,7 @@ int incoming(struct face_s *f, unsigned char *pkt, int len, int has_crc)
   Serial.printf("%s ", to_hex(pkt + hlen-6, 6));
   unsigned char h[crypto_hash_sha256_BYTES];
   crypto_hash_sha256(h, pkt, hlen);
-  Serial.printf("h=%s\r\n", to_hex(h, HASH_LEN));
+  Serial.printf("h=%s @%d\r\n", to_hex(h, HASH_LEN), millis());
   
   if (len <= (DMX_LEN + sizeof(uint32_t))) {
     Serial.printf("   =short packet\r\n");
@@ -93,7 +93,7 @@ int incoming(struct face_s *f, unsigned char *pkt, int len, int has_crc)
 
   if (!theDmx->on_rx(pkt, hlen, h, f))
     return 0;
-  Serial.println(String("   unknown DMX ") + to_hex(pkt, DMX_LEN, 0));
+  Serial.println(String("   =unknown DMX ") + to_hex(pkt, DMX_LEN, 0));
   return -1;
 }
 
@@ -117,6 +117,8 @@ class UARTServerCallbacks: public BLEServerCallbacks {
     void onConnect(BLEServer* pServer) {
       bleDeviceConnected += 1;
       Serial.println("** BLE device connected");
+      theUI->ble_cnt++;
+      theUI->refresh();
       // stop advertising when a peer is connected (we can only serve one client)
       if (bleDeviceConnected == 3) { pServer->getAdvertising()->stop(); }
       else { pServer->getAdvertising()->start(); }
@@ -124,6 +126,8 @@ class UARTServerCallbacks: public BLEServerCallbacks {
     void onDisconnect(BLEServer* pServer) {
       bleDeviceConnected -= 1;
       Serial.println("** BLE device disconnected");
+      theUI->ble_cnt--;
+      theUI->refresh();
       // resume advertising when peer disconnects
       pServer->getAdvertising()->start();
     }
@@ -186,7 +190,7 @@ void ble_init()
 }
 
 
-void ble_send(unsigned char *buf, short len)
+void ble_send(unsigned char *buf, short len, const char *origin)
 {
   // Serial.printf("BLE send %p %d\r\n", buf, len);
   if (bleDeviceConnected == 0)
@@ -194,7 +198,8 @@ void ble_send(unsigned char *buf, short len)
   // no CRC added, we rely on BLE's CRC
   TXChar->setValue(buf, len);
   TXChar->notify();
-  Serial.printf("b< %dB %s..\r\n", len, to_hex(buf,8,0));
+  Serial.printf("b< %s %dB %s..\r\n", origin ? origin : "????", len,
+                to_hex(buf,8,0));
 }
 
 
@@ -227,7 +232,7 @@ int lora_rcvd_pkts = 0; // absolute counter
   volatile bool lora_transmitting = false;
   volatile bool new_lora_pkt = false;
 
-  void newLoraPacket_cb(void)
+void newLoraPacket_cb(void) // notification
   {
     /*
     if (lora_transmitting) {
@@ -239,7 +244,7 @@ int lora_rcvd_pkts = 0; // absolute counter
     if (lora_fetching || lora_transmitting)
       return;
     new_lora_pkt = true;
-    Serial.println("   new lora pkt");
+    // Serial.println("   notif: new lora pkt");
   }
 #endif
 
@@ -289,7 +294,7 @@ void lora_init()
 }
 
 
-void lora_send(unsigned char *buf, short len)
+void lora_send(unsigned char *buf, short len, const char *origin)
 {
   // Serial.printf("lora send %p %d\r\n", buf, len);
 
@@ -306,12 +311,14 @@ void lora_send(unsigned char *buf, short len)
   free(data);
 
   if (rc == RADIOLIB_ERR_NONE) {
-    Serial.printf("l< %dB %s..",
-                  len + sizeof(crc), to_hex(buf,7,0));
+    Serial.printf("l< %s %dB %s..",
+                  origin ? origin : "????", len + sizeof(crc), to_hex(buf,7,0));
     Serial.printf("%s @%d\r\n", to_hex(buf + len - 6, 6, 0), millis());
   } else {
-    Serial.printf("   LoRa send fail %dB %s..", len, to_hex(buf,7,0), rc);
-    Serial.printf("%s @%d, code=%d\r\n", to_hex(buf + len - 6, 6, 0), millis(), rc);
+    Serial.printf("l# %s %dB send failed for %s..",
+                  origin ? origin : "????", len, to_hex(buf,7,0), rc);
+    Serial.printf("%s @%d, code=%d\r\n",
+                                  to_hex(buf + len - 6, 6, 0), millis(), rc);
   }
   lora_pkt_cnt++;
   lora_sent_pkts++;
@@ -327,12 +334,13 @@ void lora_send(unsigned char *buf, short len)
     LoRa.write(buf, len);
     LoRa.write((unsigned char*) &crc, sizeof(crc));
     if (LoRa.endPacket()) {
-      Serial.printf("l< %dB %s..",
+      Serial.printf("l< %s %dB %s..", origin ? origin : "????",
                     len + sizeof(crc), to_hex(buf,7,0));
       Serial.printf("%s @%d\r\n", to_hex(buf + len - 6, 6, 0), millis());
       lora_send_ok = 1;
     } else
-      Serial.printf("   LoRa fail %-3dB %s.. @%d\r\n", len,
+      Serial.printf("l# %s %dB send failed for %s.. @%d\r\n",
+                    origin ? origin : "????", len,
                     to_hex(buf + len - 6, 6, 0), millis());
       lora_send_ok = 0;
   } else
@@ -346,16 +354,16 @@ void lora_loop()
 #ifdef USE_RADIO_LIB
   lora_fetching = true;
   if (new_lora_pkt) {
-    Serial.println("   lora_loop: new pkt");
+    // Serial.println("   lora_loop: new pkt");
     radio.standby();
     new_lora_pkt = false;
 
-    Serial.println("   lora_loop: while loop starts");
+    // Serial.println("   lora_loop: while loop starts");
     while (-1) {
       unsigned char buf[MAX_PKT_LEN];
-      Serial.println("   lora_loop: getPacketLength");
+      // Serial.println("   lora_loop: getPacketLength");
       size_t len = radio.getPacketLength();
-      Serial.printf("      returned %d\r\n", len);
+      // Serial.printf("      returned %d\r\n", len);
       if (len <= 0)
         break;
       theUI->lora_advance_wheel();
@@ -365,7 +373,7 @@ void lora_loop()
       lora_pkt_cnt++;
       int rc = radio.readData(buf, len);
       if (rc != RADIOLIB_ERR_NONE) {
-        Serial.printf("   readData returned %d\r\n", rc);
+        // Serial.printf("   readData returned %d\r\n", rc);
         break;
       }
       if (lora_face.in_buf->is_full()) {
@@ -374,7 +382,7 @@ void lora_loop()
         lora_face.in_buf->in(buf, len);
       break;
     }
-    Serial.println("   lora_loop: restarting receiving");
+    // Serial.println("   lora_loop: restarting receiving");
     radio.startReceive();
   }
 
@@ -416,7 +424,7 @@ void lora_loop()
 # include <WiFi.h>
 # include <WiFiAP.h>
 
-void udp_send(unsigned char *buf, short len)
+void udp_send(unsigned char *buf, short len, const char *origin)
 {
 #if !defined(NO_WIFI)
   if (udp.beginMulticastPacket()) {
@@ -424,8 +432,10 @@ void udp_send(unsigned char *buf, short len)
     udp.write(buf, len);
     udp.write((unsigned char*) &crc, sizeof(crc));
     udp.endPacket();
-    Serial.println("   UDP  sent " + String(len + sizeof(crc), DEC) + "B: "
-                   + to_hex(buf,8,0) + ".." + to_hex(buf + len - 6, 6, 0));
+     Serial.printf("u< %s %dB %s..\r\n", origin ? origin : "????",
+                   len+sizeof(crc), to_hex(buf,8,0));
+    // Serial.println("   UDP  sent " + String(len + sizeof(crc), DEC) + "B: "
+    //               + to_hex(buf,8,0) + ".." + to_hex(buf + len - 6, 6, 0));
   } else
     Serial.println("udp send failed");
   /*
@@ -448,7 +458,7 @@ BluetoothSerial BT;
 
 extern void kiss_write(Stream &s, unsigned char *buf, short len);
 
-void bt_send(unsigned char *buf, short len)
+void bt_send(unsigned char *buf, short len, const char *origin)
 {
   if (BT.connected()) {
     uint32_t crc = crc32_ieee(buf, len);
@@ -500,14 +510,15 @@ void io_init()
 #endif
 }
 
-void io_send(unsigned char *buf, short len, struct face_s *f)
+void io_send(unsigned char *buf, short len, struct face_s *f,
+             const char *origin)
 {
   // Serial.printf("io_send %d bytes %p\r\n", len, f);
   for (int i = 0; i < NR_OF_FACES; i++) {
     if (faces[i]->send == NULL)
       continue;
     if (f == NULL || f == faces[i])
-      faces[i]->send(buf, len);
+      faces[i]->send(buf, len, origin);
   }
 }
 

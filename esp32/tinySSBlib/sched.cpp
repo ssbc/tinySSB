@@ -3,18 +3,35 @@
 #include "tinySSBlib.h"
 
 
+const char *pkt_origin_gosn = "GosN"; // GOset novelty pkt
+const char *pkt_origin_gosc = "GosC"; // GOset claim pkt
+const char *pkt_origin_preq = "PreQ"; // peer ping request
+const char *pkt_origin_prep = "PreP"; // peer ping reply
+const char *pkt_origin_data = "Data"; // append-only log entry
+const char *pkt_origin_chnk = "Chnk"; // side chain pkt
+const char *pkt_origin_dreq = "DreQ"; // want vector
+const char *pkt_origin_creq = "CreQ"; // chunk vector
+
+enum {
+  PROBE_GOSET = 0,
+  PROBE_PEERS,
+  PROBE_WANT,
+  PROBE_CHUNK
+};
+  
 SchedClass::SchedClass(probe_fct_t g, probe_fct_t p,
-                       probe_fct_t v, probe_fct_t c)
+                       probe_fct_t w, probe_fct_t c)
 {
-  probe[0] = g, probe[1] = p, probe[2] = v, probe[3] = c;
+  probe[PROBE_GOSET] = g, probe[PROBE_PEERS] = p;
+  probe[PROBE_WANT] = w,  probe[PROBE_CHUNK] = c;
   curr_slot = 0;
   memset(slots, 0, sizeof(slots));
   memset(packets, 0, sizeof(packets));
   next_slot_millis = millis();
-  slots[0]           = -1; // GOset, start immediately
-  slots[(int)(10*SCHED_PPS)] = -2; // peers, start after 10 sec
-  slots[(int)(3*SCHED_PPS)] = -3; // want vect, start after 3 sec
-  slots[(int)(6*SCHED_PPS)] = -4; // chnk vect, start after 6 sec
+  slots[2]           = -1; // GOset, start immediately
+  slots[(int)(5*SCHED_PPS)] = -2; // peers, start after 5 sec
+  slots[(int)(2*SCHED_PPS)] = -3; // want vect, start after 3 sec
+  slots[(int)(4*SCHED_PPS)] = -4; // chnk vect, start after 6 sec
 }
 
 
@@ -44,7 +61,7 @@ void SchedClass::tick()
   if (ndx > 0) { // pkt slot
     ndx--;
     // Serial.printf("before io_send()\r\n");
-    io_send(packets[ndx], lengths[ndx], faces[ndx]);
+    io_send(packets[ndx], lengths[ndx], faces[ndx], origins[ndx]);
     // Serial.printf("after io_send()\r\n");
     free(packets[ndx]);
     packets[ndx] = NULL;
@@ -59,11 +76,12 @@ void SchedClass::tick()
   unsigned char *pkt = NULL;
   unsigned short len;
   unsigned short next_millis;
-  probe[ndx](&pkt, &len, &next_millis);
+  const char *cp;
+  probe[ndx](&pkt, &len, &next_millis, &cp);
   // Serial.println("  after probe");
   if (pkt != NULL) { // our slot, use it
     // Serial.printf("  probe %d has pkt: %d\r\n", ndx, len);
-    io_send(pkt, len);
+    io_send(pkt, len, NULL, cp);
     // Serial.printf("  after probe\r\n");
     free(pkt);
   }
@@ -79,13 +97,15 @@ void SchedClass::tick()
 
   
 void SchedClass::schedule_asap(unsigned char *pkt, unsigned short len,
-                               unsigned char *dmx, struct face_s *f)
+                               unsigned char *dmx, struct face_s *f,
+                               const char *origin)
 /*
   if dmx==NULL then we assume that *pkt is a malloced buffer that we will free
   else *pkt as well as *dmx are memory zone that we have to copy here
  */
 {
-  // Serial.printf("   sched_asap %p %d\r\n", pkt, len);
+  // Serial.printf("   sched_asap %p %d %s\r\n",
+  //               pkt, len, origin ? origin : "????");
   if (dmx != NULL) {
     unsigned char *tmp = (unsigned char*) malloc(len + DMX_LEN);
     memcpy(tmp, dmx, DMX_LEN);
@@ -111,6 +131,7 @@ void SchedClass::schedule_asap(unsigned char *pkt, unsigned short len,
     if (i >= 0) {
       packets[j] = pkt;
       lengths[j] = len;
+      origins[j] = origin;
       faces[j] = f;
       slots[i] = j+1;
     } else {
@@ -121,7 +142,7 @@ void SchedClass::schedule_asap(unsigned char *pkt, unsigned short len,
 }
 
 
-int SchedClass::_find_free_slot(int delay_millis) // evicts pkt if delay > 0
+int SchedClass::_find_free_slot(int delay_millis)
 {
   // Serial.printf("find_free_slot %d\r\n", delay_millis);
 

@@ -10,9 +10,15 @@
 
 #include "src/hardware.h"
 
+
 #if !defined(UTC_OFFSET)
 # define UTC_OFFSET ""
 #endif
+
+#if !defined(UTC_COMPILE_TIME)
+# define UTC_COMPILE_TIME __DATE__ " " __TIME__ UTC_OFFSET
+#endif
+
 
 // include files with actual code and data structures:
 #include "src/lib/node.h"
@@ -22,6 +28,7 @@
 
 struct bipf_s *the_config;
 
+char *utc_compile_time;
 unsigned char my_mac[6];
 char ssid[sizeof(tSSB_WIFI_SSID) + 6];
 
@@ -40,16 +47,18 @@ void theGOset_rx(unsigned char *pkt, int len, unsigned char *aux,
 
 void probe_for_goset_vect(unsigned char **pkt,
                           unsigned short *len,
-                          unsigned short *reprobe_in_millis)
+                          unsigned short *reprobe_in_millis,
+                          const char **origin)
 {
-  theGOset->probe_for_goset_vect(pkt, len, reprobe_in_millis);
+  theGOset->probe_for_goset_vect(pkt, len, reprobe_in_millis, origin);
 }
 
 void probe_for_peers_beacon(unsigned char **pkt,
                             unsigned short *len,
-                            unsigned short *reprobe_in_millis)
+                            unsigned short *reprobe_in_millis,
+                            const char **origin)
 {
-  thePeers->probe_for_peers_beacon(pkt, len, reprobe_in_millis);
+  thePeers->probe_for_peers_beacon(pkt, len, reprobe_in_millis, origin);
 }
 
 // ---------------------------------------------------------------------------
@@ -126,10 +135,16 @@ void setup()
   Serial.begin(115200);
   delay(10);
 
+  utc_compile_time = (char*) malloc(strlen(UTC_COMPILE_TIME) + 1);
+  strcpy(utc_compile_time, UTC_COMPILE_TIME);
+  for (char *cp = utc_compile_time; *cp; cp++)
+    if (*cp == '_') *cp = ' ';
+
   Serial.println();
   Serial.println("** Welcome to the tinySSB virtual pub "
                  "running on a " DEVICE_MAKE);
-  Serial.println("** compiled " __DATE__ ", " __TIME__ UTC_OFFSET);
+  // Serial.println("** compiled " __DATE__ ", " __TIME__ UTC_OFFSET);
+  Serial.printf("** compiled %s\r\n", utc_compile_time);
 
   esp_efuse_mac_get_default(my_mac);
 #if !defined(HAS_UDP)  // in case of no Wifi: display BT mac addr, instead
@@ -230,7 +245,7 @@ void setup()
     crypto_hash_sha256(h, (unsigned char*) GOSET_DMX_STR, strlen(GOSET_DMX_STR));
     memcpy(theDmx->goset_dmx, h, DMX_LEN);
     theDmx->arm_dmx(theDmx->goset_dmx, theGOset_rx, NULL);
-    Serial.printf("   DMX for GOST is %s\r\n", to_hex(theDmx->goset_dmx, 7, 0));
+    Serial.printf("   DMX for GosX is %s\r\n", to_hex(theDmx->goset_dmx, 7, 0));
   }
 
   theUI->show_boot_msg("load feed data ...");

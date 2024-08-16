@@ -265,7 +265,7 @@ void UI_Heltec_Class::refresh_screen(int scr)
     int w = theDisplay.getStringWidth(ssid+8);
     theDisplay.drawString(128-w, 0, ssid+8);
     theDisplay.setFont(ArialMT_Plain_10);
-    theDisplay.drawString(0 , 17, __DATE__ " " __TIME__ UTC_OFFSET);
+    theDisplay.drawString(0 , 17, utc_compile_time);
 
 #ifdef HAS_LORA
     int f = the_lora_config->fr / 10000;

@@ -60,7 +60,8 @@ class GOsetClass {
 
   void probe_for_goset_vect(unsigned char **pkt,
                             unsigned short *len,
-                            unsigned short *reprobe_in_millis);
+                            unsigned short *reprobe_in_millis,
+                            const char **origin);
   
  private:
   unsigned long last_round = 0;

@@ -12,7 +12,7 @@
 #define DMXT_SIZE   (6+GOSET_MAX_KEYS) // we need place for want (1 per feed),
                                        // plus misc protocols (GOset, mgmt, WANT, CHNK)
 #define CHKT_SIZE   45 // 3 times a normal chunk vector size
-#define DMX_PFX     "tinyssb-v0"
+#define DMX_PFX     (DMX_NETWORK_KEY "tinyssb-v0")
 
 struct dmx_s {
   unsigned char dmx[DMX_LEN];

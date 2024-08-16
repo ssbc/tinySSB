@@ -51,7 +51,7 @@ MAIN=$(shell ls *.ino)
 BAUD=921600
 FLASH_BIN=firmware-$(BOARD).bin
 
-FLAGS_ALL=-DUTC_OFFSET=\"$(shell date +%z)\"
+FLAGS_ALL=-DUTC_OFFSET=\"$(shell date +%z)\" -DUTC_COMPILE_TIME=\"$(shell date -u +'%b_%d_%Y_%H:%M:%S_UTC')\"
 
 ifeq ($(BOARD),Heltec)
   CHIP=esp32

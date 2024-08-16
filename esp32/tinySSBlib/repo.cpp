@@ -124,8 +124,8 @@ void Repo2Class::add_replica(unsigned char *fid)
     chnk_offs = esp_random() % theGOset->goset_len;
   }
   
-  want_is_valid = 0;
-  chnk_is_valid = 0;
+  want_is_valid = false;
+  chnk_is_valid = false;
 }
 
 ReplicaClass* Repo2Class::fid2replica(unsigned char* fid) {
@@ -141,8 +141,9 @@ ReplicaClass* Repo2Class::fid2replica(unsigned char* fid) {
 
 void Repo2Class::mk_want_vect()
 {
-  if (want_is_valid)
-    return;
+  // the following prevents rotation:
+  // if (want_is_valid)
+  //  return;
 
   String v = "";
   struct bipf_s *lptr = bipf_mkList();
@@ -150,12 +151,13 @@ void Repo2Class::mk_want_vect()
 
   bipf_list_append(lptr, bipf_mkInt(want_offs));
 
-  int i;
-  for (i = 0; i < theGOset->goset_len; i++) {
+  int new_want_offs = want_offs + 1;
+  for (int i = 0; i < theGOset->goset_len; i++) {
     unsigned int ndx = (want_offs + i) % theGOset->goset_len;
     unsigned char *fid = theGOset->get_key(ndx);
     ReplicaClass *r = theRepo->fid2replica(fid);
 
+    new_want_offs++;
     int ns = r->get_next_seq(NULL);
     struct bipf_s *bptr = bipf_mkInt(ns);
     encoding_len += bipf_encodingLength(bptr);
@@ -167,19 +169,19 @@ void Repo2Class::mk_want_vect()
     io_loop();
     // io_dequeue();
   }
-  want_offs = (want_offs + i + 1) % theGOset->goset_len;
+  want_offs = new_want_offs % theGOset->goset_len;
 
   free(want_vect);
   if (lptr->cnt > 1) {
     want_len = bipf_encodingLength(lptr);
     want_vect = (unsigned char*) malloc(want_len);
     bipf_encode(want_vect, lptr);
-    Serial.printf("   new WANT=%s ] %dB\r\n", v.c_str(), want_len);
+    Serial.printf("   our DreQ=%s ] %dB\r\n", v.c_str(), want_len);
   } else
     want_len = 0;
 
   bipf_free(lptr);
-  want_is_valid = 1;
+  // want_is_valid = 1;
 }
 
 
@@ -195,21 +197,21 @@ void Repo2Class::mk_chnk_vect()
   if (theGOset->goset_len == 0)
     chnk_len = 0;
   else {
-    static int ndx = esp_random() % theGOset->goset_len;
-    int old_ndx = ndx;
-    int cnt = 0;
+    // randomized start point, instead of round-robin
+    int ndx = esp_random() % theGOset->goset_len;
     String v = "";
     struct bipf_s *lptr = bipf_mkList();
     int encoding_len = bipf_encodingLength(lptr);
 
+    int old_ndx = ndx;
     do {
       struct chunk_needed_s table[4];
       ndx = (ndx+1) % theGOset->goset_len;
       ReplicaClass *r = fid2replica(theGOset->get_key(ndx));
       io_loop();
-      Serial.println("asking for open sidechains");
+      // Serial.println("asking for open sidechains");
       int n = r->get_open_sidechains(4, table);
-      Serial.printf(" --> n=%d\r\n", n);
+      // Serial.printf(" --> n=%d\r\n", n);
       for (int i = 0; i < n; i++) {
         // Serial.printf("  h=%s s=%d c=%d\r\n",
         //               to_hex(table[i].hash, HASH_LEN),
@@ -234,7 +236,7 @@ void Repo2Class::mk_chnk_vect()
       chnk_len = bipf_encodingLength(lptr);
       chnk_vect = (unsigned char*) malloc(chnk_len);
       bipf_encode(chnk_vect, lptr);
-      Serial.printf("   new C=%s ] %dB\r\n", v.c_str(), chnk_len);
+      Serial.printf("   our CreQ=%s ] %dB\r\n", v.c_str(), chnk_len);
     } else
       chnk_len = 0;
     bipf_free(lptr);

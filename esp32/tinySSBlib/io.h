@@ -18,7 +18,7 @@ struct face_s {
   unsigned long next_send;
   unsigned int next_delta;
   RingBuffer *in_buf;
-  void (*send)(unsigned char *buf, short len);
+  void (*send)(unsigned char *buf, short len, const char *origin);
   void (*loop)(); // check for incoming packets
 };
 
@@ -26,7 +26,8 @@ void io_init();
 void io_loop(); // check for received packets
 void io_proc(); // process received packets
 
-void io_send(unsigned char *buf, short len, struct face_s *f=NULL);
+void io_send(unsigned char *buf, short len,
+             struct face_s *f=NULL, const char *origin=NULL);
 
 #endif
 

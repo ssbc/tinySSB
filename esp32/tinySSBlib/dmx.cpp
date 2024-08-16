@@ -160,13 +160,13 @@ void DmxClass::set_want_dmx()
   memcpy(buf+4, theGOset->goset_state, GOSET_KEY_LEN);
   compute_dmx(this->want_dmx, buf, sizeof(buf));
   arm_dmx(this->want_dmx, incoming_want_request, NULL);
-  Serial.println(String("   DMX for WANT is ") + to_hex(this->want_dmx, DMX_LEN, 0));
+  Serial.println(String("   DMX for DreQ is ") + to_hex(this->want_dmx, DMX_LEN, 0));
 
   memcpy(buf, "blob", 4); // FIXME: value is historic -- should be the string "chunk" for a next tinySSB protocol version 
   memcpy(buf+4, theGOset->goset_state, GOSET_KEY_LEN);
   compute_dmx(this->chnk_dmx, buf, sizeof(buf));
   arm_dmx(this->chnk_dmx, incoming_chnk_request, NULL);
-  Serial.println(String("   DMX for CHNK is ") + to_hex(this->chnk_dmx, DMX_LEN, 0));
+  Serial.println(String("   DMX for CreQ is ") + to_hex(this->chnk_dmx, DMX_LEN, 0));
 }
 
 // eof

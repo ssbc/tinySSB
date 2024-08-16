@@ -22,7 +22,8 @@ public:
   PeersClass(/* filename for log */);
   void probe_for_peers_beacon(unsigned char **pkt,
                               unsigned short *len,
-                              unsigned short *reprobe_in_millis);
+                              unsigned short *reprobe_in_millis,
+                              const char **origin);
   void incoming_req(unsigned char *pkt, int len, unsigned char *aux,
                     struct face_s *face);
   void incoming_rep(unsigned char *pkt, int len, unsigned char *aux,

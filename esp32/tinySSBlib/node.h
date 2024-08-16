@@ -21,7 +21,7 @@ void incoming_want_request(unsigned char *buf, int len, unsigned char *aux, stru
   }
   struct bipf_s **lst = lptr->u.list;
   int offs = lst[0]->u.i;
-  int credit = 3;
+  int credit = 5;
   // we should send log entries from different feeds, if possible.
   // otherwise a lost tSSB packet will render the subsequent packets useless
   // wherefore we create a frontier copy
@@ -45,7 +45,8 @@ void incoming_want_request(unsigned char *buf, int len, unsigned char *aux, stru
       // io_enqueue(pkt, TINYSSB_PKT_LEN);
       unsigned char *tmp = (unsigned char*) malloc(TINYSSB_PKT_LEN);
       memcpy(tmp, pkt, TINYSSB_PKT_LEN);
-      theSched->schedule_asap(tmp, TINYSSB_PKT_LEN, NULL, f);
+      theSched->schedule_asap(tmp, TINYSSB_PKT_LEN, NULL, f,
+                              pkt_origin_data);
  
       found_something++;
       seq_copy[i]++;
@@ -62,7 +63,7 @@ void incoming_want_request(unsigned char *buf, int len, unsigned char *aux, stru
     while (seq_copy[i]-- > seq)
       v += "*";
   }
-  Serial.println("   =W " + v + " ]");
+  Serial.println("   their DreQ=" + v + " ]");
   bipf_free(lptr);
   free(seq_copy);
   return;
@@ -72,13 +73,13 @@ void incoming_chnk_request(unsigned char *buf, int len, unsigned char *aux, stru
 {
   struct bipf_s *lptr = bipf_loads(buf + DMX_LEN, len - DMX_LEN);
   if (lptr == NULL || lptr->typ != BIPF_LIST) {
-    Serial.printf("   =C formatting error\r\n");
+    Serial.printf("   =CreQ formatting error\r\n");
     return;
   }
   int err_cnt = 0;
   struct bipf_s **slpptr = lptr->u.list;
   // FIXME: should assemble sequence of chunks from different sidechains, if possible.
-  // otherwise a lost tSSB packet will render the subsequent chained packets useless
+  // otherwise a lost tSSB packet will render the subsequent chained packets uselessg
   short* cnr_copy = (short*) malloc(lptr->cnt * sizeof(short));
   for (int i = 0; i < lptr->cnt; i++, slpptr++) {
     cnr_copy[i] = -1;
@@ -86,7 +87,7 @@ void incoming_chnk_request(unsigned char *buf, int len, unsigned char *aux, stru
         (*slpptr)->u.list[2]->typ == BIPF_INT)
       cnr_copy[i] = (*slpptr)->u.list[2]->u.i;
   }
-  int credit = 3;
+  int credit = 5;
   char found_something = 1;
   while (credit > 0 && found_something) {
     found_something = 0;
@@ -136,8 +137,8 @@ void incoming_chnk_request(unsigned char *buf, int len, unsigned char *aux, stru
       // io_enqueue(chunk, TINYSSB_PKT_LEN, NULL, f);
       unsigned char *tmp = (unsigned char*) malloc(TINYSSB_PKT_LEN);
       memcpy(tmp, chunk, TINYSSB_PKT_LEN);
-      theSched->schedule_asap(tmp, TINYSSB_PKT_LEN);
-       
+      theSched->schedule_asap(tmp, TINYSSB_PKT_LEN, NULL, NULL,
+                              pkt_origin_chnk);
       found_something++;
       cnr_copy[i]++; // chunk nr
       credit--;
@@ -155,7 +156,7 @@ void incoming_chnk_request(unsigned char *buf, int len, unsigned char *aux, stru
     while (cnr_copy[i]-- > lst[2]->u.i)
       v += "*";
   }
-  Serial.println("   =C " + v + " ]");
+  Serial.println("   their CreQ=" + v + " ]");
 
   bipf_free(lptr);
   free(cnr_copy);
@@ -171,7 +172,7 @@ void incoming_entry(unsigned char *buf, int len, unsigned char *fid, struct face
   unsigned long now = millis();
   ReplicaClass *r = theRepo->fid2replica(fid);
   if (r->ingest_entry_pkt(buf)) {
-    theRepo->want_is_valid = 0;
+    theRepo->want_is_valid = false;
     theRepo->entry_cnt++;
     theDmx->arm_dmx(buf); // remove old DMX handler for this packet
 
@@ -202,6 +203,8 @@ void incoming_entry(unsigned char *buf, int len, unsigned char *fid, struct face
   packet_proc_cnt++;
 }
 
+#define MAX_CONT 4
+
 void incoming_chunk(unsigned char *buf, int len, int chkt_ndx, struct face_s *f)
 {
   // Serial.println("   incoming chunk");
@@ -211,20 +214,31 @@ void incoming_chunk(unsigned char *buf, int len, int chkt_ndx, struct face_s *f)
 
   char is_valid = 0;
   struct hsh_s *bp = theDmx->chkt + chkt_ndx;
-  for (struct chain_s *tp = bp->front; tp; tp = tp->next) {
+  struct chain_s cont[MAX_CONT], *tp;
+  int cont_cnt = 0;
+  for (tp = bp->front; tp; tp = tp->next) {
     int ndx = theGOset->_key_index(tp->fid);
     int next_cnr = tp->cnr;
     if (theRepo->fid2replica(tp->fid)->ingest_chunk_pkt(buf, tp->seq, &next_cnr)) {
       is_valid = 1;
-      Serial.printf("   persisted chunk %d.%d.%d", ndx, tp->seq, tp->cnr);
+      Serial.printf("   persisted chunk %d.%d.%d (last=%d)",
+                    ndx, tp->seq, tp->cnr, tp->last_cnr);
       theRepo->chnk_is_valid = 0;
       theRepo->chunk_cnt++;
+      theUI->refresh();
       // FIXME: cannot do the following as rearming can dealloc the linked list
       /*
       if (next_cnr > 0)
         theDmx->arm_hsh(buf+100, incoming_chunk, tp->fid, tp->seq, tp->cnr+1, tp->last_cnr);
       */
-      theUI->refresh();
+      // wherefore we copy the values:
+      int is_end = 1;
+      for (int i = 0; i < HASH_LEN; i++)
+        if (buf[100+i] != 0) { is_end = 0; break; }
+      if (!is_end && cont_cnt < MAX_CONT) {
+        memcpy(cont + cont_cnt, tp, sizeof(struct chain_s));
+        cont_cnt++;
+      }
     } else 
       Serial.printf("  invalid chunk %d.%d.%d/%d or file problem?",
                     ndx, tp->seq, tp->cnr, tp->last_cnr);
@@ -233,7 +247,17 @@ void incoming_chunk(unsigned char *buf, int len, int chkt_ndx, struct face_s *f)
     theSched->tick();
   }
   if (is_valid)
-    theDmx->arm_hsh(bp->h); // remove old CHUNK handler for this hash val
+    theDmx->arm_hsh(bp->h); // remove old CHUNK handler(s) for this hash val
+
+  // reinstall handler(s) for the chain continuation
+  int i;
+  for (i = 0, tp = cont; i < cont_cnt; i++, tp++) {
+    theDmx->arm_hsh(buf+100, incoming_chunk, tp->fid, tp->seq, tp->cnr+1,
+                    tp->last_cnr);
+    Serial.printf("   rearmed for %d.%d.%d / %s\r\n",
+                  theGOset->_key_index(tp->fid), tp->seq, tp->cnr+1,
+                  to_hex(buf+100, 20));
+  }
   // Serial.printf("   end of persisting chunk\r\n");
 
   int delta = millis() - now;
@@ -296,7 +320,8 @@ void node_tick()
 
 void probe_for_want_vect(unsigned char **pkt,
                          unsigned short *len,
-                         unsigned short *reprobe_in_millis)
+                         unsigned short *reprobe_in_millis,
+                         const char **origin)
 {
   // Serial.println("probe_for_chnk_vect");
   *reprobe_in_millis = NODE_ROUND_LEN/2 + esp_random() % 500;
@@ -307,9 +332,10 @@ void probe_for_want_vect(unsigned char **pkt,
   theRepo->mk_want_vect();
   if (theRepo->want_len <= 0)
     return;
-  Serial.println("   prepare WANT vect");
+  // Serial.println("   prepare WANT vect");
   *len = 7 + theRepo->want_len;
   *pkt = (unsigned char*) malloc(*len);
+  *origin = pkt_origin_dreq;
   memcpy(*pkt, theDmx->want_dmx, 7);
   memcpy(*pkt + 7, theRepo->want_vect, theRepo->want_len);
 }
@@ -317,7 +343,8 @@ void probe_for_want_vect(unsigned char **pkt,
 
 void probe_for_chnk_vect(unsigned char **pkt,
                          unsigned short *len,
-                         unsigned short *reprobe_in_millis)
+                         unsigned short *reprobe_in_millis,
+                         const char **origin)
 {
   // Serial.println("probe_for_chnk_vect");
   *reprobe_in_millis = NODE_ROUND_LEN/2 + esp_random() % 500;
@@ -330,9 +357,10 @@ void probe_for_chnk_vect(unsigned char **pkt,
   // Serial.println(" did ask repo");
   if (theRepo->chnk_len <= 0)
     return;
-  Serial.println("   prepare CHNK vect");
+  // Serial.println("   prepare CHNK vect");
   *len = 7 + theRepo->chnk_len;
   *pkt = (unsigned char*) malloc(*len);
+  *origin = pkt_origin_creq;
   memcpy(*pkt, theDmx->chnk_dmx, 7);
   memcpy(*pkt + 7, theRepo->chnk_vect, theRepo->chnk_len);
 }

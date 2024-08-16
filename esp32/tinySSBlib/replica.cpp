@@ -120,7 +120,8 @@ int ReplicaClass::load_chunk_cnt() // summed over all sequence numbers
   File f = MyFS.open(fname, "r");
   if (!f)
     return 0;
-  int cnt = 0, k = 0, s = seq;
+  int cnt = 0, rem = 0, k = 0, s = seq;
+  int ndx = theGOset->_key_index(fid);
   uint32_t endAddr = f.size() - 2 * sizeof(uint32_t);
   while (endAddr != 0) {
     if ((++k % 10) == 0)
@@ -134,24 +135,27 @@ int ReplicaClass::load_chunk_cnt() // summed over all sequence numbers
       bool is_empty = true;
       for (int i = 0; i < HASH_LEN; i++)
         if (tmp[i] != 0) { is_empty = false; break; }
-      int delta;
-      if (is_empty)
+      int delta, missing;
+      if (is_empty) {
         delta = (endAddr-startAddr - HASH_LEN - sizeof(uint32_t)) \
                                                        / TINYSSB_PKT_LEN - 1;
-      else {
+        missing = 0;
+      } else {
         f.seek(endAddr - sizeof(uint32_t) - HASH_LEN - \
                                                 3*sizeof(uint32_t), SeekSet);
         delta = _read_uint32(f);
+        missing = _read_uint32(f);
       }
-      // Serial.printf("delta for seq=%d is %d\r\n", s, delta);
+      // Serial.printf(".. sidechain %d.%d: cnt=%d, rem=%d\r\n",
+      //               ndx, s, delta, missing);
       cnt += delta;
+      rem += missing;
     }
     endAddr = startAddr;
     s--;
   }
   f.close();
-  // Serial.printf("chunk count for fid=%d is %d\r\n",
-  //               theGOset->_key_index(fid), cnt);
+  // Serial.printf(".. chunk count for fid=%d is %d+%d\r\n", ndx, cnt, rem);
   chunk_cnt = cnt;
   return cnt;
 }
@@ -314,7 +318,7 @@ char ReplicaClass::ingest_chunk_pkt(unsigned char *pkt, int snr, int *cnr) // Tr
   f.seek(startAddr + (1+have) * TINYSSB_PKT_LEN, SeekSet);
   f.write(pkt, TINYSSB_PKT_LEN);
   if (left == 1) { // this was the last chunk, trim the pending chain
-    Serial.printf("  chain %d.%d.%d complete\r\n",
+    Serial.printf("   chain %d.%d.%d complete\r\n",
                   theGOset->_key_index(fid), snr, *cnr);
     if (pendscc == endAddr) {
       pendscc = pscc;
@@ -338,8 +342,8 @@ char ReplicaClass::ingest_chunk_pkt(unsigned char *pkt, int snr, int *cnr) // Tr
       }
     }
   } else { // update side chain status
-    Serial.printf("  writing new chain status %d.%d.%d: have=%d left=%d\r\n",
-                  theGOset->_key_index(fid), snr, *cnr, have+1, left-1);
+    // Serial.printf("   writing new chain status %d.%d.%d: have=%d left=%d\r\n",
+    //               theGOset->_key_index(fid), snr, *cnr, have+1, left-1);
     f.seek(endAddr - sizeof(uint32_t) - HASH_LEN - 3*sizeof(uint32_t), SeekSet);
     _write_uint32(f, have+1);
     _write_uint32(f, left-1);
@@ -451,20 +455,16 @@ int ReplicaClass::get_open_sidechains(int max_cnt, struct chunk_needed_s *pcn)
     return 0;
   File f = MyFS.open(fname, "r");
   f.seek(f.size() - 2*sizeof(uint32_t));
-  f.close();
   uint32_t pos = _read_uint32(f);
+  f.close();
   if (pos == 0)
     return 0;
-  int cnt = 0;
-  uint32_t old_iter;
-  if (pssc_iter == 0) {
-    old_iter = 1;
+
+  int ndx = theGOset->_key_index(fid);
+  int cnt = 0; // max_count is per feed
+  if (--pssc_iter <= 0)
     pssc_iter = seq;
-  } else {
-    old_iter = pssc_iter;
-    if (--pssc_iter == 0)
-      pssc_iter = seq;
-  }
+  uint32_t old_iter = pssc_iter;
   uint32_t endAddr;
   f = _open_at_start(pssc_iter, &endAddr);
   uint32_t startAddr = f.position();
@@ -480,7 +480,9 @@ int ReplicaClass::get_open_sidechains(int max_cnt, struct chunk_needed_s *pcn)
         pcn[cnt].snr = pssc_iter;
         f.seek(endAddr - sizeof(uint32_t) - HASH_LEN -                  \
                                                 3*sizeof(uint32_t), SeekSet);
-        pcn[cnt].cnr = _read_uint32(f); // have
+        pcn[cnt].cnr = _read_uint32(f); // number of chunks I have
+        // Serial.printf("    %d.%d.%d is missing\r\n",
+        //               ndx, pssc_iter, pcn[cnt].cnr);
         if (pcn[cnt].cnr == 0)
           f.seek(startAddr + 36);
         else
@@ -488,15 +490,15 @@ int ReplicaClass::get_open_sidechains(int max_cnt, struct chunk_needed_s *pcn)
         f.read(pcn[cnt].hash, HASH_LEN);
         cnt++;
       }
-      // else Serial.printf("    s=%d has full sidechain\r\n", pssc_iter);
+      // else Serial.printf("    %d.%d has full sidechain\r\n", ndx, pssc_iter);
     }
-    // else Serial.printf("    s=%d has no sidechain\r\n", pssc_iter);
+    // else Serial.printf("    %d.%d has no sidechain\r\n", ndx, pssc_iter);
     if (startAddr != 0) {
       endAddr = startAddr;
       f.seek(endAddr - sizeof(uint32_t));
       startAddr = _read_uint32(f);
       pssc_iter--;
-    } else {
+    } else { // begin of log, pssc_iter is 1
       f.close();
       pssc_iter = seq;
       f = _open_at_start(pssc_iter, &endAddr);

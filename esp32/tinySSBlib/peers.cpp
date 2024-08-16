@@ -37,8 +37,8 @@ PeersClass::PeersClass()
   theDmx->arm_dmx(peer_dmx_req, peer_incoming_req, NULL, 0);
   theDmx->arm_dmx(peer_dmx_rep, peer_incoming_rep, NULL, 0);
 
-  Serial.printf("   DMX for PEEQ is %s\r\n", to_hex(peer_dmx_req, 7, 0));
-  Serial.printf("   DMX for PEER is %s\r\n", to_hex(peer_dmx_rep, 7, 0));
+  Serial.printf("   DMX for PreQ is %s\r\n", to_hex(peer_dmx_req, 7, 0));
+  Serial.printf("   DMX for PreP is %s\r\n", to_hex(peer_dmx_rep, 7, 0));
 
   peer_clock = 0;
 
@@ -49,9 +49,12 @@ PeersClass::PeersClass()
 
 void PeersClass::probe_for_peers_beacon(unsigned char **pkt,
                                         unsigned short *len,
-                                        unsigned short *reprobe_in_millis)
+                                        unsigned short *reprobe_in_millis,
+                                        const char **origin)
 {
-  Serial.println("   prepare PEER beacon");
+  // Serial.println("   prepare PEER beacon");
+
+  *pkt = NULL;
 
   long now = millis();
   int cnt = 0;
@@ -79,8 +82,9 @@ void PeersClass::probe_for_peers_beacon(unsigned char **pkt,
             gps.location.lng(), gps.altitude.meters());
 #endif
 
+  Serial.printf("   P: mk query '%s' (%dB)\r\n", buf, strlen(buf));
   theSched->schedule_asap((unsigned char*) buf, strlen(buf),
-                          peer_dmx_req);
+                          peer_dmx_req, NULL, pkt_origin_preq);
 
   *reprobe_in_millis = PEERS_INTERVAL + esp_random() % 2000;
 }
@@ -94,7 +98,7 @@ void PeersClass::incoming_req(unsigned char *pkt, int len, unsigned char *aux,
 
   memcpy((unsigned char*) str, pkt+7, len-7); // extract payload
   str[len-7] = '\0';
-  Serial.printf("   =P.ping <%s> %dB", str, len);
+  Serial.printf("   their PreQ='%s' %dB", str, len);
 
   char buf[200];
   sprintf(buf, "R %02x%02x t=%d", my_mac[4], my_mac[5], peer_clock);
@@ -122,8 +126,9 @@ void PeersClass::incoming_req(unsigned char *pkt, int len, unsigned char *aux,
 
   if (strlen(buf) >= 113)
     buf[113] = '\0';
+  Serial.printf("   P: mk reply '%s' (%dB)\r\n", buf, strlen(buf));
   theSched->schedule_asap((unsigned char*) buf, strlen(buf),
-                          peer_dmx_rep, face);
+                          peer_dmx_rep, face, pkt_origin_prep);
   // we log the received request via our reply 'R' that we send back
   peers_log_wr(buf);
 
@@ -141,7 +146,7 @@ void PeersClass::incoming_rep(unsigned char *pkt, int len, unsigned char *aux,
 
   memcpy((unsigned char*) str, pkt+7, len-7);
   str[len-7] = '\0';
-  Serial.printf("   =P.pong <%s> %dB", str, len);
+  Serial.printf("   their PreP='%s' %dB", str, len);
 
   char buf[250];
   sprintf(buf, "A %02x%02x t=%d", my_mac[4], my_mac[5], peer_clock);

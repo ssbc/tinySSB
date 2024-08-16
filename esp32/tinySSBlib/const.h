@@ -15,7 +15,8 @@
 #define FEED_PATH_SIZE  sizeof(FEED_DIR) + 1 + 2 * FID_LEN
 
 #define DMX_LEN          7
-#define GOSET_DMX_STR    "tinySSB-0.1 GOset 1"
+#define DMX_NETWORK_KEY  ""
+#define GOSET_DMX_STR    (DMX_NETWORK_KEY "tinySSB-0.1 GOset 1")
 
 #define TINYSSB_PKT_LEN  120
 #define TINYSSB_SCC_LEN  (TINYSSB_PKT_LEN - HASH_LEN) // sidechain content per packet
@@ -35,6 +36,7 @@
 
 #define BLE_RING_BUF_SIZE 3
 
-#define NODE_ROUND_LEN   14000  // millis, for GOset, 1/2 is basis for WANT/CHNK
+// #define NODE_ROUND_LEN   14000  // millis, for GOset, 1/2 is basis for WANT/CHNK
+#define NODE_ROUND_LEN   3000  // millis, for GOset, 1/2 is basis for WANT/CHNK
 
 // eof

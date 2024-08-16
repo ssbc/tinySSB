@@ -53,7 +53,7 @@ private:
   uint32_t seq = 0;            // highest stored seq nr
   unsigned char mid[HASH_LEN]; // mid of above packet
   uint32_t pendscc = 0;        // pending side chain chain (as stored), or 0
-  uint32_t pssc_iter = 0;      // last seq nr we looked at for open side chain
+  uint32_t pssc_iter = 1;      // last seq nr we looked at for open side chain
 
   // struct bipf_s *state; // NULL if not loaded yet
   // struct bipf_s *max_seq_ref, *max_pos_ref, *prev_ref, *pending_ref;

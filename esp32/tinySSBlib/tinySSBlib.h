@@ -49,6 +49,8 @@ extern PeersClass *thePeers;
 // ---------------------------------------------------------------------------
 // global variables and function forward declarations
 
+extern char *utc_compile_time;
+
 extern unsigned char my_mac[6];
 #if defined(HAS_UDP) || defined(HAS_BT) || defined(HAS_BLE)
 extern char ssid[];
