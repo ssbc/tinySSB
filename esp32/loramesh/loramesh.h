@@ -1,6 +1,7 @@
 // loramesh.h
 
 #include "src/lib/tinySSBlib.h"
+#include <esp_mac.h>
 
 #include "src/ui-heltec.h"
 #include "src/ui-t5gray.h"
@@ -127,6 +128,8 @@ void time_stamp()
 }
 
 // ---------------------------------------------------------------------------
+
+int esp_efuse_mac_get_default(uint8_t *mac);
 
 void setup()
 {

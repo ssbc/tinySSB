@@ -1,16 +1,17 @@
 // ui-heltec.cpp
 
-#ifdef TINYSSB_BOARD_HELTEC
+#include "ui-heltec.h"
+
+#if defined(TINYSSB_BOARD_HELTEC) || defined(TINYSSB_BOARD_HELTEC3)
 
 #include <ctype.h>   // for toupper()
 #include <cstdarg>   // for va_list()
 
 #include "hardware.h"
-#include "ui-heltec.h"
-
 
 // user button
-#define BUTTON_PIN KEY_BUILTIN  // for heltec?
+// #define BUTTON_PIN KEY_BUILTIN  // for heltec?
+#define BUTTON_PIN GPIO_NUM_0 // correct?
 
 #include "lib/cmd.h"
 
@@ -91,8 +92,6 @@ void long_clicked(Button2& btn)
     }
   }
 }
-
-// ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
 
@@ -416,6 +415,6 @@ void UI_Heltec_Class::lora_advance_wheel()
   refresh();
 }
 
-#endif // TINYSSB_BOARD_HELTEC
+#endif // TINYSSB_BOARD_HELTEC || TINYSSB_BOARD_HELTEC3
 
 // eof

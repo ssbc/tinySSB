@@ -8,6 +8,10 @@
 #ifndef _INCLUDE_TINYSSBLIB_H
 #define _INCLUDE_TINYSSBLIB_H
 
+// define the suitable macro for your board here, in case you compile
+// with the Arduino IDE:
+// #define TINYSSB_BOARD_HELTEC
+
 // ---------------------------------------------------------------------------
 
 #ifdef ARDUINO

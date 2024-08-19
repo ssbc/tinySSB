@@ -35,6 +35,22 @@
 
 // ---------------------------------------------------------------------------
 
+#ifdef TINYSSB_BOARD_HELTEC3
+# define DEVICE_MAKE "Heltec LoRa32 v3"
+# define HAS_BLE
+# define HAS_LORA
+# define HAS_OLED
+
+# define USE_RADIO_LIB
+# define USING_SX1262
+# define radio sx1262_radio
+
+//# define USE_LORA_LIB
+
+#endif // TINYSSB_BOARD_HELTEC3
+
+// ---------------------------------------------------------------------------
+
 #ifdef TINYSSB_BOARD_T5GRAY
 // https://www.lilygo.cc/products/t5-2-13inch-e-paper
 # define DEVICE_MAKE "Lilygo T5-Grayscale"

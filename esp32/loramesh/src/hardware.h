@@ -8,7 +8,7 @@ extern void hw_init();
 // collects hardware-specific constants for all boards
 
 // ---------------------------------------------------------------------------
-#ifdef TINYSSB_BOARD_HELTEC
+#if defined(TINYSSB_BOARD_HELTEC) || defined(TINYSSB_BOARD_HELTEC3)
 
 // # define SCK     5    // GPIO5  -- SX1278's SCK
 // # define MISO    19   // GPIO19 -- SX1278's MISO

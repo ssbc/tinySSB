@@ -6,8 +6,11 @@
 #include "hardware.h"
 
 // ---------------------------------------------------------------------------
-#ifdef TINYSSB_BOARD_HELTEC
+#if defined(TINYSSB_BOARD_HELTEC) || defined(TINYSSB_BOARD_HELTEC3)
 
+#ifdef USING_SX1262
+  SX1262 radio = new Module(SS, DI0, RST);
+#endif
 #ifdef USING_SX1276
   SX1276 radio = new Module(SS, DI0, RST);
 #endif
@@ -186,4 +189,5 @@ void hw_init()
 #endif
 
 // ---------------------------------------------------------------------------
+
 // eof

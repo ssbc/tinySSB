@@ -28,8 +28,11 @@
 # adjust the following: places where the arduino-cli executable etc sit
 
 ARDUINO_CLI=$(shell which arduino-cli;)
-ARDUINO_DATA=$(shell arduino-cli config dump |awk '/data/ {print $$2}';)
+# ARDUINO_DATA=$(shell arduino-cli config dump |awk '/data/ {print $$2}';)
+# since arduino-cli 1.0:
+ARDUINO_DATA=$(shell arduino-cli config get directories |awk '/data/ {print $$2}';)
 ARDUINO_ESP_DIR=$(ARDUINO_DATA)/packages/esp32
+# $(info ARDUINO_ESP_DIR    is   $(ARDUINO_DATA)/packages/esp32)
 
 # ---------------------------------------------------------------------------
 
@@ -42,7 +45,7 @@ ESPTOOL=$(shell find $(ARDUINO_ESP_DIR)/tools -name "esptool$(ESPTOOL_EXT)";)
 BOOTAPP0PATH=$(shell find $(ARDUINO_ESP_DIR)/hardware -name "boot_app0.bin";)
 
 ifndef BOARD
-  $(info ">> please specify a BOARD (Heltec, T5gray, TBeam, TDeck, TWrist)")
+  $(info ">> please specify a BOARD (Heltec, Heltec3, T5gray, TBeam, TDeck, TWrist)")
   stop
 endif
 
@@ -50,6 +53,9 @@ MAIN=$(shell ls *.ino)
 
 BAUD=921600
 FLASH_BIN=firmware-$(BOARD).bin
+
+PLATFORM_TXT_FILE=$(shell find /Users/tschudin/Library/Arduino15/packages/esp32/ -name 'platform.txt' | head -1;)
+FLAGS_PLATFORM=$(shell cat $(PLATFORM_TXT_FILE) | awk -F = '/^compiler.cpp.extra_flags/ {print $$2}';)
 
 FLAGS_ALL=-DUTC_OFFSET=\"$(shell date +%z)\" -DUTC_COMPILE_TIME=\"$(shell date -u +'%b_%d_%Y_%H:%M:%S_UTC')\"
 
@@ -61,6 +67,15 @@ ifeq ($(BOARD),Heltec)
   FLASH_SIZE=8MB
   FLASH_OFFS=0x1000
   FLAGS_BOARD=-DTINYSSB_BOARD_HELTEC
+
+else ifeq ($(BOARD),Heltec3)
+  CHIP=esp32s3
+  FQBN=esp32:esp32:heltec_wifi_lora_32_V3
+  PARTITIONS_CSV=partitions-heltec.csv
+  MAX_UPLOAD=1572864 # 1.5MB
+  FLASH_SIZE=8MB
+  FLASH_OFFS=0x1000
+  FLAGS_BOARD=-DTINYSSB_BOARD_HELTEC3
 
 else ifeq ($(BOARD),T5gray)
   BAUD=460800
@@ -106,7 +121,9 @@ else
 endif
 
 ifndef SERIAL
-  ifeq ($(BOARD),Heltec) # heltec LORA32
+  ifeq ($(BOARD),Heltec) # heltec LORA32 v2
+    SERIAL = $(shell ls /dev/tty.usbserial-????)
+  else ifeq ($(BOARD),Heltec3) # heltec LORA32 v3
     SERIAL = $(shell ls /dev/tty.usbserial-????)
   else ifeq ($(BOARD),T5gray)
     SERIAL = $(shell ls /dev/tty.usbserial-???????????)
@@ -122,7 +139,7 @@ ifndef SERIAL
   # $(foreach var,$(SERIAL), fuser -f $(var);) ...
 endif
 
-EXTRA_CPP_FLAGS=--build-property compiler.cpp.extra_flags="$(FLAGS_ALL) $(FLAGS_BOARD) $(FLAG)"
+EXTRA_CPP_FLAGS=--build-property compiler.cpp.extra_flags="$(FLAGS_PLATFORM) $(FLAGS_ALL) $(FLAGS_BOARD) $(FLAG)"
 
 # ----------------------------------------------------------------------
 
@@ -141,12 +158,13 @@ firmware:
 	rm -f partitions.csv
 	ln -s assets/$(PARTITIONS_CSV) partitions.csv
 	mkdir -p build
+
 	$(ARDUINO_CLI) compile -v \
 		--build-path ./build \
-		--fqbn $(FQBN) $(MAIN) \
+		--fqbn $(FQBN) \
 		--build-property build.partitions=assets/$(PARTITIONS_CSV) \
 		--build-property upload.maximum_size=$(MAX_UPLOAD) \
-		$(EXTRA_CPP_FLAGS) \
+		$(EXTRA_CPP_FLAGS) $(MAIN) \
 		&& \
 	$(ESPTOOL) \
 		--chip $(CHIP) merge_bin --flash_mode dio --flash_freq 80m \
@@ -163,9 +181,9 @@ flash:
 		--chip $(CHIP) \
 		--port $(var) --baud $(BAUD) \
 		--before default_reset --after hard_reset \
-		write_flash -z --flash_mode dio --flash_freq 80m \
-		--flash_size $(FLASH_SIZE) \
-		0x0 ./build/$(FLASH_BIN);)
+		write_flash -z --flash_mode keep --flash_freq keep \
+		--flash_size keep \
+		0x0 ./build/$(MAIN).merged.bin;) # $(FLASH_BIN);)
 
 clean:
 	rm -f *~
