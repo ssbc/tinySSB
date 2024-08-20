@@ -109,9 +109,10 @@ void cmd_rx(String cmd) {
       break;
 
     case 'i': { // config values
+      Serial.printf("Config of node %s:\r\n", ssid);
       // FIXME: we should not print the mgmt signing key to the console ?
       String s = bipf2String(the_config, "\r\n", 0);
-      Serial.printf("Configuration values:\r\n%s\r\n", s.c_str());
+      Serial.printf("%s\r\n\r\n", s.c_str());
       break;
     }
 

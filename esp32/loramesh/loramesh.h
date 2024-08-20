@@ -8,6 +8,7 @@
 #include "src/ui-tbeam.h"
 #include "src/ui-tdeck.h"
 #include "src/ui-twrist.h"
+#include "src/ui-wlpaper.h"
 
 #include "src/hardware.h"
 
@@ -162,7 +163,9 @@ void setup()
 
   hw_init();
 
-#if defined(TINYSSB_BOARD_HELTEC)
+  Serial.println("after hw_init");
+
+#if defined(TINYSSB_BOARD_HELTEC) || defined(TINYSSB_BOARD_HELTEC3)
   theUI    = new UI_Heltec_Class();
 #elif defined(TINYSSB_BOARD_T5GRAY)
   theUI    = new UI_T5gray_Class();
@@ -172,10 +175,14 @@ void setup()
   theUI    = new UI_TDeck_Class();
 #elif defined(TINYSSB_BOARD_TWRIST)
   theUI    = new UI_TWrist_Class();
+#elif defined(TINYSSB_BOARD_WLPAPER)
+  theUI    = new UI_WLpaper_Class();
 #endif
   // theUI->show_node_name(ssid);
   theUI->spinner(true);
   theUI->show_boot_msg("mounting file system");
+
+  Serial.println("before mount");
 
   if (!MyFS.begin(true))
     msg = "could not mount file system, partition was reformatted";

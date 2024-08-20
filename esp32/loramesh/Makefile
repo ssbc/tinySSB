@@ -45,7 +45,7 @@ ESPTOOL=$(shell find $(ARDUINO_ESP_DIR)/tools -name "esptool$(ESPTOOL_EXT)";)
 BOOTAPP0PATH=$(shell find $(ARDUINO_ESP_DIR)/hardware -name "boot_app0.bin";)
 
 ifndef BOARD
-  $(info ">> please specify a BOARD (Heltec, Heltec3, T5gray, TBeam, TDeck, TWrist)")
+  $(info ">> please specify a BOARD (Heltec, Heltec3, T5gray, TBeam, TDeck, TWrist, WLpaper)")
   stop
 endif
 
@@ -115,6 +115,15 @@ else ifeq ($(BOARD),TWrist)
   FLASH_OFFS=0x1000
   FLAGS_BOARD=-DTINYSSB_BOARD_TWRIST -DESP32 -DCORE_DEBUG_LEVEL=0 -DARDUINO_RUNNING_CORE=1 -DARDUINO_EVENT_RUNNING_CORE=1 -DARDUINO_USB_CDC_ON_BOOT=0
 
+else ifeq ($(BOARD),WLpaper)
+  CHIP=esp32s3
+  FQBN=Heltec-esp32:esp32:heltec_wireless_paper
+  PARTITIONS_CSV=partitions-wlpaper.csv
+  MAX_UPLOAD=1572864 # 1.5MB
+  FLASH_SIZE=8MB
+  FLASH_OFFS=0x1000
+  FLAGS_BOARD=-DTINYSSB_BOARD_WLPAPER
+
 else
   $(info ">> unknown board $(BOARD)")
   stop
@@ -131,6 +140,8 @@ ifndef SERIAL
     SERIAL = $(shell ls /dev/tty.usbmodem*)
   else ifeq ($(BOARD),TWrist)
     SERIAL = $(shell ls /dev/tty.usbserial-???????????)
+  else ifeq ($(BOARD),WLpaper) # Heltec wireless paper 1.1
+    SERIAL = $(shell ls /dev/tty.usbserial-????)
   else # T-Beam
     SERIAL= $(shell ls /dev/tty* | grep 'ACM\|USB\|wchusb')
   endif
@@ -176,14 +187,15 @@ firmware:
 		-o ./build/$(FLASH_BIN)
 
 flash:
-	 $(foreach var,$(SERIAL), \
+	$(foreach var,$(SERIAL), \
 		$(ESPTOOL) \
 		--chip $(CHIP) \
 		--port $(var) --baud $(BAUD) \
 		--before default_reset --after hard_reset \
 		write_flash -z --flash_mode keep --flash_freq keep \
 		--flash_size keep \
-		0x0 ./build/$(MAIN).merged.bin;) # $(FLASH_BIN);)
+		0x0 ./build/$(MAIN).merged.bin;)
+	# $(FLASH_BIN);)
 
 clean:
 	rm -f *~

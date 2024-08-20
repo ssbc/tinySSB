@@ -177,6 +177,22 @@ public:
 
 #endif // TINYSSB_BOARD_TWRIST
 
+// ---------------------------------------------------------------------------
+
+#ifdef TINYSSB_BOARD_WLPAPER
+# define DEVICE_MAKE "Heltec Wireless Paper"
+# define HAS_BLE
+# define HAS_LORA
+# define HAS_OLED
+
+# define USE_RADIO_LIB
+# define USING_SX1262
+# define radio sx1262_radio
+
+//# define USE_LORA_LIB
+
+#endif // TINYSSB_BOARD_WLPAPER
+
 
 // LoRa ----------------------------------------------------------------
 
@@ -191,7 +207,6 @@ public:
 # endif
 
 #endif
-
 
 #ifdef USE_LORA_LIB
 # include "LoRa.h"

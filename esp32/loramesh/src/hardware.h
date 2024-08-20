@@ -8,7 +8,7 @@ extern void hw_init();
 // collects hardware-specific constants for all boards
 
 // ---------------------------------------------------------------------------
-#if defined(TINYSSB_BOARD_HELTEC) || defined(TINYSSB_BOARD_HELTEC3)
+#ifdef TINYSSB_BOARD_HELTEC
 
 // # define SCK     5    // GPIO5  -- SX1278's SCK
 // # define MISO    19   // GPIO19 -- SX1278's MISO
@@ -21,6 +21,38 @@ extern void hw_init();
 
 // SPI.begin(5, 19, 27, 18);
 // LoRa.setPins(SS, RST, DI0);
+
+#define BUTTON_PIN KEY_BUILTIN
+
+#endif
+
+// ---------------------------------------------------------------------------
+#ifdef TINYSSB_BOARD_HELTEC3
+
+#define BUTTON_PIN GPIO_NUM_0
+// LED pin & PWM parameters
+#define LED_PIN   GPIO_NUM_35
+#define LED_FREQ  5000
+#define LED_CHAN  0
+#define LED_RES   8
+// External power control
+#define VEXT      GPIO_NUM_36
+// Battery voltage measurement
+#define VBAT_CTRL GPIO_NUM_37
+#define VBAT_ADC  GPIO_NUM_1
+// SPI pins
+#define SS        GPIO_NUM_8
+#define MOSI      GPIO_NUM_10
+#define MISO      GPIO_NUM_11
+#define SCK       GPIO_NUM_9
+// Radio pins
+#define DIO1      GPIO_NUM_14
+#define RST_LoRa  GPIO_NUM_12
+#define BUSY_LoRa GPIO_NUM_13
+// Display pins
+#define SDA_OLED  GPIO_NUM_17
+#define SCL_OLED  GPIO_NUM_18
+#define RST_OLED  GPIO_NUM_21
 
 #endif
 
@@ -156,6 +188,22 @@ extern void hw_init();
 #define SRAM_CS -1
 #define EPD_RESET 17
 #define EPD_BUSY 16
+
+#endif
+
+// ---------------------------------------------------------------------------
+#ifdef TINYSSB_BOARD_WLPAPER
+
+#define RADIO_DIO_1    14
+#define RADIO_NSS      8
+#define RADIO_RESET    12
+#define RADIO_BUSY     13
+
+#define LORA_CLK       9
+#define LORA_MISO      11
+#define LORA_MOSI      10
+
+#define VEXT           45
 
 #endif
 

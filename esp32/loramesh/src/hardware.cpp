@@ -8,8 +8,10 @@
 // ---------------------------------------------------------------------------
 #if defined(TINYSSB_BOARD_HELTEC) || defined(TINYSSB_BOARD_HELTEC3)
 
+#ifdef HAS_LORA
+
 #ifdef USING_SX1262
-  SX1262 radio = new Module(SS, DI0, RST);
+  SX1262 radio = new Module(SS, DIO1, RST_LoRa, BUSY_LoRa);
 #endif
 #ifdef USING_SX1276
   SX1276 radio = new Module(SS, DI0, RST);
@@ -18,15 +20,12 @@
   SX1278 radio = new Module(SS, DI0, RST);
 #endif
 
+#endif // HAS_LORA
+
+
 void hw_init()
 {
-  // SX1278 has the following connections:
-  // NSS pin:   10
-  // DIO0 pin:  2
-  // NRST pin:  9
-  // DIO1 pin:  3
-  // = new Module(10, 2, 9, 3);
-
+#ifdef HAS_LORA
   int state = radio.begin();
   if (state == RADIOLIB_ERR_NONE) {
     Serial.println("RadioLib success!");
@@ -36,10 +35,11 @@ void hw_init()
       Serial.println(state);
       delay(2000);
     }
-  }  
+  }
+#endif // HAS_LORA
 }
 
-#endif
+#endif // HELTEC, HELTEC3
 
 // ---------------------------------------------------------------------------
 #ifdef TINYSSB_BOARD_T5GRAY
@@ -187,6 +187,52 @@ void hw_init()
 }
 
 #endif
+
+// ---------------------------------------------------------------------------
+#ifdef TINYSSB_BOARD_WLPAPER
+
+#ifdef HAS_LORA
+
+SPIClass spi(SPI);
+SPISettings spiSettings(2000000, MSBFIRST, SPI_MODE0);
+//SX1262 radio = new Module(8,14,12,13, spi, spiSettings);
+
+#ifdef USING_SX1262
+SX1262 radio = new Module(RADIO_NSS, RADIO_DIO_1, RADIO_RESET, RADIO_BUSY, spi); // , spiSettings);
+#endif
+
+#endif // HAS_LORA
+
+void hw_init()
+{
+  setCpuFrequencyMhz(240);
+
+  /*
+  // is this necessary, or helpful?
+  pinMode(VEXT, INPUT); // OFF
+  delay(50);
+  pinMode(VEXT, OUTPUT); // ON
+  digitalWrite(VEXT, LOW);
+  delay(100);
+  */
+
+#ifdef HAS_LORA
+  // begin(float freq = 434.0, float bw = 125.0, uint8_t sf = 9, uint8_t cr = 7, uint8_t syncWord = RADIOLIB_SX126X_SYNC_WORD_PRIVATE, int8_t power = 10, uint16_t preambleLength = 8, float tcxoVoltage = 1.6, bool useRegulatorLDO = false);
+  spi.begin(LORA_CLK, LORA_MISO, LORA_MOSI, RADIO_NSS); //SCK, MISO, MOSI, SS
+  int state = radio.begin(902.4, 125, 7);
+  if (state == RADIOLIB_ERR_NONE) {
+    Serial.println("RadioLib success!");
+  } else {
+    while (true) {
+      Serial.print(F("RadioLib failed, code "));
+      Serial.println(state);
+      delay(2000);
+    }
+  }
+#endif // HAS_LORA
+}
+
+#endif // WIRELESS_PAPER
 
 // ---------------------------------------------------------------------------
 

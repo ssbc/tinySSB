@@ -1,13 +1,21 @@
 // ui-heltec.cpp
 
-#include "ui-heltec.h"
+#include "ui-wlpaper.h"
 
-#if defined(TINYSSB_BOARD_HELTEC) || defined(TINYSSB_BOARD_HELTEC3)
+#ifdef TINYSSB_BOARD_WLPAPER
 
 #include <ctype.h>   // for toupper()
 #include <cstdarg>   // for va_list()
 
 #include "hardware.h"
+
+#include "lib/inflate.h"
+#include "ui-wlpaper/scuttleshell_xbm.h"
+
+// user button
+// #define BUTTON_PIN KEY_BUILTIN  // for heltec?
+#define BUTTON_PIN GPIO_NUM_0 // correct?
+
 #include "lib/cmd.h"
 
 // ---------------------------------------------------------------------------
@@ -24,10 +32,20 @@ enum OLEDDISPLAY_ANGLE { // taken from OLEDDisplay.h
 
 #include "ui-heltec/oled/SSD1306Wire.h"
 */
-#include <SSD1306Wire.h>
-SSD1306Wire *display;
+// #include <SSD1306Wire.h>
+// SSD1306Wire *display;
 
-#define theDisplay (*display)
+// #include <HT_QYEG0213RWS800_BWR.h>
+// QYEG0213RWS800_BWR *display;
+#include <HT_lCMEN2R13EFC1.h>
+
+// HT_ICMEN2R13EFC1 *display;
+// #define theDisplay (*display)
+
+// w=250, h=122
+HT_ICMEN2R13EFC1  theDisplay(6, 5, 4, 7, 3, 2, -1, 6000000); // rst,dc,cs,busy,sck,mosi,miso,frequency
+const int W2 = 250/2;
+const int H2 = 122/2;
 
 // ---------------------------------------------------------------------------
 
@@ -50,7 +68,7 @@ void clicked(Button2& btn)
     theUI->refresh();
 #endif
   } else {
-    ((UI_Heltec_Class*)theUI)->to_next_screen();
+    ((UI_WLpaper_Class*)theUI)->to_next_screen();
   }
 }
 
@@ -73,6 +91,7 @@ void long_clicked(Button2& btn)
 #endif
     theDisplay.setFont(ArialMT_Plain_16);
     theDisplay.drawString(0, 46, "rebooting now");
+    theDisplay.update(BLACK_BUFFER);
     theDisplay.display();
 
     delay(3000);
@@ -80,8 +99,8 @@ void long_clicked(Button2& btn)
     // lora_log.close();
     esp_restart();
   } else {
-    UI_Heltec_Class *u = (UI_Heltec_Class*) theUI;
-    if ( u->curr_screen == UI_Heltec_Class::SCREEN_LORA) {
+    UI_WLpaper_Class *u = (UI_WLpaper_Class*) theUI;
+    if ( u->curr_screen == UI_WLpaper_Class::SCREEN_LORA) {
       lora_selection = 1 - lora_selection;
       u->refresh_screen(u->curr_screen);
     }
@@ -90,8 +109,12 @@ void long_clicked(Button2& btn)
 
 // ---------------------------------------------------------------------------
 
+unsigned long int next_display;
+
 UIClass::UIClass()
 {
+  // Serial.println("beg of display init in UIClass()");
+
   node_name = time = lora_profile = NULL;
   gps_lon = gps_lat = gps_ele = 0.0;
   f_cnt = e_cnt = c_cnt = 0;
@@ -104,35 +127,55 @@ UIClass::UIClass()
   userButton.setClickHandler(clicked);
   userButton.setLongClickDetectedHandler(long_clicked);
 
-#ifdef HAS_OLED
+  // VextON
+  pinMode(45, OUTPUT);
+  digitalWrite(45, LOW);
+  
+  delay(100);
+  SPI.end();
+  delay(100);
+
+  /*
+  // OLED display
   pinMode(RST_OLED, OUTPUT);
-  digitalWrite(RST_OLED, HIGH);
-  delay(1);
   digitalWrite(RST_OLED, LOW);
-  delay(20);
+  delay(50);
   digitalWrite(RST_OLED, HIGH);
+  */
 
-  display = new SSD1306Wire(0x3c, SDA_OLED, SCL_OLED, GEOMETRY_128_64);
-
+  // Heltec SSD1306: 0x3c, SDA_OLED, SCL_OLED, GEOMETRY_128_64);
+  // theDisplay = new HT_ICMEN2R13EFC1(6, 5, 4, 7, 3, 2, -1, 6000000); // rst,dc,cs,busy,sck,mosi,miso,frequency
+  delay(300);
   theDisplay.init();
   theDisplay.flipScreenVertically();
+
+  /*
+  theDisplay.init();
   theDisplay.setTextAlignment(TEXT_ALIGN_LEFT);
+  */
 
   theDisplay.clear();
   theDisplay.setFont(ArialMT_Plain_16);
   theDisplay.drawString(0, 0, "starting tinySSB");
+
+  theDisplay.drawXbm(125, 60, scuttleshell_width,
+                     scuttleshell_height, scuttleshell_bits);
+  
+  theDisplay.update(BLACK_BUFFER);
   theDisplay.display();
-#endif
+
+  // Serial.println("end of display init in UIClass()");
+  next_display = 0; // millis() + 5000;
 }
 
 
-UI_Heltec_Class::UI_Heltec_Class()
+UI_WLpaper_Class::UI_WLpaper_Class()
 {
 
 #define INFLATE(NM) inflate(NM##_bw, sizeof(NM##_bw),   \
                             NM##_z, sizeof(NM##_z));
   // INFLATE(scuttleshell)
-  curr_screen = UI_Heltec_Class::SCREEN_SPLASH;
+  curr_screen = UI_WLpaper_Class::SCREEN_SPLASH;
 
   wheel = "\\|/-";
   lora_wheel = 0;
@@ -141,27 +184,29 @@ UI_Heltec_Class::UI_Heltec_Class()
 
 void draw_lora_plan()
 {
-  theDisplay.setFont(ArialMT_Plain_24);
+  char s[30];
+
+  theDisplay.setFont(ArialMT_Plain_16);
+  // theDisplay.setFont(ArialMT_Plain_24);
 
 #ifdef HAS_LORA
-  theDisplay.drawString(0, 0, the_lora_config->plan);
+  sprintf(s, "plan='%s':", the_lora_config->plan);
+  theDisplay.drawString(W2+1+1, H2+1, s);
   
-  char s[30];
-  theDisplay.setFont(ArialMT_Plain_16);
   int f = the_lora_config->fr / 10000;
   sprintf(s, "fr=%d.%02d MHz", f/100, f%100);
-  theDisplay.drawString(0, 28, s);
+  theDisplay.drawString(W2+1+1, H2+22, s);
 
   sprintf(s, "bw=%dkHz sf=%d",
           (int)(the_lora_config->bw/1000), the_lora_config->sf);
-  theDisplay.drawString(0, 48, s);
+  theDisplay.drawString(W2+1+1, H2+44, s);
 #else
-  theDisplay.drawString(0, 0, "no LoRA");
+  theDisplay.drawString(W2+1+1, H2+1, "no LoRA");
 #endif
 }
 
 
-void UI_Heltec_Class::loop()
+void UI_WLpaper_Class::loop()
 {
   userButton.loop();
 
@@ -177,19 +222,20 @@ void UI_Heltec_Class::loop()
         lora_selection = 0;
         theUI->refresh();
       } else {
-#if defined(HAS_OLED)
+    /* #if defined(HAS_OLED)
         theDisplay.clear();
         if (blink) {
           draw_lora_plan();
           next += 300;
         }
+        theDisplay.update(BLACK_BUFFER);
         theDisplay.display();
+    #endif */
       }
     }
-#endif
   }
 
-  if (curr_screen == UI_Heltec_Class::SCREEN_SPLASH) {
+  if (curr_screen == UI_WLpaper_Class::SCREEN_SPLASH) {
     static double old_density;
 
     double d = thePeers->get_peer_density();
@@ -199,7 +245,7 @@ void UI_Heltec_Class::loop()
     }
   }
   
-  if (curr_screen == UI_Heltec_Class::SCREEN_PEERS) {
+  if (curr_screen == UI_WLpaper_Class::SCREEN_PEERS) {
     static long next;
     if (millis() > next) {
       refresh_screen(curr_screen);
@@ -209,15 +255,15 @@ void UI_Heltec_Class::loop()
 }
 
 
-void UI_Heltec_Class::refresh()
+void UI_WLpaper_Class::refresh()
 {
   refresh_screen(curr_screen);
 }
 
 
-void UI_Heltec_Class::to_next_screen()
+void UI_WLpaper_Class::to_next_screen()
 {
-  curr_screen = (curr_screen + 1) % UI_Heltec_Class::SCREEN_OFF;
+  curr_screen = (curr_screen + 1) % UI_WLpaper_Class::SCREEN_OFF;
   refresh_screen(curr_screen);
 }
 
@@ -246,18 +292,19 @@ static void right_aligned(int cnt, char c, int y)
   char buf[20];
   sprintf(buf, "%d %c", cnt, c);
   int w = theDisplay.getStringWidth(buf);
-  theDisplay.drawString(128-w, y, buf);
+  theDisplay.drawString(W2-4-w, H2+y, buf);
 }
 
 
-void UI_Heltec_Class::refresh_screen(int scr)
+void UI_WLpaper_Class::refresh_screen(int scr)
 {
-  if (scr != curr_screen)
+  if (/* scr != curr_screen || */ next_display > millis())
       return;
 
   theDisplay.clear();
+  theDisplay.drawLine(W2-1, 0, W2-1, theDisplay.getHeight()-1);
   theDisplay.setFont(ArialMT_Plain_16);
-  if (scr == UI_Heltec_Class::SCREEN_SPLASH) {
+//  if (scr == UI_WLpaper_Class::SCREEN_SPLASH) {
     // gXdisplay.drawBitmap(gallery[pict], 0, 0, 200, 200, GxEPD_WHITE);
     // gXdisplay.setCursor(145, 11);
     // gXdisplay.println(ssid+7);
@@ -266,20 +313,23 @@ void UI_Heltec_Class::refresh_screen(int scr)
     theDisplay.setFont(ArialMT_Plain_16);
     theDisplay.drawString(0 , 0, "tinySSB");
     int w = theDisplay.getStringWidth(ssid+8);
-    theDisplay.drawString(128-w, 0, ssid+8);
+    theDisplay.drawString(W2-4-w, 0, ssid+8);
     theDisplay.setFont(ArialMT_Plain_10);
-    theDisplay.drawString(0 , 17, utc_compile_time);
+    while (theDisplay.getStringWidth(utc_compile_time) >= W2)
+      utc_compile_time[strlen(utc_compile_time)-1] = '\0';
+    theDisplay.drawString(0, 17, utc_compile_time);
 
 #ifdef HAS_LORA
     int f = the_lora_config->fr / 10000;
     char fr[30];
-    sprintf(fr, "%d.%02d MHz", f/100, f%100);
     theDisplay.setFont(ArialMT_Plain_24);
-    theDisplay.drawString(0, 30, fr);
-    sprintf(fr, "%s   bw=%dkHz sf=%d", the_lora_config->plan,
+    sprintf(fr, "%d.%02d", f/100, f%100);
+    theDisplay.drawString(0, 28, fr);
+    theDisplay.drawString(74, 28, "MHz");
+    sprintf(fr, "%s: bw=%dkHz, sf=%d", the_lora_config->plan,
             (int)(the_lora_config->bw/1000), the_lora_config->sf);
     theDisplay.setFont(ArialMT_Plain_10);
-    theDisplay.drawString(0, 54, fr);
+    theDisplay.drawString(0, 51, fr);
 
     double d = thePeers->get_peer_density();
     if (d >= 0.25) theDisplay.fillRect(72, 12, 3, 3);
@@ -287,12 +337,14 @@ void UI_Heltec_Class::refresh_screen(int scr)
     if (d >= 2.25) theDisplay.fillRect(80,  6, 3, 9);
     if (d >= 3.25) theDisplay.fillRect(84,  3, 3, 12);
 #endif
-  } else if (scr == UI_Heltec_Class::SCREEN_NODE) {
+//  } else if (scr == UI_WLpaper_Class::SCREEN_NODE) {
+    /*
     theDisplay.setFont(ArialMT_Plain_10);
-    theDisplay.drawString(0, 3, tSSB_WIFI_SSID "-");
+    theDisplay.drawString(0, 61+3, tSSB_WIFI_SSID "-");
     theDisplay.setFont(ArialMT_Plain_16);
-    theDisplay.drawString(42, 0, ssid+8);
+    theDisplay.drawString(42, 61+0, ssid+8);
     theDisplay.setFont(ArialMT_Plain_10);
+    */
 
     // if (r_time)
     //  theDisplay.drawString(0, 18, r_time);
@@ -304,56 +356,58 @@ void UI_Heltec_Class::refresh_screen(int scr)
 #endif
     sprintf(stat_line, "W:%d E:%d G:%d L:%c",
             wifi_cnt, ble_cnt, 0, wheel[lora_wheel % 4]);   // r_gps_valid
-    theDisplay.drawString(0, 30, stat_line);
+    theDisplay.drawString(0, 61+30, stat_line);
 
     theDisplay.setFont(ArialMT_Plain_16);
     if (theGOset->in_sync())
-      right_aligned(theRepo->rplca_cnt, 'F', 0);
+      right_aligned(theRepo->rplca_cnt, 'F', 1);
     else {
       char buf[20];
       sprintf(buf, "%d/%d", theGOset->goset_len, theGOset->largest_claim_span);
       int w = theDisplay.getStringWidth(buf);
-      theDisplay.drawString(128-w, 0, buf);
+      theDisplay.drawString(W2-2-w, H2+1, buf);
     }
-    right_aligned(theRepo->entry_cnt, 'E', 22); 
-    right_aligned(theRepo->chunk_cnt, 'C', 44); 
+    right_aligned(theRepo->entry_cnt, 'E', 23); 
+    right_aligned(theRepo->chunk_cnt, 'C', 45); 
 
     int total = MyFS.totalBytes();
     int avail = total - MyFS.usedBytes();
     char buf[10];
     sprintf(buf, "%2d%% free", avail / (total/100));
-    theDisplay.drawString(0, 44, buf);
-  } else if (scr == UI_Heltec_Class::SCREEN_LORA) {
+    theDisplay.drawString(0, 61+44, buf);
+//  } else if (scr == UI_WLpaper_Class::SCREEN_LORA) {
 #ifdef HAS_LORA
     draw_lora_plan();
 #else
-    theDisplay.drawString(2, 20, "lora screen");
+    theDisplay.drawString(W2+1+2, 61+20, "lora screen");
 #endif
-  } else if (scr == UI_Heltec_Class::SCREEN_PEERS) {
+//  } else if (scr == UI_WLpaper_Class::SCREEN_PEERS) {
     theDisplay.setFont(ArialMT_Plain_10);
-    theDisplay.drawString( 0, 0, "last");
-    theDisplay.drawString(35, 0, "peer");
-    theDisplay.drawString(75, 0, "rssi");
-    theDisplay.drawString(105, 0, "snr");
+    theDisplay.drawString(W2+1+ 2, 0, "last");
+    theDisplay.drawString(W2+1+35, 0, "peer");
+    theDisplay.drawString(W2+1+75, 0, "rssi");
+    theDisplay.drawString(W2+1+105,0, "snr");
     int y = 14;
     long now = millis();
     for (int i = 0; i < MAX_HEARD_PEERS; i++) {
       struct peer_s *p = thePeers->heard_peers + i;
       if (p->id[0] == '\0')
         break;
-      theDisplay.drawString( 0, y, String((p->when - now) / 1000));
+      theDisplay.drawString(W2+1+ 2, y, String((p->when - now) / 1000));
       char buf[10];
       strcpy(buf, p->id); // uppercase is more readable
       for (int j=0; j < strlen(buf); j++) buf[j] = toupper(buf[j]);
-      theDisplay.drawString(35, y, buf);
-      theDisplay.drawString(75, y, String(p->rssi));
+      theDisplay.drawString(W2+1+35, y, buf);
+      theDisplay.drawString(W2+1+75, y, String(p->rssi));
       sprintf(buf, "%.f1", p->snr);
-      theDisplay.drawString(105, y, buf);
+      theDisplay.drawString(W2+1+105, y, buf);
       y += 12;
     }
-  }
+//  }
 
+  theDisplay.update(BLACK_BUFFER);
   theDisplay.display();
+  next_display += 30000;
 }
 
 
@@ -384,8 +438,9 @@ void printPower(uint16_t x, uint16_t y)
 
 int err_cnt;
 
-void UI_Heltec_Class::show_boot_msg(char *s)
+void UI_WLpaper_Class::show_boot_msg(char *s)
 {
+  return;
 #ifdef HAS_OLED
 #define MAX_BOOT_MSGS 4
   static char* boot_msgs[MAX_BOOT_MSGS];
@@ -406,18 +461,22 @@ void UI_Heltec_Class::show_boot_msg(char *s)
   boot_msgs[cnt] = s;
   theDisplay.setFont(ArialMT_Plain_10);
   theDisplay.drawString(0, 18 + cnt * 12, String(n+cnt) + "> " + String(s));
+  theDisplay.update(BLACK_BUFFER);
   theDisplay.display();
   cnt++;
 #endif
 }
 
 
-void UI_Heltec_Class::lora_advance_wheel()
+void UI_WLpaper_Class::lora_advance_wheel()
 {
+  return;
+  /*
   lora_wheel++;
   refresh();
+  */
 }
 
-#endif // TINYSSB_BOARD_HELTEC || TINYSSB_BOARD_HELTEC3
+#endif // TINYSSB_BOARD_WLPAPER
 
 // eof
