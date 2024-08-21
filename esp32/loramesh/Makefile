@@ -45,7 +45,7 @@ ESPTOOL=$(shell find $(ARDUINO_ESP_DIR)/tools -name "esptool$(ESPTOOL_EXT)";)
 BOOTAPP0PATH=$(shell find $(ARDUINO_ESP_DIR)/hardware -name "boot_app0.bin";)
 
 ifndef BOARD
-  $(info ">> please specify a BOARD (Heltec, Heltec3, T5gray, TBeam, TDeck, TWrist, WLpaper)")
+  $(info ">> please specify a BOARD (Heltec, Heltec3, T5gray, TBeam, TDeck, TWatch, TWrist, WLpaper)")
   stop
 endif
 
@@ -105,6 +105,15 @@ else ifeq ($(BOARD),TDeck)
   FLASH_OFFS=0x0
   FLAGS_BOARD=-DTINYSSB_BOARD_TDECK -DESP32 -DCORE_DEBUG_LEVEL=0 -DARDUINO_RUNNING_CORE=1 -DARDUINO_EVENT_RUNNING_CORE=1 -DBOARD_HAS_PSRAM -DARDUINO_USB_MODE=1 -DARDUINO_USB_CDC_ON_BOOT=1 -DARDUINO_USB_MSC_ON_BOOT=0 -DARDUINO_USB_DFU_ON_BOOT=0
 
+else ifeq ($(BOARD),TWatch)
+  CHIP=esp32s3
+  FQBN=esp32:esp32:esp32s3:PSRAM=opi,FlashSize=16M,CDCOnBoot=cdc
+  PARTITIONS_CSV=partitions-twatch.csv
+  MAX_UPLOAD=2097152 # 2MB
+  FLASH_SIZE=16MB
+  FLASH_OFFS=0x0
+  FLAGS_BOARD=-DTINYSSB_BOARD_TWATCH -DESP32 -DCORE_DEBUG_LEVEL=0 -DARDUINO_RUNNING_CORE=1 -DARDUINO_EVENT_RUNNING_CORE=1 -DBOARD_HAS_PSRAM -DARDUINO_USB_MODE=1 -DARDUINO_USB_CDC_ON_BOOT=1 -DARDUINO_USB_MSC_ON_BOOT=0 -DARDUINO_USB_DFU_ON_BOOT=0
+
 else ifeq ($(BOARD),TWrist)
   BAUD=460800
   CHIP=esp32
@@ -138,6 +147,8 @@ ifndef SERIAL
     SERIAL = $(shell ls /dev/tty.usbserial-???????????)
   else ifeq ($(BOARD),TDeck)
     SERIAL = $(shell ls /dev/tty.usbmodem*)
+  else ifeq ($(BOARD),TWatch)
+    SERIAL = $(shell ls /dev/tty.usbmodem*)
   else ifeq ($(BOARD),TWrist)
     SERIAL = $(shell ls /dev/tty.usbserial-???????????)
   else ifeq ($(BOARD),WLpaper) # Heltec wireless paper 1.1
@@ -156,7 +167,7 @@ EXTRA_CPP_FLAGS=--build-property compiler.cpp.extra_flags="$(FLAGS_PLATFORM) $(F
 
 all:
 	$(info )
-	$(info "usage:  make [BOARD=TBeam|TDeck|heltec] firmware flash")
+	$(info "usage:  make [BOARD=TBeam|TDeck|heltec] firmware|flash|fullflash")
 	$(info )
 
 monitor:
@@ -194,8 +205,17 @@ flash:
 		--before default_reset --after hard_reset \
 		write_flash -z --flash_mode keep --flash_freq keep \
 		--flash_size keep \
+		0x10000 ./build/$(MAIN).bin)
+
+fullflash:
+	$(foreach var,$(SERIAL), \
+		$(ESPTOOL) \
+		--chip $(CHIP) \
+		--port $(var) --baud $(BAUD) \
+		--before default_reset --after hard_reset \
+		write_flash -z --flash_mode keep --flash_freq keep \
+		--flash_size keep \
 		0x0 ./build/$(MAIN).merged.bin;)
-	# $(FLASH_BIN);)
 
 clean:
 	rm -f *~

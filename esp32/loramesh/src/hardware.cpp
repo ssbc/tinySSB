@@ -180,6 +180,46 @@ void hw_init()
 #endif
 
 // ---------------------------------------------------------------------------
+#ifdef TINYSSB_BOARD_TWATCH
+
+#include "XPowersLib.h"
+XPowersPMU power;
+
+#ifdef USE_RADIO_LIB
+  SPIClass radioBus = SPIClass(HSPI);
+  // SPISettings spiSettings(2000000, MSBFIRST, SPI_MODE0);
+# ifdef USING_SX1262
+  SX1262 radio = new Module(BOARD_RADIO_SS, BOARD_RADIO_DI01,
+                            BOARD_RADIO_RST, BOARD_RADIO_BUSY, radioBus);
+# endif
+#endif // USE_RADIO_LIB
+
+void hw_init()
+{
+  setCpuFrequencyMhz(240);
+
+  power.init(Wire, BOARD_I2C_SDA, BOARD_I2C_SCL);
+  power.setVbusVoltageLimit(XPOWERS_AXP2101_VBUS_VOL_LIM_4V36);
+  power.setVbusCurrentLimit(XPOWERS_AXP2101_VBUS_CUR_LIM_900MA);
+  power.setSysPowerDownVoltage(2600);
+  //! Radio VDD , Don't change
+  power.setALDO4Voltage(3300);
+  power.enableALDO4();  //! Radio VDD
+
+  radioBus.begin(BOARD_RADIO_SCK, BOARD_RADIO_MISO, BOARD_RADIO_MOSI); 
+
+  int state = radio.begin();
+  if (state == RADIOLIB_ERR_NONE) {
+    Serial.println("RadioLib sx1262 init success!");
+  } else {
+    Serial.printf("RadioLib sx1262 init did not work (%d)\r\n", state);
+    delay(2000);
+  }
+}
+
+#endif // TINYSSB_BOARD_TWATCH
+
+// ---------------------------------------------------------------------------
 #ifdef TINYSSB_BOARD_TWRIST
 
 void hw_init()
@@ -192,13 +232,10 @@ void hw_init()
 #ifdef TINYSSB_BOARD_WLPAPER
 
 #ifdef HAS_LORA
-
-SPIClass spi(SPI);
-SPISettings spiSettings(2000000, MSBFIRST, SPI_MODE0);
-//SX1262 radio = new Module(8,14,12,13, spi, spiSettings);
-
-#ifdef USING_SX1262
-SX1262 radio = new Module(RADIO_NSS, RADIO_DIO_1, RADIO_RESET, RADIO_BUSY, spi); // , spiSettings);
+  SPIClass spi(SPI);
+  SPISettings spiSettings(2000000, MSBFIRST, SPI_MODE0);
+# ifdef USING_SX1262
+  SX1262 radio = new Module(RADIO_NSS, RADIO_DIO_1, RADIO_RESET, RADIO_BUSY, spi); // , spiSettings);
 #endif
 
 #endif // HAS_LORA

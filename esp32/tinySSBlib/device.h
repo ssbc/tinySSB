@@ -170,6 +170,22 @@ public:
 
 // ---------------------------------------------------------------------------
 
+#ifdef TINYSSB_BOARD_TWATCH
+// https://www.lilygo.cc/products/t-watch-s3
+
+# define DEVICE_MAKE "Lilygo T-Watch S3"
+# define HAS_BLE
+# define HAS_LORA
+
+# define USE_RADIO_LIB
+# include "RadioLib.h"
+# define USING_SX1262
+  extern SX1262 radio;
+
+#endif // TINYSSB_BOARD_TWATCH
+
+// ---------------------------------------------------------------------------
+
 #ifdef TINYSSB_BOARD_TWRIST
 // https://www.lilygo.cc/products/t-wrist-e-paper-1-54-inch-display
 # define DEVICE_MAKE "Lilygo T-Wrist"

@@ -7,6 +7,7 @@
 #include "src/ui-t5gray.h"
 #include "src/ui-tbeam.h"
 #include "src/ui-tdeck.h"
+#include "src/ui-twatch.h"
 #include "src/ui-twrist.h"
 #include "src/ui-wlpaper.h"
 
@@ -173,6 +174,8 @@ void setup()
   theUI    = new UI_TBeam_Class();
 #elif defined(TINYSSB_BOARD_TDECK)
   theUI    = new UI_TDeck_Class();
+#elif defined(TINYSSB_BOARD_TWATCH)
+  theUI    = new UI_TWatch_Class();
 #elif defined(TINYSSB_BOARD_TWRIST)
   theUI    = new UI_TWrist_Class();
 #elif defined(TINYSSB_BOARD_WLPAPER)
