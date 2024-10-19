@@ -76,5 +76,6 @@ University of Basel.
 ## Documentation
 
 - 16 factsheets made for the [dWeb camp 2024](https://dwebcamp.org/), Aug 2024: [PDF](doc/tinySSB-factsheets-v2b.pdf)
+- talk for the Swiss Radio Amateur Assoc, Emergency Communication Convention, Oct 2024: [PDF](doc/20241019-USKA-emcomm-tinySSB.pdf)
 
 ---
