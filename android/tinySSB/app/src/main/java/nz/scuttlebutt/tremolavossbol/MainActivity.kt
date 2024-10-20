@@ -5,6 +5,7 @@ package nz.scuttlebutt.tremolavossbol
 // import nz.scuttlebutt.tremolavossbol.tssb.ble.BlePeers
 
 import android.app.Activity
+import android.app.ActivityManager
 import android.bluetooth.BluetoothAdapter
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -21,6 +22,7 @@ import android.view.View
 import android.view.Window
 import android.webkit.WebView
 import androidx.annotation.RequiresApi
+import androidx.core.content.ContextCompat
 import com.google.zxing.integration.android.IntentIntegrator
 import nz.scuttlebutt.tremolavossbol.crypto.IdStore
 import nz.scuttlebutt.tremolavossbol.tssb.ble.BlePeers
@@ -28,6 +30,7 @@ import nz.scuttlebutt.tremolavossbol.tssb.*
 import nz.scuttlebutt.tremolavossbol.tssb.ble.BluetoothEventListener
 import nz.scuttlebutt.tremolavossbol.utils.Constants
 import nz.scuttlebutt.tremolavossbol.games.common.GamesHandler
+import nz.scuttlebutt.tremolavossbol.tssb.ble.BleForegroundService
 import tremolavossbol.R
 import java.net.*
 import java.util.concurrent.locks.ReentrantLock
@@ -249,6 +252,15 @@ class MainActivity : Activity() {
             tinyNode.loop(ioLock)
         }
 
+        val serviceIntent = Intent(this, BleForegroundService::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Log.d("MainActivity", "Starting Foreground Service")
+            applicationContext.startForegroundService(serviceIntent)
+        } else {
+            Log.d("MainActivity", "Starting Service")
+            applicationContext.startService(serviceIntent)
+        }
+
         /*
         t0.priority = 10
         t1.priority = 10
@@ -326,6 +338,7 @@ class MainActivity : Activity() {
     override fun onResume() {
         Log.d("onResume", "")
         super.onResume()
+
         /*
         try {
             (getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager)
@@ -342,6 +355,15 @@ class MainActivity : Activity() {
 
         websocket = WebsocketIO(this, settings!!.getWebsocketUrl())
         websocket!!.start()
+
+        // TODO change this method, as every component needs to be included inside the foreground service itself
+        if (isForegroundServiceRunning()) { return }
+        val intent = Intent(this, BleForegroundService::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            applicationContext.startForegroundService(intent)  // Für Android 8.0 und höher
+        } else {
+            applicationContext.startService(intent)  // Für ältere Android-Versionen
+        }
     }
 
     override fun onPause() {
@@ -445,5 +467,20 @@ class MainActivity : Activity() {
         try { mc_socket?.leaveGroup(mc_group); mc_socket?.close() } catch (e: Exception) {}
         mc_group = null
         mc_socket = null
+    }
+
+    /**
+     * Checks if the BLE foreground service is already running.
+     */
+    private fun isForegroundServiceRunning(): Boolean {
+        val manager = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+        for (service in manager.getRunningServices(Int.MAX_VALUE)) {
+            if (BleForegroundService::class.java.name == service.service.className) {
+                Log.d("MainActivity", "Service is already running.")
+                return true
+            }
+        }
+        Log.d("MainActivity", "Service was not yet running.")
+        return false
     }
 }
