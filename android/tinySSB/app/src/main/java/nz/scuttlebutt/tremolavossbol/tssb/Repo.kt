@@ -1,7 +1,9 @@
 package nz.scuttlebutt.tremolavossbol.tssb
 
 import android.content.Context.MODE_PRIVATE
+import android.os.Build
 import android.util.Log
+import androidx.annotation.RequiresApi
 import nz.scuttlebutt.tremolavossbol.MainActivity
 import nz.scuttlebutt.tremolavossbol.crypto.SodiumAPI.Companion.sha256
 import nz.scuttlebutt.tremolavossbol.utils.Bipf
@@ -246,6 +248,9 @@ class Repo(val context: MainActivity) {
      * It is assumed that the previous filesystem was correctly stored.
      *
      */
+    @RequiresApi(
+        Build.VERSION_CODES.O
+    )
     fun upgrade_repo() {
         val dir = File(context.getDir(TINYSSB_DIR, MODE_PRIVATE), FEED_DIR)
         feediterate@ for (f in dir.listFiles()) {

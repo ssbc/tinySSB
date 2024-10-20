@@ -2,6 +2,7 @@ package nz.scuttlebutt.tremolavossbol.tssb.ble
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice.*
 import android.bluetooth.BluetoothManager
@@ -22,7 +23,7 @@ import nz.scuttlebutt.tremolavossbol.MainActivity
 import nz.scuttlebutt.tremolavossbol.utils.Constants
 
 
-class BlePeersBroadcast(val act: MainActivity) {
+class BlePeersBroadcast(val act: Context) {
 
     private val bluetoothManager = act.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
     private val bluetoothAdapter = bluetoothManager.adapter
@@ -71,7 +72,8 @@ class BlePeersBroadcast(val act: MainActivity) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !isLocationPermissionGranted) {
             Log.d("BLE", "requesting location permission")
             if (askUser) {
-                ActivityCompat.requestPermissions(act, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), 555)
+                ActivityCompat.requestPermissions(
+                    act as Activity, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), 555)
                 return true
             }
             return false

@@ -1,5 +1,6 @@
 package nz.scuttlebutt.tremolavossbol.audio
 
+import android.annotation.SuppressLint
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.util.Log
@@ -12,14 +13,17 @@ class PCMRecorder(val audioSrc: Int) {
     var audioRecorder: AudioRecord? = null
     var maxAmplitude: Short = 0
 
+    @SuppressLint(
+        "MissingPermission"
+    )
     fun start() {
         // var bufSize = 2 * AudioRecord.getMinBufferSize(8000,
         //    AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT);
         val bufSize = 3*1024 // 4096 // 40*4096 // 2*640
         Log.d("PCM", "start " + bufSize.toString())
         audioRecorder = AudioRecord(
-            audioSrc, 8000, AudioFormat.CHANNEL_IN_MONO,
-            AudioFormat.ENCODING_PCM_16BIT, bufSize)
+        audioSrc, 8000, AudioFormat.CHANNEL_IN_MONO,
+        AudioFormat.ENCODING_PCM_16BIT, bufSize)
         audioRecorder!!.startRecording()
     }
 
