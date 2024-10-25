@@ -485,10 +485,31 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
         Bipf.list_append(lst, tst)
         Bipf.list_append(lst, Bipf.mkNone()) //placeholder for voice
 
-        val body = Bipf.encode(lst)
-        if (body != null) {
-            act.tinyNode.publish_public_content(body)
+        //encrypt the entry such that only I can read it
+        val recps = Bipf.mkList()
+        val keys: MutableList<ByteArray> = mutableListOf()
+        val me = act.idStore.identity.toRef()
+        Bipf.list_append(recps, Bipf.mkString(me))
+        keys.add(me.deRef())
+        Bipf.list_append(lst, recps)
+
+        val body_clear = Bipf.encode(lst)
+        val encrypted = body_clear!!.let { act.idStore.identity.encryptPrivateMessage(it, keys) }
+
+        val body_encr = Bipf.encode(Bipf.mkBytes(encrypted))
+
+        //test if entry can be decrypted
+        val clear = encrypted?.let { act.idStore.identity.decryptPrivateMessage(it) }
+        if (clear != null) {
+            val clearList = Bipf.decode(clear)
+            if (clearList != null) {
+                val clearJson = Bipf.bipf_list2JSON(clearList)
+                Log.d("trust_contact", clearJson.toString())
+            }
         }
+
+        if (body_encr != null)
+            act.tinyNode.publish_public_content(body_encr)
         reloadContactsTrustLevel()
     }
 
@@ -501,11 +522,23 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
             if (lastSeq != null) {
                 for (i in lastSeq downTo 1) {
                     var entry = userFeed.read_content(lastSeq)
-                    val entryType = entry?.let { getFromEntry(it, 0) }
+                    //decode the entry using Bipf decode
+                    val decodedEntry = entry?.let { Bipf.decode(it) }
+                    Log.d("decodedEntry", decodedEntry.toString())
+
+                    //get bytes from the decoded entry
+                    val entryBytes = decodedEntry?.let {it.getBytes()}
+                    Log.d("entryBytes", entryBytes.toString())
+
+                    //decrypt the bytes to get the clear text
+                    val clear = entryBytes?.let { act.idStore.identity.decryptPrivateMessage(it) }
+                    Log.d("clear", clear.toString())
+
+                    val entryType = clear?.let { getFromEntry(it, 0) }
                     if (entryType == "TRT") {
-                        if (entry is ByteArray) {
-                            val contactID = getFromEntry(entry, 2)
-                            val trustLevel = getFromEntry(entry, 3)
+                        if (clear is ByteArray) {
+                            val contactID = getFromEntry(clear, 2)
+                            val trustLevel = getFromEntry(clear, 3)
                             if (contactID != null && trustLevel != null) {
                                 contactsTrustLevel[contactID.toString()] = trustLevel.toString().toInt()
                             }
@@ -663,6 +696,8 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
                     hdr.put("fid", "@" + fid.toBase64() + ".ed25519")
                     hdr.put("ref", mid.toBase64())
                     hdr.put("seq", seq)
+                    Log.d("decrypted log entry", hdr.toString())
+                    Log.d("decrypted log entry", param.toString())
                     return "{header:${hdr.toString()}, confid:${param.toString()}}"
                 }
             }

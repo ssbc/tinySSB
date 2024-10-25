@@ -220,7 +220,12 @@ function show_contact_details(id) {
 function changeTrustLevel(contactID, value) {
     console.log("Supposed to set contact " + contactID + "'s Trust Level to " + value);
     let ch = tremola.chats[recps2nm([myId])];
-    let tips = JSON.stringify(ch.timeline.get_tips())
+    let tips = JSON.stringify([])
+
+    if (typeof ch.timeline.get_tips === 'function') {
+        tips = JSON.stringify(ch.timeline.get_tips())
+    }
+
     console.log("Tips: " + JSON.stringify(tips))
     backend("contacts:setTrust " + contactID + " " + value + " " + tips);
 }
