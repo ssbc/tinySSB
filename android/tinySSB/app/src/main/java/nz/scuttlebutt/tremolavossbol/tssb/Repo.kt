@@ -76,7 +76,7 @@ class Repo(val context: MainActivity) {
 
     }
 
-    fun add_replica(fid: ByteArray, trusted: Boolean = false) {
+    fun add_replica(fid: ByteArray, trusted: Boolean = false, alias: String = "") {
         if (replicas.any { it.fid.contentEquals(fid) })
             return
         val new_r = Replica(context, File(context.getDir(TINYSSB_DIR, MODE_PRIVATE), FEED_DIR), fid)
@@ -101,7 +101,7 @@ class Repo(val context: MainActivity) {
 
         if(context.frontend_ready) // was: isWaiInitialized()
             if (trusted) {
-                context.wai.eval("b2f_new_contact(\"@${fid.toBase64()}.ed25519\", \"trusted\")") // notify frontend
+                context.wai.eval("b2f_new_contact(\"@${fid.toBase64()}.ed25519\", \"trusted\", \"$alias\")") // notify frontend
             } else {
                 context.wai.eval("b2f_new_contact(\"@${fid.toBase64()}.ed25519\", \"untrusted\")") // notify frontend
             }

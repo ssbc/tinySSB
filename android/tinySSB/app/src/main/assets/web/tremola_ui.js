@@ -448,8 +448,8 @@ function qr_scan_success(s) {
                         tips = JSON.stringify(ch.timeline.get_tips())
                     }
                     backend("contacts:setTrust " + decodeScuttlebuttId(new_contact_id) + " 2" + " " + tips);
-                } else {
-                    launch_snackbar("This contact already exists");
+                } else if (tremola.contacts[new_contact_id].trusted == 2) {
+                    launch_snackbar("This contact already exists and is verified");
                 }
                 return;
             }
@@ -477,9 +477,6 @@ function qr_scan_confirmed() {
     // c = {alias: a, id: s};
     var i = (a + "?").substring(0, 1).toUpperCase()
     var c = {"alias": a, "initial": i, "color": colors[Math.floor(colors.length * Math.random())], "iam": "", "forgotten": false, "trusted": 2};
-    tremola.contacts[s] = c;
-    persist();
-    backend("add:contact " + s + " " + btoa(a) + "T") //T for trusted
     load_contact_item([s, c]);
     closeOverlay();
 }

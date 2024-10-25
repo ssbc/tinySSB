@@ -69,14 +69,17 @@ function edit_confirmed() {
         load_chat(curr_chat)
         // menu_redraw();
     } else if (edit_target == 'new_contact_alias' || edit_target == 'trust_wifi_peer') {
+        backend("add:contact " + new_contact_id + " " + btoa(val) + " T");
         document.getElementById('contact_id').value = '';
         if (val == '')
             val = id2b32(new_contact_id);
+        console.log("new contact alias: " + val)
         tremola.contacts[new_contact_id] = {
             "alias": val, "initial": val.substring(0, 1).toUpperCase(),
             "color": colors[Math.floor(colors.length * Math.random())],
             "iam": "", "forgotten": false
         };
+        console.log("new contact: " + JSON.stringify(tremola.contacts[new_contact_id]))
         var recps = [myId, new_contact_id];
         var nm = recps2nm(recps);
         tremola.chats[nm] = {
@@ -84,7 +87,6 @@ function edit_confirmed() {
             "touched": Date.now(), "lastRead": 0, "timeline": new Timeline()
         };
         persist();
-        backend("add:contact " + new_contact_id + " " + btoa(val))
         menu_redraw();
     } else if (edit_target == 'new_invite_target') {
         backend("invite:redeem " + val)
@@ -382,7 +384,7 @@ function resetTremola() { // wipes browser-side content
         "members": ["ALL"], "touched": Date.now(), "lastRead": 0,
         "timeline": new Timeline()
     };
-    tremola.contacts[myId] = {"alias": "me", "initial": "M", "color": "#bd7578", "iam": "", "forgotten": false};
+    tremola.contacts[myId] = {"alias": "me", "initial": "M", "color": "#bd7578", "iam": "", "forgotten": false, "trusted": 2};
     persist();
 }
 
@@ -733,15 +735,17 @@ function b2f_get_settings(settings) {
     tremola.settings = settings
 }
 
-function b2f_new_contact(fid, trustLevel="untrusted") {
+function b2f_new_contact(fid, trustLevel="untrusted", alias="") {
     console.log(trustLevel);
     let trusted = 0;
     if (trustLevel == "trusted") {
         trusted = 2;
     }
-    var id = id2b32(fid);
+    if (alias == "") {
+        alias = id2b32(fid);
+    }
     tremola.contacts[fid] = {
-        "alias": id, "initial": id.substring(0, 1).toUpperCase(),
+        "alias": alias, "initial": alias.substring(0, 1).toUpperCase(),
         "color": colors[Math.floor(colors.length * Math.random())],
         "iam": "", "forgotten": false, "trusted": trusted
     };

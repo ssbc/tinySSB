@@ -232,11 +232,11 @@ class GOset(val context: MainActivity) {
         return true
     }
 
-    fun _add_key(key: ByteArray, trusted: Boolean = false): String {
+    fun _add_key(key: ByteArray, trusted: Boolean = false, alias: String =""): String {
         if (!_include_key(key)) // adds key if necessary
             return ""
         //Set trusted
-        context.tinyRepo.add_replica(key, trusted)
+        context.tinyRepo.add_replica(key, trusted, alias)
 
         keys.sortWith({a:ByteArray,b:ByteArray -> byteArrayCmp(a,b)})
         if (keys.size >= largest_claim_span) { // only rebroadcast if we are up to date

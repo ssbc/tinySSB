@@ -188,11 +188,12 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
             }
             "add:contact" -> {
                 val contactID = args[1].substring(1,args[1].length-8)
-                val isTrusted = args.getOrNull(2) != null
-                Log.d("ADD", "$contactID $isTrusted")
-                val keyHex = act.tinyGoset._add_key(Base64.decode(contactID, Base64.NO_WRAP), true)
+                val alias = Base64.decode(args[2], Base64.NO_WRAP).decodeToString()
+                val isTrusted = args.getOrNull(3) != null
+                Log.d("add:contact", "contactID: $contactID, isTrusted: $isTrusted, alias: $alias")
+
+                val keyHex = act.tinyGoset._add_key(Base64.decode(contactID, Base64.NO_WRAP), true, alias)
                 if (isTrusted) {
-                    Log.d("trustthismf", "trustthismf")
                     trust_contact(keyHex, 2)
                 }
             }
