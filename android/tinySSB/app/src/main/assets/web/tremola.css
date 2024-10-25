@@ -589,5 +589,26 @@ input:checked + .slider:before {
     filter: invert(62%) sepia(8%) saturate(116%) hue-rotate(145deg) brightness(89%) contrast(89%);
 }
 
+.circle {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 5px;
+}
+
+.green {
+  background-color: green;
+}
+
+.orange {
+  background-color: orange;
+}
+
+.red {
+  background-color: red;
+}
+
+
 
 /* eof */

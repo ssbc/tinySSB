@@ -443,7 +443,10 @@ function qr_scan_success(s) {
                 if (tremola.contacts[new_contact_id].trusted < 2) {
                     //do this in the backend as well
                     let ch = tremola.chats[recps2nm([myId])];
-                    let tips = JSON.stringify(ch.timeline.get_tips())
+                    let tips = JSON.stringify([])
+                    if (typeof ch.timeline.get_tips === 'function') {
+                        tips = JSON.stringify(ch.timeline.get_tips())
+                    }
                     backend("contacts:setTrust " + decodeScuttlebuttId(new_contact_id) + " 2" + " " + tips);
                 } else {
                     launch_snackbar("This contact already exists");

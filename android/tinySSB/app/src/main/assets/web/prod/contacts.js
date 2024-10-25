@@ -153,21 +153,20 @@ function show_contact_details(id) {
     }
     var c = tremola.contacts[id];
     console.log(id);
-    backend("contacts:getTrust " +  decodeScuttlebuttId(id));
+    backend("contacts:getTrust " + decodeScuttlebuttId(id));
 
     new_contact_id = id;
     document.getElementById('old_contact_alias').value = c.alias ? c['alias'] : "";
-    var details = '';
     var details = '';
     details += '<br><div>IAM-Alias: &nbsp;' + (c.iam != "" ? c.iam : "&mdash;") + '</div>\n';
     details += '<br><div>Shortname: &nbsp;' + id2b32(id) + '</div>\n';
     details += '<br><div style="word-break: break-all;">SSB identity: &nbsp;<tt>' + id + '</tt></div>\n';
     details += '<br><div class=settings style="padding: 0px;"><div class=settingsText>Forget this contact</div><div style="float: right;"><label class="switch"><input id="hide_contact" type="checkbox" onchange="toggle_forget_contact(this);"><span class="slider round"></span></label></div></div>'
 
-    // Add slider, values below it, and the set button next to the slider
+    // Add slider with colored gradient
     details += '<br><div>Trust Level:</div>\n';
     details += '<div style="display: flex; align-items: center;">';
-    details += '<input type="range" id="slider" min="0" max="2" step="1" value="' + c['trusted'] + '" style="flex: 1; margin-right: 10px;">\n';
+    details += '<input type="range" id="slider" min="0" max="2" step="1" value="' + c['trusted'] + '" style="flex: 1; margin-right: 10px; appearance: none; -webkit-appearance: none; background: linear-gradient(to right, red 0%, orange 50%, green 100%); height: 8px; border-radius: 5px;">';
     details += '<button id="setButton" style="flex: 0;">Set</button>\n';
     details += '</div>';
 
@@ -200,7 +199,6 @@ function show_contact_details(id) {
             errorMessage.textContent = ''; // Clear any previous errors
             handleSetValue(sliderValue); // Call the function with slider value
             closeOverlay();
-
         }
     }
 
@@ -216,6 +214,7 @@ function show_contact_details(id) {
     document.getElementById('old_contact_alias').focus();
     overlayIsActive = true;
 }
+
 
 function changeTrustLevel(contactID, value) {
     console.log("Supposed to set contact " + contactID + "'s Trust Level to " + value);
