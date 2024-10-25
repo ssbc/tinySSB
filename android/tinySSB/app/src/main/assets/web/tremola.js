@@ -634,8 +634,11 @@ function b2f_new_event(e) { // incoming SSB log event: we get map with three ent
             // console.log("new post 1 ", ch)
             if (!(e.header.ref in ch.posts)) { // new post
                 var a = e.confid;
+
+                //get alias from fid
+                var alias = tremola.contacts[encodeScuttlebuttId(a[2])].alias;
                 var p = {
-                    "key": e.header.ref, "from": e.header.fid, "body": "Set contact: " + a[2] + "'s trust level to " + a[3],
+                    "key": e.header.ref, "from": e.header.fid, "body": "Set contact: " + alias + "'s trust level to " + a[3],
                     "when": a[4] * 1000, "prev": a[1]
                 };
                 // console.log("new post 2 ", JSON.stringify(p))

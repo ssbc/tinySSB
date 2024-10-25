@@ -192,11 +192,15 @@ function show_contact_details(id) {
 
         const sliderValue = slider.value;
 
-        // Example condition for error
+        if (sliderValue == c['trusted']) {
+            errorMessage.textContent = "Contact's trust level is already set to " + sliderValue + ".";
+            return
+        }
+
         if (sliderValue == 2) {
             //check if current trust level is 2
             if (c['trusted'] == 2) {
-                errorMessage.textContent = "Error: Contact's trust level is already 2.";
+                errorMessage.textContent = "Contact's trust level is already 2.";
                 return;
             }
             errorMessage.textContent = "Error: To set a contact's trust level to 2, you must scan their QR Code.";
