@@ -439,7 +439,15 @@ function qr_scan_success(s) {
             new_contact_id = s;
             // console.log("tremola:", tremola)
             if (new_contact_id in tremola.contacts) {
-                launch_snackbar("This contact already exists");
+                //check if existing contact has trust level lower than 2
+                if (tremola.contacts[new_contact_id].trusted < 2) {
+                    //do this in the backend as well
+                    let ch = tremola.chats[recps2nm([myId])];
+                    let tips = JSON.stringify(ch.timeline.get_tips())
+                    backend("contacts:setTrust " + decodeScuttlebuttId(new_contact_id) + " 2" + " " + tips);
+                } else {
+                    launch_snackbar("This contact already exists");
+                }
                 return;
             }
             // FIXME: do sanity tests
@@ -465,10 +473,10 @@ function qr_scan_confirmed() {
     var s = document.getElementById('alias_id').innerHTML;
     // c = {alias: a, id: s};
     var i = (a + "?").substring(0, 1).toUpperCase()
-    var c = {"alias": a, "initial": i, "color": colors[Math.floor(colors.length * Math.random())], "iam": "", "forgotten": false};
+    var c = {"alias": a, "initial": i, "color": colors[Math.floor(colors.length * Math.random())], "iam": "", "forgotten": false, "trusted": 2};
     tremola.contacts[s] = c;
     persist();
-    backend("add:contact " + s + " " + btoa(a))
+    backend("add:contact " + s + " " + btoa(a) + "T") //T for trusted
     load_contact_item([s, c]);
     closeOverlay();
 }

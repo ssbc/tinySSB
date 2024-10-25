@@ -34,6 +34,7 @@ class Constants{
         val TINYSSB_APP_TEXTANDVOICE = Bipf.mkString("TAV") // tips bytes bytes int (rcpt)
         val TINYSSB_APP_TICTACTOE    = Bipf.mkString("TTT") //
         val TINYSSB_APP_IAM          = Bipf.mkString("IAM") // str
+        val TINYSSB_APP_NEWTRUSTED   = Bipf.mkString("TRT")
 
         val TINYSSB_BLE_REPL_SERVICE_2022 = UUID.fromString("6e400001-7646-4b5b-9a50-71becce51558")
         val TINYSSB_BLE_RX_CHARACTERISTIC = UUID.fromString("6e400002-7646-4b5b-9a50-71becce51558") // for writing to the remote device

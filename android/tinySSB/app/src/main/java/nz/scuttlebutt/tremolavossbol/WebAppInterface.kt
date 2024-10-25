@@ -36,7 +36,9 @@ import nz.scuttlebutt.tremolavossbol.utils.PlusCodesUtils
 import nz.scuttlebutt.tremolavossbol.utils.Bipf_e
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_ACK
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_DLV
+import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_NEWTRUSTED
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_TICTACTOE
+import okio.ByteString.Companion.decodeHex
 
 
 // pt 3 in https://betterprogramming.pub/5-android-webview-secrets-you-probably-didnt-know-b23f8a8b5a0c
@@ -185,9 +187,14 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
                 //act.finishAffinity()
             }
             "add:contact" -> {
-                val id = args[1].substring(1,args[1].length-8)
-                Log.d("ADD", id)
-                act.tinyGoset._add_key(Base64.decode(id, Base64.NO_WRAP))
+                val contactID = args[1].substring(1,args[1].length-8)
+                val isTrusted = args.getOrNull(2) != null
+                Log.d("ADD", "$contactID $isTrusted")
+                val keyHex = act.tinyGoset._add_key(Base64.decode(contactID, Base64.NO_WRAP), true)
+                if (isTrusted) {
+                    Log.d("trustthismf", "trustthismf")
+                    trust_contact(keyHex, 2)
+                }
             }
             /* no alias publishing in tinyTremola
             "add:contact" -> { // ID and alias
@@ -315,11 +322,80 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
                     Bipf.list_append(lst, Bipf.mkString(a))
                 Bipf.encode(lst)?.let {act.tinyNode.publish_public_content(it)}
             }
+            "contacts:getTrust" -> {
+                getContactTrust(args[1])
+            }
+
+            "contacts:setTrust" -> {
+                val tips = ArrayList<String>(0)
+                val a = JSONArray(args[3])
+                for (i in 0..a.length()-1) {
+                    val s = a[i].toString() // (a[i] as JSONObject).toString()
+                    tips.add(s)
+                }
+                setContactTrust(args[1], args[2].toInt(), tips);
+            }
 
             else -> {
                 Log.d("onFrontendRequest", "unknown")
             }
         }
+    }
+
+    fun setContactTrust(contactID: String, trustLevel: Int, tips: ArrayList<String>) {
+        Log.d("setTrust", "Setting Contact $contactID's trust level to $trustLevel with tips $tips")
+        trust_contact(contactID, trustLevel, tips);
+    }
+
+    fun getContactTrust(fidString: String): Int {
+        val fid = fidString.decodeHex()
+        val userFeed = act.tinyRepo.fid2replica(act.idStore.identity.verifyKey)
+        val lastSeq = userFeed?.state?.max_seq
+        Log.d("trust level: ", "test1")
+        Log.d("trust level: ", "last seq: " + lastSeq)
+        if (lastSeq != null) {
+            Log.d("trust level: ", "test2")
+            for (i in lastSeq downTo 1) {
+                var entry = userFeed.read_content(lastSeq)
+                val entryType = entry?.let { getFromEntry(it, 0) }
+                Log.d("trust level: ", "test3")
+                Log.d("trust level: ", entryType.toString())
+                if (entryType == "TRT") {
+                    Log.d("trust level: ", "test4")
+                    if (entry is ByteArray) {
+                        Log.d("Details for Contact", fidString)
+                        val contactID = getFromEntry(entry, 2)
+                        val trustLevel = getFromEntry(entry, 3)
+                        if (contactID.toString() == fidString) {
+                            Log.d("contactTrustLevel", trustLevel.toString())
+                            if (trustLevel == "Trusted") {
+                                Log.d("contactTrust", "Trusted")
+                                return 1
+                            } else if (trustLevel == "Untrusted") {
+                                Log.d("contactTrust", "Untrusted")
+                                return 0
+                            }
+                        }
+
+                    }
+                }
+            }
+        }
+        Log.d("contactTrust", "Untrusted")
+        return 0
+    }
+
+    fun getFromEntry(entry: ByteArray, index: Int): Any? {
+        if (entry != null) {
+            val entry = Bipf.bipf_loads(entry)
+            if (entry != null) {
+                if (entry.get() is ArrayList<*>) {
+                    val first = (entry.get() as ArrayList<*>).get(index)
+                    return first
+                }
+            }
+        }
+        return null
     }
 
     fun eval(js: String) { // send JS string to webkit frontend for execution
@@ -389,6 +465,58 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
         val body = Bipf.encode(lst)
         if (body != null)
             act.tinyNode.publish_public_content(body)
+    }
+
+    fun trust_contact(contactID: String, trustLevel: Int, tips: ArrayList<String> = ArrayList()) {
+        Log.d("contactID" , contactID)
+        //TODO: Write entry in private feed that lists contact as trusted
+        val lst = Bipf.mkList()
+        Bipf.list_append(lst, TINYSSB_APP_NEWTRUSTED)
+        val tip_lst = Bipf.mkList()
+        for (t in tips) {
+            Bipf.list_append(tip_lst, Bipf.mkString(t))
+        }
+        Bipf.list_append(lst, tip_lst)
+        Bipf.list_append(lst, Bipf.mkString(contactID))
+        Bipf.list_append(lst, Bipf.mkInt(trustLevel))
+
+        val tst = Bipf.mkInt((System.currentTimeMillis() / 1000).toInt())
+        Log.d("wai", "private send time is ${tst.getInt()}")
+        Bipf.list_append(lst, tst)
+        Bipf.list_append(lst, Bipf.mkNone()) //placeholder for voice
+
+        val body = Bipf.encode(lst)
+        if (body != null) {
+            act.tinyNode.publish_public_content(body)
+        }
+        reloadContactsTrustLevel()
+    }
+
+    //get the trust level of all contacts and save them in a dictionary, then send them to the frontend
+    private fun reloadContactsTrustLevel() {
+        val contactsTrustLevel = mutableMapOf<String, Int>()
+        for (fid in act.tinyRepo.listFeeds()) {
+            val userFeed = act.tinyRepo.fid2replica(fid)
+            val lastSeq = userFeed?.state?.max_seq
+            if (lastSeq != null) {
+                for (i in lastSeq downTo 1) {
+                    var entry = userFeed.read_content(lastSeq)
+                    val entryType = entry?.let { getFromEntry(it, 0) }
+                    if (entryType == "TRT") {
+                        if (entry is ByteArray) {
+                            val contactID = getFromEntry(entry, 2)
+                            val trustLevel = getFromEntry(entry, 3)
+                            if (contactID != null && trustLevel != null) {
+                                contactsTrustLevel[contactID.toString()] = trustLevel.toString().toInt()
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        val contactsTrustLevelJson = JSONObject(contactsTrustLevel as Map<*, *>?)
+        Log.d("contactsTrustLevelJson", contactsTrustLevelJson.toString())
+        eval("reloadContactsTrustLevels('${contactsTrustLevelJson}')")
     }
 
     fun private_post_with_voice(tips: ArrayList<String>, text: String?, voice: ByteArray?, rcps: List<String>) {
@@ -469,7 +597,7 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
         //val body = Bipf.encode(lst)
         //Log.d("KANBAN BIPF ENCODE", Bipf.bipf_list2JSON(Bipf.decode(body!!)!!).toString())
         //if (body != null)
-            //act.tinyNode.publish_public_content(body)
+        //act.tinyNode.publish_public_content(body)
 
     }
 
@@ -489,8 +617,11 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
     fun sendTinyEventToFrontend(fid: ByteArray, seq: Int, mid:ByteArray, body: ByteArray) {
         // Log.d("wai","sendTinyEvent ${body.toHex()}")
         var e = toFrontendObject(fid, seq, mid, body)
-        if (e != null)
+        if (e != null) {
+            val trust = getContactTrust(fid.toHex())
+            Log.d("ContactTrust: ", trust.toString())
             eval("b2f_new_event($e)")
+        }
 
         // in-order api
         val replica = act.tinyRepo.fid2replica(fid)

@@ -22,7 +22,7 @@ function menu_redraw() {
 
     load_chat_list()
 
-    document.getElementById("lst:contacts").innerHTML = '';
+    //document.getElementById("lst:contacts").innerHTML = '';
     load_contact_list();
 
     if (curr_scenario == "posts")
@@ -550,6 +550,38 @@ function b2f_new_event(e) { // incoming SSB log event: we get map with three ent
     }
 
     if (e.public) {
+        if (e.public[0] == 'TRT' && e.header.fid == myId) {
+            ch = tremola.chats[recps2nm([myId])];
+
+            load_chat_list();
+            if (!(ch.timeline instanceof Timeline))
+                ch.timeline = Timeline.fromJSON(ch.timeline)
+
+            // console.log("new post 1 ", ch)
+            if (!(e.header.ref in ch.posts)) { // new post
+                var a = e.public;
+                var p = {
+                    "key": e.header.ref, "from": e.header.fid, "body": "Set contact: " + a[2] + "'s trust level to " + a[3],
+                    "when": a[4] * 1000, "prev": a[1]
+                };
+                // console.log("new post 2 ", JSON.stringify(p))
+                // console.log("time: ", a[3])
+                ch["posts"][e.header.ref] = p;
+                // console.log(`chat add tips ${a[1]}`)
+                ch.timeline.add(e.header.ref, a[1])
+                if (ch["touched"] < e.header.tst)
+                    ch["touched"] = e.header.tst
+                if (curr_scenario == "posts" && curr_chat == conv_name) {
+                    load_chat(conv_name); // reload all messages (not very efficient ...)
+                    ch.lastRead = Object.keys(ch.posts).length; // Date.now();
+                }
+                set_chats_badge(conv_name)
+            } else {
+                console.log(`post ${e.header.ref} known already?`)
+            }
+            // if (curr_scenario == "chats") // the updated conversation could bubble up
+            load_chat_list();
+        }
         if (e.public[0] == 'TAV') { // text and voice
             // console.log("new post 0 ", tremola)
             var conv_name = "ALL";
@@ -559,6 +591,7 @@ function b2f_new_event(e) { // incoming SSB log event: we get map with three ent
                     "members": ["ALL"], "touched": Date.now(), "lastRead": 0,
                     "timeline": new Timeline()
                 };
+                ch.timeline.add(e.header.ref, e.public[1])
                 load_chat_list()
             }
             // console.log("new post 1")
@@ -640,6 +673,8 @@ function b2f_new_event(e) { // incoming SSB log event: we get map with three ent
             // console.log("new priv post 0")
             let ch = tremola.chats[conv_name];
 
+            console.log(a[0]);
+
             if (a[0] == 'DLV' || a[0] == 'ACK') { // remote delivery notification
                 if (e.header.fid != myId && ch.members.length == 2 && a[1] in ch.posts) { // only for person-to-person
                     var p = ch.posts[a[1]];
@@ -698,16 +733,20 @@ function b2f_get_settings(settings) {
     tremola.settings = settings
 }
 
-function b2f_new_contact(fid) {
-    if (typeof tremola == 'undefined' || fid in tremola.contacts) // do not overwrite existing entry
-        return;
+function b2f_new_contact(fid, trustLevel="untrusted") {
+    console.log(trustLevel);
+    let trusted = 0;
+    if (trustLevel == "trusted") {
+        trusted = 2;
+    }
     var id = id2b32(fid);
     tremola.contacts[fid] = {
         "alias": id, "initial": id.substring(0, 1).toUpperCase(),
         "color": colors[Math.floor(colors.length * Math.random())],
-        "iam": "", "forgotten": false
+        "iam": "", "forgotten": false, "trusted": trusted
     };
-    persist()
+    console.log(tremola.contacts[fid]);
+    persist();
     load_contact_list();
 }
 

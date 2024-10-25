@@ -73,6 +73,11 @@
     overflow: scroll;
   }
 
+  .contactScroll {
+    height: 50%;
+    overflow: scroll;
+  }
+
   .active {
     background-color: var(--activeCol);
   }

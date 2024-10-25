@@ -232,10 +232,11 @@ class GOset(val context: MainActivity) {
         return true
     }
 
-    fun _add_key(key: ByteArray) {
+    fun _add_key(key: ByteArray, trusted: Boolean = false): String {
         if (!_include_key(key)) // adds key if necessary
-            return
-        context.tinyRepo.add_replica(key)
+            return ""
+        //Set trusted
+        context.tinyRepo.add_replica(key, trusted)
 
         keys.sortWith({a:ByteArray,b:ByteArray -> byteArrayCmp(a,b)})
         if (keys.size >= largest_claim_span) { // only rebroadcast if we are up to date
@@ -246,7 +247,9 @@ class GOset(val context: MainActivity) {
                 pending_novelty.add(n)
         }
         context.ble?.refreshShortNameForKey(key) // refresh shortname in devices overview
+        //Set
         Log.d("goset", "added key ${key.toHex()}, |keys|=${keys.size}")
+        return key.toHex()
     }
 
     fun _add_pending_claim(cl: Claim) {

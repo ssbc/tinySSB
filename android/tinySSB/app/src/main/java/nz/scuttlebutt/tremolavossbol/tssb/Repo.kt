@@ -76,7 +76,7 @@ class Repo(val context: MainActivity) {
 
     }
 
-    fun add_replica(fid: ByteArray) {
+    fun add_replica(fid: ByteArray, trusted: Boolean = false) {
         if (replicas.any { it.fid.contentEquals(fid) })
             return
         val new_r = Replica(context, File(context.getDir(TINYSSB_DIR, MODE_PRIVATE), FEED_DIR), fid)
@@ -94,15 +94,17 @@ class Repo(val context: MainActivity) {
             addNumberOfPendingChunks(p.rem)
         }
 
-
-
         if (context.tinyGoset.keys.size > 1) {
             want_offs = Random.nextInt(0, context.tinyGoset.keys.size - 1)
             chnk_offs = Random.nextInt(0, context.tinyGoset.keys.size - 1)
         }
 
         if(context.frontend_ready) // was: isWaiInitialized()
-            context.wai.eval("b2f_new_contact(\"@${fid.toBase64()}.ed25519\")") // notify frontend
+            if (trusted) {
+                context.wai.eval("b2f_new_contact(\"@${fid.toBase64()}.ed25519\", \"trusted\")") // notify frontend
+            } else {
+                context.wai.eval("b2f_new_contact(\"@${fid.toBase64()}.ed25519\", \"untrusted\")") // notify frontend
+            }
 
         // want_is_valid = false
         // chnk_is_valid = false
