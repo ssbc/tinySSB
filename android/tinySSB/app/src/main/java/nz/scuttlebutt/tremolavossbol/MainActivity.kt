@@ -87,13 +87,7 @@ class MainActivity : Activity() {
         setContentView(R.layout.activity_main)
         // tremolaState = TremolaState(this)
         idStore = IdStore(this)
-
-        // wifiManager = applicationContext.getSystemService(WIFI_SERVICE) as WifiManager
-        // mlock = wifiManager?.createMulticastLock("lock")
-        // if (!mlock!!.isHeld) mlock!!.acquire()
-        // mkSockets()
-
-        Log.d("IDENTITY", "is ${idStore.identity.toRef()} (${idStore.identity.verifyKey})")
+        Log.d("MainActivity", "Initiated TremolaState and IdStore")
 
         val webView = findViewById<WebView>(R.id.webView)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
@@ -102,10 +96,51 @@ class MainActivity : Activity() {
                 null
             ) // disable acceleration, needed for older WebViews
         }
+        Log.d("MainActivity", "Initiated WebView")
         gamesHandler = GamesHandler(idStore.identity)
-        webView.addJavascriptInterface(gamesHandler, "GameHandler")
+        webView.addJavascriptInterface(gamesHandler, "GameHandler") // TODO check difference to "GamesHandler"
 
+        Log.d("MainActivity", "Initiated GamesHandler")
         wai = WebAppInterface(this, webView, gamesHandler)
+        tinyRepo.upgrade_repo()
+        tinyIO = IO(this, wai)
+        tinyGoset._include_key(idStore.identity.verifyKey) // make sure our local key is in
+        tinyRepo.load()
+        tinyGoset.adjust_state()
+        tinyDemux.arm_dmx(tinyGoset.goset_dmx,  {buf:ByteArray, aux:ByteArray?, _ -> tinyGoset.rx(buf,aux)}, null)
+        tinyDemux.arm_dmx(tinyDemux.want_dmx!!, {buf:ByteArray, aux:ByteArray?, sender:String? -> tinyNode.incoming_want_request(buf,aux,sender)})
+        tinyDemux.arm_dmx(tinyDemux.chnk_dmx!!, { buf:ByteArray, aux:ByteArray?, _ -> tinyNode.incoming_chunk_request(buf,aux)})
+
+        webView.clearCache(true)
+
+        Log.d("MainActivity", "Initiated WebAppInterface")
+        webView.addJavascriptInterface(wai, "Android")
+        webView.addJavascriptInterface(gamesHandler, "GamesHandler")
+        Log.d("MainActivity", "Added Javascript interfaces")
+
+        webView.settings.javaScriptEnabled = true
+        webView.settings.domStorageEnabled = true
+
+        webView.loadUrl("file:///android_asset/web/tremola.html")
+        Log.d("MainActivity", "Initiated UI elements")
+        // wifiManager = applicationContext.getSystemService(WIFI_SERVICE) as WifiManager
+        // mlock = wifiManager?.createMulticastLock("lock")
+        // if (!mlock!!.isHeld) mlock!!.acquire()
+        // mkSockets()
+
+        Log.d("IDENTITY", "is ${idStore.identity.toRef()} (${idStore.identity.verifyKey})")
+
+        /*val webView = findViewById<WebView>(R.id.webView)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            webView.setLayerType(
+                View.LAYER_TYPE_SOFTWARE,
+                null
+            ) // disable acceleration, needed for older WebViews
+        }
+        gamesHandler = GamesHandler(idStore.identity)
+        webView.addJavascriptInterface(gamesHandler, "GameHandler")*/
+
+        /*wai = WebAppInterface(this, webView, gamesHandler)
         // upgrades repo filesystem if necessary
         tinyRepo.upgrade_repo()
         tinyIO = IO(this, wai)
@@ -150,7 +185,7 @@ class MainActivity : Activity() {
         // webSettings?.javaScriptCanOpenWindowsAutomatically = true
 
         // prepare for connectivity changes:
-        /*
+
         if (networkCallback == null) {
             networkCallback = object : ConnectivityManager.NetworkCallback() {
                 override fun onLinkPropertiesChanged(nw: Network, prop: LinkProperties) {
@@ -213,8 +248,8 @@ class MainActivity : Activity() {
             } catch (e: Exception) {
                 Log.d("listen thread", "died ${e}")
             }
-        }
-        val t2 = thread(isDaemon=true)  { // accept loop, robust against reassigned server_socket
+        }*/
+        /*val t2 = thread(isDaemon=true)  { // accept loop, robust against reassigned server_socket
              while (true) {
                  var socket: Socket?
                  try {
@@ -230,8 +265,8 @@ class MainActivity : Activity() {
                      rpcStream.startStreaming()
                  }
             }
-        }
-        */
+        }*/
+
 
         val t3 = thread(isDaemon=true) {
             try {
@@ -251,14 +286,15 @@ class MainActivity : Activity() {
         val t6 = thread(isDaemon=true) {
             tinyNode.loop(ioLock)
         }
-
-        val serviceIntent = Intent(this, BleForegroundService::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            Log.d("MainActivity", "Starting Foreground Service")
-            applicationContext.startForegroundService(serviceIntent)
-        } else {
-            Log.d("MainActivity", "Starting Service")
-            applicationContext.startService(serviceIntent)
+        if (!isForegroundServiceRunning()) {
+            val serviceIntent = Intent(this, BleForegroundService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                Log.d("MainActivity", "Starting Foreground Service")
+                applicationContext.startForegroundService(serviceIntent)
+            } else {
+                Log.d("MainActivity", "Starting Service")
+                applicationContext.startService(serviceIntent)
+            }
         }
 
         /*
@@ -328,10 +364,9 @@ class MainActivity : Activity() {
             val voice = "abc" // result!!.contents
             tremolaState.wai.eval("b2f_new_voice('${voice}')")
         */
-        }  else if (requestCode == 555 && resultCode == RESULT_OK) { // enable fine grained location
+        } else if (requestCode == 555 && resultCode == RESULT_OK) { // enable fine grained location
             ble?.startBluetooth()
         }
-
         super.onActivityResult(requestCode, resultCode, data)
     }
 
