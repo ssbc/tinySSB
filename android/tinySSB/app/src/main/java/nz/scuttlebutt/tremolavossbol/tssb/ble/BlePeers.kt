@@ -18,6 +18,7 @@ import android.bluetooth.le.ScanSettings
 import android.bluetooth.le.ScanSettings.MATCH_MODE_STICKY
 import android.bluetooth.BluetoothGattServer
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.LocationManager
 import android.os.Build
@@ -26,6 +27,7 @@ import android.util.Log
 import android.widget.Toast
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import nz.scuttlebutt.tremolavossbol.MainActivity
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_BLE_REPL_SERVICE_2022
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_BLE_RX_CHARACTERISTIC
@@ -516,9 +518,16 @@ class BlePeers(val act: MainActivity) {
         if (connectedDevices.any { it.address == device.address} && peers.keys.any { it.address == device.address }) {
             // Log.d("BlePeers", "ble - device online: ${device}")
             act.wai.eval("b2f_local_peer(\"ble\", \"${device.address}\", \"${name}\", \"${status}\")")
+            val intent = Intent("MESSAGE_FROM_SERVICE")
+            intent.putExtra("message", "b2f_local_peer(\"ble\", \"${device.address}\", \"${name}\", \"${status}\")".toByteArray())
+            LocalBroadcastManager.getInstance(act).sendBroadcast(intent)
         } else if (status == "offline") {
             act.wai.eval("b2f_local_peer(\"ble\", \"${device.address}\", \"${name}\", \"${status}\")")
+            val intent = Intent("MESSAGE_FROM_SERVICE")
+            intent.putExtra("message", "b2f_local_peer(\"ble\", \"${device.address}\", \"${name}\", \"${status}\")".toByteArray())
+            LocalBroadcastManager.getInstance(act).sendBroadcast(intent)
         }
+
     }
 
     @SuppressLint("MissingPermission")

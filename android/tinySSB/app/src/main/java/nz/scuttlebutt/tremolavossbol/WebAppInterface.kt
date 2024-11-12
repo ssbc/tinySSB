@@ -526,8 +526,11 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
         // Log.d("wai", "send time is ${tst.getInt()}")
         Bipf.list_append(lst, tst)
         val body = Bipf.encode(lst)
-        if (body != null)
+        if (body != null) {
+            Log.d("WebAppInterface", "published bytes: " + Bipf.decode(body))
+            act.sendMessageToForegroundservice(body)
             act.tinyNode.publish_public_content(body)
+        }
     }
 
     fun private_post_with_voice(tips: ArrayList<String>, text: String?, voice: ByteArray?, rcps: List<String>) {

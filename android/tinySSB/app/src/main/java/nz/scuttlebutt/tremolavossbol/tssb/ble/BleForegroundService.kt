@@ -20,6 +20,7 @@ import android.view.View
 import android.webkit.WebView
 import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import nz.scuttlebutt.tremolavossbol.MainActivity
 import nz.scuttlebutt.tremolavossbol.Settings
 import nz.scuttlebutt.tremolavossbol.WebAppInterface
@@ -48,6 +49,7 @@ class BleForegroundService: Service() {
 
     private val CHANNEL_ID = "BLE_FOREGROUND_SERVICE_CHANNEL"
     lateinit var idStore: IdStore
+    lateinit var tinyIO: IO
     var settings: Settings? = null
     @Volatile var mc_group: InetAddress? = null
     @Volatile var mc_socket: MulticastSocket? = null
@@ -67,9 +69,39 @@ class BleForegroundService: Service() {
     override fun onCreate() {
         Log.d("BleForegroundService", "Creating Service")
         //registerBroadcastReceivers()
+        val filter = IntentFilter("MESSAGE_FROM_ACTIVITY")
+        LocalBroadcastManager.getInstance(this).registerReceiver(mainActivityReceiver, filter)
         super.onCreate()
     }
 
+    /**
+     * This receiver is used to receive messages from the MainActivity, which need to be sent to the BLE device.
+     */
+    private val mainActivityReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val message = intent.getByteArrayExtra("message")
+            if (message != null) {
+                Log.d("BleForegroundService", "(1) Received message from activity: ${message.toString(Charsets.UTF_8)}")
+                // TODO add here method which sends the message to the BLE device
+                handleOutgoingMessage(message)
+            }
+        }
+    }
+
+    private fun handleOutgoingMessage(message: ByteArray) {
+        Log.d("BleForegroundService", "(2) Received message from activity: $message")
+        // Here, send the message over Bluetooth or process it
+    }
+
+    private fun sendMessageToActivity(message: ByteArray) {
+        val intent = Intent("MESSAGE_FROM_SERVICE")
+        intent.putExtra("message", message)
+        LocalBroadcastManager.getInstance(this).sendBroadcast(intent)
+    }
+
+    @RequiresApi(
+        Build.VERSION_CODES.O
+    )
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.d("BleForegroundService", "Service started")
 
@@ -85,6 +117,7 @@ class BleForegroundService: Service() {
             manager?.createNotificationChannel(channel)
         }
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
+            .setOngoing(true) // precludes the user from removing the Notification manually
             .setContentTitle("BLE Service")
             .setContentText("Continuing Replication in the background")
             .setSmallIcon(R.drawable.icon)
@@ -109,14 +142,17 @@ class BleForegroundService: Service() {
     override fun onDestroy() {
         super.onDestroy()
         Log.d("MyForegroundService", "Service destroyed")
-
-        unregisterReceiver(broadcastReceiver)
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(mainActivityReceiver)
+        /*unregisterReceiver(broadcastReceiver)
         unregisterReceiver(ble_event_listener)
 
         websocket?.stop()
-        websocket = null
+        websocket = null*/
     }
 
+    @RequiresApi(
+        Build.VERSION_CODES.O
+    )
     private fun startOperations() {
         // Start the BLE operations here
         /**
@@ -128,17 +164,26 @@ class BleForegroundService: Service() {
             val executor = Executors.newFixedThreadPool(1)
             executor.execute {
                 Log.d("BleForegroundService", "Starting test thread")
-                val test_thread = Thread {
-                    while (true) {
-                        Log.d("BleForegroundService", "Printing Test message")
-                        Thread.sleep(10000)
+                try {
+                    val test_thread = Thread {
+                        while (true) {
+                            Log.d(
+                                "BleForegroundService",
+                                "Test thread running"
+                            )
+                            Thread.sleep(
+                                10000
+                            )
+                        }
                     }
+                    test_thread.start()
+                } catch (e: Exception) {
+                    Log.d("BleForegroundService", "Test thread died ${e}")
                 }
-                test_thread.start()
             }
             return
         }
-        val executor = Executors.newFixedThreadPool(2)
+        //val executor = Executors.newFixedThreadPool(2)
 
         /*executor.execute {
             Log.d("BleForegroundService", "Starting tinyIO sender loop")
@@ -163,7 +208,7 @@ class BleForegroundService: Service() {
             thread.priority = 10
         }*/
 
-        executor.execute {
+        /*executor.execute {
             Log.d("BleForegroundService", "Starting tinyGoset loop")
             val thread = Thread {
                 //tinyGoset.loop()
@@ -179,7 +224,7 @@ class BleForegroundService: Service() {
             }
             thread.priority = 8
             thread.start()
-        }
+        }*/
     }
 
     override fun onBind(
@@ -187,67 +232,4 @@ class BleForegroundService: Service() {
     ): IBinder? {
         return null
     }
-
-    private fun registerBroadcastReceivers() {
-        // Register Wi-Fi state change listener
-        broadcastReceiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context?, intent: Intent?) {
-                val networkInfo: NetworkInfo? = intent!!.getParcelableExtra(WifiManager.EXTRA_NETWORK_INFO)
-                if (networkInfo == null)
-                    return
-
-                if (networkInfo.detailedState == NetworkInfo.DetailedState.CONNECTED && !isWifiConnected) {
-                    isWifiConnected = true
-                    Handler().postDelayed({
-                        mkSockets()
-                        if (websocket == null)
-                            websocket = WebsocketIO(applicationContext as MainActivity, settings!!.getWebsocketUrl())
-                        websocket!!.start()
-                    }, 1000)
-                } else if (networkInfo.detailedState == NetworkInfo.DetailedState.DISCONNECTED && isWifiConnected) {
-                    rmSockets()
-                    isWifiConnected = false
-                    websocket?.let {
-                        it.stop()
-                        websocket = null
-                    }
-                }
-            }
-        }
-        registerReceiver(broadcastReceiver, IntentFilter(WifiManager.NETWORK_STATE_CHANGED_ACTION))
-
-        // Register Bluetooth state change listener
-        ble_event_listener = BluetoothEventListener(applicationContext as MainActivity)
-        registerReceiver(ble_event_listener, IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED))
-    }
-
-    private fun rmSockets() {
-        try { mc_socket?.leaveGroup(mc_group); mc_socket?.close() } catch (e: Exception) {}
-        mc_group = null
-        mc_socket = null
-    }
-
-
-    private fun mkSockets() {
-        if(!settings!!.isUdpMulticastEnabled())
-            return
-
-        rmSockets()
-        try {
-            mc_group = InetAddress.getByName(
-                Constants.SSB_VOSSBOL_MC_ADDR)
-            mc_socket= MulticastSocket(
-                Constants.SSB_VOSSBOL_MC_PORT)
-            // mc_socket?.reuseAddress = true
-            // mc_socket?.broadcast = true // really necessary ?
-            // val any = InetAddress.getByAddress(ByteArray(4))
-            // mc_socket?.bind(InetSocketAddress(any, Constants.SSB_VOSSBOL_MC_PORT)) // where to listen
-            mc_socket?.loopbackMode = true
-            mc_socket?.joinGroup(mc_group)
-        } catch (e: Exception) {
-            Log.d("mkSockets exc", e.toString())
-            rmSockets()
-        }
-    }
-
 }

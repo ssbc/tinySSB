@@ -3,13 +3,16 @@ package nz.scuttlebutt.tremolavossbol.tssb
 import android.util.Log
 import kotlinx.coroutines.*
 import nz.scuttlebutt.tremolavossbol.MainActivity
+import nz.scuttlebutt.tremolavossbol.Settings
 import okhttp3.*
 import okio.ByteString
 import okio.ByteString.Companion.toByteString
+import java.util.concurrent.locks.Lock
+import java.util.concurrent.locks.ReentrantLock
 
 const val WS_CLOSE_NORMAL = 1000
 
-class WebsocketIO(val context: MainActivity, private var url: String) {
+class WebsocketIO(val activity: MainActivity, private var url: String) {
     private var ws: WebSocket? = null
     private var reconnectJob: Job? = null
     private val client = OkHttpClient()
@@ -17,7 +20,7 @@ class WebsocketIO(val context: MainActivity, private var url: String) {
 
     fun start() {
 
-        if (!context.settings!!.isWebsocketEnabled())
+        if (!activity.settings!!.isWebsocketEnabled())
             return
 
         Log.d("Websocket","starting Websocket")
@@ -35,9 +38,9 @@ class WebsocketIO(val context: MainActivity, private var url: String) {
     private val wslistener = object : WebSocketListener() {
         override fun onMessage(webSocket: WebSocket, bytes: ByteString) {
             super.onMessage(webSocket, bytes)
-            context.ioLock.lock()
-            val rc = context.tinyDemux.on_rx(bytes.toByteArray(), url)
-            context.ioLock.unlock()
+            activity.ioLock.lock()
+            val rc = activity.tinyDemux.on_rx(bytes.toByteArray(), url)
+            activity.ioLock.unlock()
             Log.d("Websocket", "received binary data, len: ${bytes.size}")
             if(!rc)
                 Log.d("Websocket", "on rx failed")
@@ -50,18 +53,18 @@ class WebsocketIO(val context: MainActivity, private var url: String) {
 
         override fun onOpen(webSocket: WebSocket, response: Response) {
             super.onOpen(webSocket, response)
-            context.wai.eval("b2f_local_peer(\"ws\", \"$url\", \"${url}\", \"online\")")
+            activity.wai.eval("b2f_local_peer(\"ws\", \"$url\", \"${url}\", \"online\")")
         }
 
         override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
             super.onClosed(webSocket, code, reason)
-            context.wai.eval("b2f_local_peer(\"ws\", \"$url\", \"${url}\", \"offline\")")
+            activity.wai.eval("b2f_local_peer(\"ws\", \"$url\", \"${url}\", \"offline\")")
         }
 
         override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
             super.onFailure(webSocket, t, response)
             Log.e("Websocket", "error: ${t.localizedMessage}")
-            context.wai.eval("b2f_local_peer(\"ws\", \"$url\", \"${url}\", \"offline\")")
+            activity.wai.eval("b2f_local_peer(\"ws\", \"$url\", \"${url}\", \"offline\")")
             reconnect()
         }
 
@@ -92,7 +95,7 @@ class WebsocketIO(val context: MainActivity, private var url: String) {
     fun updateUrl(newUrl: String) {
         ws?.close(WS_CLOSE_NORMAL, "connection closed by client")
         reconnectJob?.cancel()
-        context.wai.eval("b2f_local_peer(\"ws\", \"$url\", \"${url}\", \"offline\")")
+        activity.wai.eval("b2f_local_peer(\"ws\", \"$url\", \"${url}\", \"offline\")")
         url = newUrl
 
         val connectReq = Request.Builder().url(newUrl).build()

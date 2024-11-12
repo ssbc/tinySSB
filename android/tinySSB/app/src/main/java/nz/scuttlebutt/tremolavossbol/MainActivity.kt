@@ -23,6 +23,7 @@ import android.view.Window
 import android.webkit.WebView
 import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.google.zxing.integration.android.IntentIntegrator
 import nz.scuttlebutt.tremolavossbol.crypto.IdStore
 import nz.scuttlebutt.tremolavossbol.tssb.ble.BlePeers
@@ -31,6 +32,7 @@ import nz.scuttlebutt.tremolavossbol.tssb.ble.BluetoothEventListener
 import nz.scuttlebutt.tremolavossbol.utils.Constants
 import nz.scuttlebutt.tremolavossbol.games.common.GamesHandler
 import nz.scuttlebutt.tremolavossbol.tssb.ble.BleForegroundService
+import nz.scuttlebutt.tremolavossbol.utils.HelperFunctions.Companion.toHex
 import tremolavossbol.R
 import java.net.*
 import java.util.concurrent.locks.ReentrantLock
@@ -61,6 +63,33 @@ class MainActivity : Activity() {
     var isWifiConnected = false
     var ble_event_listener: BluetoothEventListener? = null
 
+    /**
+     * Receives incoming messages from the ForegroundService.
+     */
+    private val foregroundserviceReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val message = intent.getByteArrayExtra("message")
+            if (message != null) {
+                handleIncomingMessage(message)
+            }
+        }
+    }
+
+    /**
+     * Handles incoming messages from the ForegroundService.
+     */
+    private fun handleIncomingMessage(message: ByteArray) {
+        Log.d("MainActivity", "Received message: $message")
+        // TODO add here possibly log entries and stuff (everything except BLE)
+        wai.eval("b2f_new_message('${message.toHex()}')")
+    }
+
+    fun sendMessageToForegroundservice(message: ByteArray) {
+        Log.d("MainActivity", "Sending message to Foregroundservice: $message")
+        val intent = Intent("MESSAGE_FROM_ACTIVITY")
+        intent.putExtra("message", message)
+        LocalBroadcastManager.getInstance(this).sendBroadcast(intent)
+    }
     /*
     var broadcast_socket: DatagramSocket? = null
     var server_socket: ServerSocket? = null
@@ -79,10 +108,13 @@ class MainActivity : Activity() {
 
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
+        //val app = applicationContext as TinyApplication
+        //app.settings = Settings(this)
+
         settings = Settings(this)
         super.onCreate(savedInstanceState)
 
-        setRequestedOrientation (ActivityInfo.SCREEN_ORIENTATION_PORTRAIT)
+        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT)
         requestWindowFeature(Window.FEATURE_NO_TITLE)
         setContentView(R.layout.activity_main)
         // tremolaState = TremolaState(this)
@@ -103,7 +135,7 @@ class MainActivity : Activity() {
         Log.d("MainActivity", "Initiated GamesHandler")
         wai = WebAppInterface(this, webView, gamesHandler)
         tinyRepo.upgrade_repo()
-        tinyIO = IO(this, wai)
+        tinyIO = IO(this)
         tinyGoset._include_key(idStore.identity.verifyKey) // make sure our local key is in
         tinyRepo.load()
         tinyGoset.adjust_state()
@@ -228,7 +260,6 @@ class MainActivity : Activity() {
 
         ble_event_listener = BluetoothEventListener(this)
         registerReceiver(ble_event_listener, IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED))
-
         // val lck = ReentrantLock()
         /* disable TCP server and UDP advertisements in the tinyTremola version
 
@@ -286,16 +317,6 @@ class MainActivity : Activity() {
         val t6 = thread(isDaemon=true) {
             tinyNode.loop(ioLock)
         }
-        if (!isForegroundServiceRunning()) {
-            val serviceIntent = Intent(this, BleForegroundService::class.java)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                Log.d("MainActivity", "Starting Foreground Service")
-                applicationContext.startForegroundService(serviceIntent)
-            } else {
-                Log.d("MainActivity", "Starting Service")
-                applicationContext.startService(serviceIntent)
-            }
-        }
 
         /*
         t0.priority = 10
@@ -308,7 +329,7 @@ class MainActivity : Activity() {
         t4.priority = 10
         t5.priority = 8
         t6.priority = 8
-
+        Log.d("MainActivity", "Finished onCreate()")
     }
 
     override fun onBackPressed() {
@@ -371,7 +392,7 @@ class MainActivity : Activity() {
     }
 
     override fun onResume() {
-        Log.d("onResume", "")
+        Log.d("MainActivity", "onResume")
         super.onResume()
 
         /*
@@ -381,22 +402,27 @@ class MainActivity : Activity() {
         } catch (e: Exception) {}
         */
 
-        try {
+        /*try {
             ble = BlePeers(this)
             ble?.startBluetooth()
         } catch (e: Exception) {
             ble = null
-        }
+        }*/
 
+        Log.d("MainActivity", "Starting websocket soon ...")
         websocket = WebsocketIO(this, settings!!.getWebsocketUrl())
         websocket!!.start()
+        Log.d("MainActivity", "Started websocket")
 
-        // TODO change this method, as every component needs to be included inside the foreground service itself
+        //val filter = IntentFilter("MESSAGE_FROM_SERVICE")
+        //LocalBroadcastManager.getInstance(this).registerReceiver(foregroundserviceReceiver, filter)
         if (isForegroundServiceRunning()) { return }
         val intent = Intent(this, BleForegroundService::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Log.d("MainActivity", "Starting BLE service")
             applicationContext.startForegroundService(intent)  // Für Android 8.0 und höher
         } else {
+            Log.d("MainActivity", "Starting BLE service")
             applicationContext.startService(intent)  // Für ältere Android-Versionen
         }
     }
