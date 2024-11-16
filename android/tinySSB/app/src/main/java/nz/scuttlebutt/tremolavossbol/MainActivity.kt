@@ -4,6 +4,7 @@ package nz.scuttlebutt.tremolavossbol
 
 // import nz.scuttlebutt.tremolavossbol.tssb.ble.BlePeers
 
+import android.Manifest
 import android.app.Activity
 import android.app.ActivityManager
 import android.bluetooth.BluetoothAdapter
@@ -12,6 +13,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.ActivityInfo
+import android.content.pm.PackageManager
 import android.net.*
 import android.net.wifi.WifiManager
 import android.os.Build
@@ -21,7 +23,9 @@ import android.util.Log
 import android.view.View
 import android.view.Window
 import android.webkit.WebView
+import android.widget.Toast
 import androidx.annotation.RequiresApi
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.google.zxing.integration.android.IntentIntegrator
@@ -74,6 +78,10 @@ class MainActivity : Activity() {
             }
         }
     }
+
+    private val isLocationPermissionGranted
+        get() = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) ==
+                PackageManager.PERMISSION_GRANTED
 
     /**
      * Handles incoming messages from the ForegroundService.
@@ -258,8 +266,10 @@ class MainActivity : Activity() {
         }
         registerReceiver(broadcastReceiver, IntentFilter(WifiManager.NETWORK_STATE_CHANGED_ACTION))
 
-        ble_event_listener = BluetoothEventListener(this)
-        registerReceiver(ble_event_listener, IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED))
+        // TODO Change back if turns out to be whack in Foreground Service
+        //ble_event_listener = BluetoothEventListener(this)
+        //registerReceiver(ble_event_listener, IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED))
+
         // val lck = ReentrantLock()
         /* disable TCP server and UDP advertisements in the tinyTremola version
 
@@ -417,6 +427,15 @@ class MainActivity : Activity() {
         //val filter = IntentFilter("MESSAGE_FROM_SERVICE")
         //LocalBroadcastManager.getInstance(this).registerReceiver(foregroundserviceReceiver, filter)
         if (isForegroundServiceRunning()) { return }
+        if (!settings!!.isBleEnabled()) {
+            Toast.makeText(this, "Bluetooth is disabled!", Toast.LENGTH_SHORT).show()
+            return
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !isLocationPermissionGranted) {
+            ActivityCompat.requestPermissions(this, arrayOf(
+                Manifest.permission.ACCESS_FINE_LOCATION), 555)
+            return
+        }
         val intent = Intent(this, BleForegroundService::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             Log.d("MainActivity", "Starting BLE service")
@@ -462,8 +481,9 @@ class MainActivity : Activity() {
             websocket!!.stop()
         }
 
-        unregisterReceiver(broadcastReceiver)
-        unregisterReceiver(ble_event_listener)
+        // TODO change back if turns out to be whack in Foreground Service
+        //unregisterReceiver(broadcastReceiver)
+        //unregisterReceiver(ble_event_listener)
     }
 
     fun mkSockets() {

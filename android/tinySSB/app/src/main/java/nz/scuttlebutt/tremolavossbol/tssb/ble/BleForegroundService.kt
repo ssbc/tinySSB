@@ -1,24 +1,31 @@
 package nz.scuttlebutt.tremolavossbol.tssb.ble
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
 import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
+import android.location.LocationManager
 import android.net.NetworkInfo
 import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.util.Log
 import android.view.View
 import android.webkit.WebView
+import android.widget.Toast
 import androidx.annotation.RequiresApi
+import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import nz.scuttlebutt.tremolavossbol.MainActivity
@@ -37,7 +44,10 @@ import tremolavossbol.R
 import java.net.InetAddress
 import java.net.MulticastSocket
 import java.util.concurrent.Executor
+import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.util.concurrent.Future
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.locks.ReentrantLock
 
 /**
@@ -60,6 +70,13 @@ class BleForegroundService: Service() {
     var isWifiConnected = false
     var ble_event_listener: BluetoothEventListener? = null
 
+    private var isRunning = true
+    private val THREAD_COUNT = 2
+    private val executor: ExecutorService = Executors.newFixedThreadPool(THREAD_COUNT)
+    private lateinit var bluetoothEventListener: BluetoothEventListener
+    private var bleThreadFuture: Future<*>? = null
+    private var testThreadFuture: Future<*>? = null
+
     @SuppressLint(
         "SetJavaScriptEnabled"
     )
@@ -72,6 +89,16 @@ class BleForegroundService: Service() {
         val filter = IntentFilter("MESSAGE_FROM_ACTIVITY")
         LocalBroadcastManager.getInstance(this).registerReceiver(mainActivityReceiver, filter)
         super.onCreate()
+        bluetoothEventListener = BluetoothEventListener(this)
+        registerReceiver(bluetoothEventListener, IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED))
+    }
+
+    /**
+     * This function is being called to check if the location is enabled on the device.
+     */
+    private fun isLocationEnabled(): Boolean {
+        val locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        return locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)
     }
 
     /**
@@ -140,9 +167,11 @@ class BleForegroundService: Service() {
     }
 
     override fun onDestroy() {
+        shutdownOperations()
         super.onDestroy()
         Log.d("MyForegroundService", "Service destroyed")
         LocalBroadcastManager.getInstance(this).unregisterReceiver(mainActivityReceiver)
+        unregisterReceiver(bluetoothEventListener)
         /*unregisterReceiver(broadcastReceiver)
         unregisterReceiver(ble_event_listener)
 
@@ -150,86 +179,152 @@ class BleForegroundService: Service() {
         websocket = null*/
     }
 
+    /**
+     *  This function is being called to start the operations of the BLE Foreground Service.
+     *  This method could be expanded to start different kinds of operations in the foreground,
+     *  but you might consider renaming things, splitting or create additional services.
+     */
     @RequiresApi(
         Build.VERSION_CODES.O
     )
-    private fun startOperations() {
-        // Start the BLE operations here
+    public fun startOperations() {
         /**
          * The following code is for testing purposes only.
          * Notice: applicationContext as MainApplication cannot be used from Service, as it seems to cause trouble
          */
-        val TEST = true
-        if (TEST) {
-            val executor = Executors.newFixedThreadPool(1)
-            executor.execute {
-                Log.d("BleForegroundService", "Starting test thread")
+        isRunning = true
+        if (testThreadFuture == null || testThreadFuture?.isDone == true || testThreadFuture?.isCancelled == true) {
+            testThreadFuture = executor.submit {
+                Log.d("BleForegroundService", "Attempting to start test thread.")
                 try {
-                    val test_thread = Thread {
-                        while (true) {
-                            Log.d(
-                                "BleForegroundService",
-                                "Test thread running"
-                            )
-                            Thread.sleep(
-                                10000
-                            )
-                        }
+                    while (isRunning) {
+                        Log.d(
+                            "BleForegroundService",
+                            "Test thread running"
+                        )
+                        Thread.sleep(
+                            10000
+                        )
                     }
-                    test_thread.start()
+                    Log.d("BleForegroundService", "Test thread stopped.")
                 } catch (e: Exception) {
-                    Log.d("BleForegroundService", "Test thread died ${e}")
+                    Log.d("BleForegroundService", "Foreground thread 1 died $e")
+                    Thread.currentThread().interrupt()
                 }
             }
-            return
         }
-        //val executor = Executors.newFixedThreadPool(2)
 
-        /*executor.execute {
-            Log.d("BleForegroundService", "Starting tinyIO sender loop")
-            try {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    val thread = Thread {
-                        tinyIO.senderLoop()
+        // BLE-Thread
+        if (bleThreadFuture == null || bleThreadFuture?.isCancelled == true || bleThreadFuture?.isDone == true) {
+            bleThreadFuture = executor.submit {
+                Log.d("BleForegroundService", "Attempting to start BLE-Thread.")
+                try {
+                    if (!checkBleForegroundRequirements()) {
+                        Log.e("BleForegroundService", "BLE requirements are not met.")
+                        return@submit
                     }
-                    thread.priority = 8
-                    thread.start()
+                    while (isRunning) {
+                        Log.d(
+                            "BleForegroundService",
+                            "BlePeers-Thread running."
+                        )
+                        Thread.sleep(
+                            10000
+                        )
+                    }
+                    Log.d("BleForegroundService", "BlePeers-Thread stopped.")
+                } catch (e: Exception) {
+                    Log.d("BleForegroundService", "Foreground Thread 2 died $e")
+                    Thread.currentThread().interrupt()
                 }
-            } catch (e: Exception) {
-                Log.d("tssb sender thread", "died ${e}")
             }
-        }*/
-
-        /*executor.execute {
-            Log.d("BleForegroundService", "Starting tinyIO receiver loop")
-            val thread = Thread {
-                tinyIO.mcReceiverLoop(ioLock)
-            }
-            thread.priority = 10
-        }*/
-
-        /*executor.execute {
-            Log.d("BleForegroundService", "Starting tinyGoset loop")
-            val thread = Thread {
-                //tinyGoset.loop()
-            }
-            thread.priority = 8
-            thread.start()
         }
+        return
+    }
 
-        executor.execute {
-            Log.d("BleForegroundService", "Starting tinyNode loop")
-            val thread = Thread {
-                //tinyNode.loop(ioLock)
+    /**
+     *  This function is being called to stop the operations of the BLE Foreground Service.
+     */
+    public fun stopOperations() {
+        Log.d("BleForegroundService", "Stopping operations.")
+        isRunning = false
+        testThreadFuture?.cancel(true)
+        bleThreadFuture?.cancel(true)
+        // TODO: Optionally we could shutdown threads here.
+        //  But we would have some overhead of continuously having to recreate new pool
+    }
+
+    /**
+     * This method gets called when the Foreground-Service is being shutdown or stopped.
+     */
+    public fun shutdownOperations() {
+        Log.d("BleForegroundService", "Shutting down operations.")
+        isRunning = false
+        executor.shutdown()
+        try {
+            if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
+                executor.shutdownNow()
             }
-            thread.priority = 8
-            thread.start()
-        }*/
+        } catch (e: InterruptedException) {
+            executor.shutdownNow()
+        }
+        stopSelf()
     }
 
     override fun onBind(
         p0: Intent?
     ): IBinder? {
         return null
+    }
+
+    /**
+     *  This function is being called to check the requirements to start the BLE Foreground Service.
+     *  We need to check if the device has BLE capabilities and if the Bluetooth is enabled.
+     *  If the requirements are not met, the user will be informed via a Toast message.
+     *  @return Boolean
+     */
+    private fun checkBleForegroundRequirements(): Boolean {
+        Log.d("BleForegroundService", "Checking BLE requirements")
+        try {
+            val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+            val bluetoothAdapter = bluetoothManager.adapter
+            if (bluetoothManager == null) {
+                Log.d("BleForegroundService", "Bluetooth Manager is not null")
+                return false
+            }
+            val context = applicationContext
+            if (context == null) {
+                Log.d("BleForegroundService", "Context is not null")
+                return false
+            }
+            val pm: PackageManager = getPackageManager()
+            if (!pm.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)) {
+                showToastOnMainThread("this device does NOT have Bluetooth LE - user Wifi to sync")
+                return false
+            }
+            if (!bluetoothAdapter.isEnabled) {
+                showToastOnMainThread("Bluetooth MUST be enabled for using BlueTooth-Low-Energy sync")
+                return false
+            }
+            if (!isLocationEnabled()) {
+                showToastOnMainThread("Location MUST be enabled for using BlueTooth-Low-Energy sync, then restart")
+                return false
+            }
+            Log.d("BleForegroundService", "BLE requirements are met.")
+            return true
+        } catch (e: Exception) {
+            Log.d("BleForegroundService", "Error while checking BLE requirements: $e")
+            return false
+        }
+    }
+
+    /**
+     * This function is being called to show a Toast message on the main thread,
+     * because Foreground-Service is not allowed to access UI-Elements.
+     */
+    public fun showToastOnMainThread(message: String) {
+        Handler(Looper.getMainLooper()).post {
+            Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+        }
     }
 }

@@ -74,16 +74,16 @@ class BlePeers(val act: MainActivity) {
     @SuppressLint("MissingPermission")
     fun startBluetooth() {
 
-        if (!act.settings!!.isBleEnabled())
-            return
+        //if (!act.settings!!.isBleEnabled()) // Already being checked inside MainActivity
+        //    return
 
-        val pm: PackageManager = act.getPackageManager()
+        /*val pm: PackageManager = act.getPackageManager() // Being checked inside Foreground Service
         if (!pm.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)) {
             Toast.makeText(act, "this device does NOT have Bluetooth LE - user Wifi to sync",
                 Toast.LENGTH_LONG).show()
             return
-        }
-        if (!bluetoothAdapter.isEnabled) {
+        }*/
+        /*if (!bluetoothAdapter.isEnabled) { // Being checked inside Foreground Service
             Toast.makeText(act, "Bluetooth MUST be enabled for using BlueTooth-Low-Energy sync",
                 Toast.LENGTH_LONG).show()
             /*
@@ -91,13 +91,13 @@ class BlePeers(val act: MainActivity) {
             startActivityForResult(act, enableBtIntent, 444, null)
             */
             return
-        }
-        if (!isLocationEnabled()) {
+        }*/
+        /*if (!isLocationEnabled()) { // Being checked inside Foreground Service
             Toast.makeText(
                 act, "Location MUST be enabled for using BlueTooth-Low-Energy sync, then restart",
                 Toast.LENGTH_LONG
             ).show()
-        }
+        }*/
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !isLocationPermissionGranted) {
             ActivityCompat.requestPermissions(act, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), 555)
             return
