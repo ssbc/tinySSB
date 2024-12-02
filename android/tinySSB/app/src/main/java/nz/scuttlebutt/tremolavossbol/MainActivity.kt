@@ -22,6 +22,7 @@ import android.os.Handler
 import android.util.Log
 import android.view.View
 import android.view.Window
+import android.webkit.WebSettings
 import android.webkit.WebView
 import android.widget.Toast
 import androidx.annotation.RequiresApi
@@ -36,6 +37,7 @@ import nz.scuttlebutt.tremolavossbol.tssb.ble.BluetoothEventListener
 import nz.scuttlebutt.tremolavossbol.utils.Constants
 import nz.scuttlebutt.tremolavossbol.games.common.GamesHandler
 import nz.scuttlebutt.tremolavossbol.tssb.ble.BleForegroundService
+import nz.scuttlebutt.tremolavossbol.tssb.ble.ForegroundNotificationType
 import nz.scuttlebutt.tremolavossbol.utils.HelperFunctions.Companion.toHex
 import tremolavossbol.R
 import java.net.*
@@ -48,19 +50,15 @@ import kotlin.concurrent.thread
 
 class MainActivity : Activity() {
     // lateinit var tremolaState: TremolaState
-    lateinit var idStore: IdStore
     lateinit var wai: WebAppInterface
-    lateinit var gamesHandler: GamesHandler
-    lateinit var tinyIO: IO
     var frontend_ready = false
-    val tinyNode = Node(this)
-    val tinyRepo = Repo(this)
-    val tinyDemux = Demux(this)
-    val tinyGoset = GOset(this)
+    //val tinyNode = Node(this)
+    //val tinyRepo = Repo(this)
+    //val tinyDemux = Demux(this)
+    //val tinyGoset = GOset(this)
     var settings: Settings? = null
     @Volatile var mc_group: InetAddress? = null
     @Volatile var mc_socket: MulticastSocket? = null
-    var ble: BlePeers? = null
     var websocket: WebsocketIO? =null
     val ioLock = ReentrantLock()
     var broadcastReceiver: BroadcastReceiver? = null
@@ -68,13 +66,42 @@ class MainActivity : Activity() {
     var ble_event_listener: BluetoothEventListener? = null
 
     /**
-     * Receives incoming messages from the ForegroundService.
+     *  Receives incoming messages from the ForegroundService.
+     *  This is being split into different kinds of messages, which are then forwarded to the WebAppInterface.
      */
-    private val foregroundserviceReceiver = object : BroadcastReceiver() {
+    private val foregroundServiceReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             val message = intent.getByteArrayExtra("message")
             if (message != null) {
                 handleIncomingMessage(message)
+                when (intent.action) {
+                    ForegroundNotificationType.EVALUATION.value -> {
+                        Log.d("MainActivity", "Received EVALUATION message")
+                        val message = intent.getStringExtra("message")
+                        if (message != null)
+                            wai.eval(message)
+                    }
+                    ForegroundNotificationType.TINY_EVENT.value -> {
+                        Log.d("MainActivity", "Received TINY_EVENT message")
+                        val fid = intent.getByteArrayExtra("fid")
+                        val seq = intent.getIntExtra("seq", 0) // TODO default value of seq number!
+                        val mid = intent.getByteArrayExtra("mid")
+                        val body = intent.getByteArrayExtra("body")
+                        if (fid != null && mid != null && body != null) {
+                            wai.sendTinyEventToFrontend(fid, seq, mid, body)
+                        }
+                    }
+                    ForegroundNotificationType.INCOMPLETE_EVENT.value -> {
+                        Log.d("MainActivity", "Received INCOMPLETE_EVENT message")
+                        val fid = intent.getByteArrayExtra("fid")
+                        val seq = intent.getIntExtra("seq", 0) // TODO default value of seq number!
+                        val hash = intent.getByteArrayExtra("hash")
+                        val content = intent.getByteArrayExtra("content")
+                        if (fid != null && hash != null && content != null) {
+                            wai.sendIncompleteEntryToFrontend(fid, seq, hash, content)
+                        }
+                    }
+                }
             }
         }
     }
@@ -84,12 +111,13 @@ class MainActivity : Activity() {
                 PackageManager.PERMISSION_GRANTED
 
     /**
-     * Handles incoming messages from the ForegroundService.
+     * Handles incoming messages from the ForegroundService and forwards them to the WebAppInterface.
      */
     private fun handleIncomingMessage(message: ByteArray) {
         Log.d("MainActivity", "Received message: $message")
         // TODO add here possibly log entries and stuff (everything except BLE)
-        wai.eval("b2f_new_message('${message.toHex()}')")
+        //wai.eval("b2f_new_message('${message.toHex()}')")
+        wai.eval(message.toHex()) // maybe just this one, as the one before is stricly for messages
     }
 
     fun sendMessageToForegroundservice(message: ByteArray) {
@@ -119,15 +147,37 @@ class MainActivity : Activity() {
         //val app = applicationContext as TinyApplication
         //app.settings = Settings(this)
 
-        settings = Settings(this)
+        //settings = Settings(this)
         super.onCreate(savedInstanceState)
 
+        val filter = IntentFilter().apply {
+            addAction(ForegroundNotificationType.EVALUATION.value)
+            addAction(ForegroundNotificationType.TINY_EVENT.value)
+            addAction(ForegroundNotificationType.INCOMPLETE_EVENT.value)
+        }
+        LocalBroadcastManager.getInstance(this).registerReceiver(foregroundServiceReceiver, filter)
+
+        if (!isForegroundServiceRunning()) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !isLocationPermissionGranted) {
+                ActivityCompat.requestPermissions(this, arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION), 555)
+            }
+            val intent = Intent(this, BleForegroundService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                Log.d("MainActivity", "Starting BLE service")
+                applicationContext.startForegroundService(intent)  // Für Android 8.0 und höher
+            } else {
+                Log.d("MainActivity", "Starting BLE service")
+                applicationContext.startService(intent)  // Für ältere Android-Versionen
+            }
+        }
+        Log.d("MainActivity", "Started BLE service")
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT)
         requestWindowFeature(Window.FEATURE_NO_TITLE)
         setContentView(R.layout.activity_main)
         // tremolaState = TremolaState(this)
-        idStore = IdStore(this)
-        Log.d("MainActivity", "Initiated TremolaState and IdStore")
+
+        Log.d("MainActivity", "Initiated contentView")
 
         val webView = findViewById<WebView>(R.id.webView)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
@@ -137,208 +187,45 @@ class MainActivity : Activity() {
             ) // disable acceleration, needed for older WebViews
         }
         Log.d("MainActivity", "Initiated WebView")
-        gamesHandler = GamesHandler(idStore.identity)
-        webView.addJavascriptInterface(gamesHandler, "GameHandler") // TODO check difference to "GamesHandler"
+        //gamesHandler = GamesHandler(idStore.identity)
+        // Ich gehe davon aus, dass ich die nächste linie nicht brauche, da dies
+        //BleForegroundService.getGamesHandler()?.let { webView.addJavascriptInterface(it, "GameHandler") } // TODO check difference to "GamesHandler"
 
-        Log.d("MainActivity", "Initiated GamesHandler")
-        wai = WebAppInterface(this, webView, gamesHandler)
-        tinyRepo.upgrade_repo()
-        tinyIO = IO(this)
-        tinyGoset._include_key(idStore.identity.verifyKey) // make sure our local key is in
-        tinyRepo.load()
-        tinyGoset.adjust_state()
-        tinyDemux.arm_dmx(tinyGoset.goset_dmx,  {buf:ByteArray, aux:ByteArray?, _ -> tinyGoset.rx(buf,aux)}, null)
-        tinyDemux.arm_dmx(tinyDemux.want_dmx!!, {buf:ByteArray, aux:ByteArray?, sender:String? -> tinyNode.incoming_want_request(buf,aux,sender)})
-        tinyDemux.arm_dmx(tinyDemux.chnk_dmx!!, { buf:ByteArray, aux:ByteArray?, _ -> tinyNode.incoming_chunk_request(buf,aux)})
-
+        Log.d("MainActivity", "Initiating WebAppInterface...")
+        //wai = BleForegroundService.getGamesHandler()?.let { WebAppInterface(this, webView, it) }!!
+        wai = WebAppInterface(this, webView, null) // TODO add gameshandler
+        Log.d("MainActivity", "Initiated WebAppInterface")
         webView.clearCache(true)
+
+        /**
+         * This is a workaround to prevent the WebView from crashing due to a memory issue.
+         *  - webView.settings.setRenderPriority(WebSettings.RenderPriority.HIGH) // Did not work
+         *
+         *  - webView.settings.setAppCacheEnabled(false)  // Avoids storing extra cached data
+         *    webView.settings.cacheMode = WebSettings.LOAD_NO_CACHE // Forces fresh content loading
+         *    webView.settings.setSupportZoom(false) // Disables zoom for lightweight rendering
+         *
+         *   Optimizing the WebView for performance: (Not really changing anything)
+         *  - webView.settings.setJavaScriptCanOpenWindowsAutomatically(true) // Only if necessary
+         *    webView.settings.setLoadsImagesAutomatically(true) // Improves perceived load time
+          */
+
 
         Log.d("MainActivity", "Initiated WebAppInterface")
         webView.addJavascriptInterface(wai, "Android")
-        webView.addJavascriptInterface(gamesHandler, "GamesHandler")
+        BleForegroundService.getGamesHandler()?.let { webView.addJavascriptInterface(it, "GamesHandler") }
         Log.d("MainActivity", "Added Javascript interfaces")
 
         webView.settings.javaScriptEnabled = true
         webView.settings.domStorageEnabled = true
 
-        webView.loadUrl("file:///android_asset/web/tremola.html")
-        Log.d("MainActivity", "Initiated UI elements")
-        // wifiManager = applicationContext.getSystemService(WIFI_SERVICE) as WifiManager
-        // mlock = wifiManager?.createMulticastLock("lock")
-        // if (!mlock!!.isHeld) mlock!!.acquire()
-        // mkSockets()
-
-        Log.d("IDENTITY", "is ${idStore.identity.toRef()} (${idStore.identity.verifyKey})")
-
-        /*val webView = findViewById<WebView>(R.id.webView)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            webView.setLayerType(
-                View.LAYER_TYPE_SOFTWARE,
-                null
-            ) // disable acceleration, needed for older WebViews
+        try {
+            webView.loadUrl("file:///android_asset/web/tremola.html")
+        } catch (e: OutOfMemoryError) {
+            Log.e("MainActivity", "Memory issue loading WebView", e)
+            webView.clearCache(true)
+            webView.reload()
         }
-        gamesHandler = GamesHandler(idStore.identity)
-        webView.addJavascriptInterface(gamesHandler, "GameHandler")*/
-
-        /*wai = WebAppInterface(this, webView, gamesHandler)
-        // upgrades repo filesystem if necessary
-        tinyRepo.upgrade_repo()
-        tinyIO = IO(this, wai)
-        tinyGoset._include_key(idStore.identity.verifyKey) // make sure our local key is in
-        tinyRepo.load()
-        tinyGoset.adjust_state()
-        tinyDemux.arm_dmx(tinyGoset.goset_dmx,  {buf:ByteArray, aux:ByteArray?, _ -> tinyGoset.rx(buf,aux)}, null)
-        tinyDemux.arm_dmx(tinyDemux.want_dmx!!, {buf:ByteArray, aux:ByteArray?, sender:String? -> tinyNode.incoming_want_request(buf,aux,sender)})
-        tinyDemux.arm_dmx(tinyDemux.chnk_dmx!!, { buf:ByteArray, aux:ByteArray?, _ -> tinyNode.incoming_chunk_request(buf,aux)})
-
-        webView.clearCache(true)
-        /* no image support in tinyTremola
-        webView.webViewClient = object : WebViewClient() {
-            override fun shouldInterceptRequest(
-                view: WebView,
-                request: WebResourceRequest
-            ): WebResourceResponse? {
-                Log.d("load", "request for URI ${request.url}")
-                val bName = request.url.toString().substring(LOCAL_URL_PREFIX.length)
-                try {
-                    val inputStream = tremolaState.blobStore.fetch(bName)
-                    val x = WebResourceResponse(
-                        "image/jpeg", null,
-                        inputStream
-                    )
-                    return x
-                } catch (e: Exception) {
-                    Log.d("fetch error", "${e}")
-                }
-                return null
-            }
-        }
-        */
-        // val webStorage = WebStorage.getInstance()
-        webView.addJavascriptInterface(wai, "Android")
-        webView.addJavascriptInterface(gamesHandler, "GamesHandler")
-
-        webView.settings.javaScriptEnabled = true
-        webView.settings.domStorageEnabled = true
-
-        webView.loadUrl("file:///android_asset/web/tremola.html")
-        // webSettings?.javaScriptCanOpenWindowsAutomatically = true
-
-        // prepare for connectivity changes:
-
-        if (networkCallback == null) {
-            networkCallback = object : ConnectivityManager.NetworkCallback() {
-                override fun onLinkPropertiesChanged(nw: Network, prop: LinkProperties) {
-                    // Log.d("onLinkPropertiesChanged", "${nw} ${prop}")
-                    super.onLinkPropertiesChanged(nw, prop)
-                    // mkSockets()
-                }
-            }
-        }
-        */
-
-        broadcastReceiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context?, intent: Intent?) {
-                val networkInfo: NetworkInfo? =
-                    intent!!.getParcelableExtra(WifiManager.EXTRA_NETWORK_INFO)
-                if (networkInfo == null)
-                    return
-                // Toast.makeText(this@MainActivity, "Wifi State Changed! connected=${networkInfo?.detailedState}", Toast.LENGTH_SHORT).show()
-                if (networkInfo.detailedState == NetworkInfo.DetailedState.CONNECTED && !isWifiConnected) {
-                    isWifiConnected = true
-                    Handler().postDelayed({
-                        mkSockets()
-                        if (websocket == null)
-                            websocket = WebsocketIO(this@MainActivity, settings!!.getWebsocketUrl())
-                        websocket!!.start()
-                        Log.d("main", "msc_sock ${mc_socket.toString()}")
-                    }, 1000)
-                } else if (networkInfo.detailedState == NetworkInfo.DetailedState.DISCONNECTED && isWifiConnected) {
-                    rmSockets()
-                    isWifiConnected = false
-                    Log.d("main", "msc_sock ${mc_socket.toString()}")
-                    if(websocket != null) {
-                        websocket!!.stop()
-                        websocket = null
-                    }
-                }
-            }
-        }
-        registerReceiver(broadcastReceiver, IntentFilter(WifiManager.NETWORK_STATE_CHANGED_ACTION))
-
-        // TODO Change back if turns out to be whack in Foreground Service
-        //ble_event_listener = BluetoothEventListener(this)
-        //registerReceiver(ble_event_listener, IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED))
-
-        // val lck = ReentrantLock()
-        /* disable TCP server and UDP advertisements in the tinyTremola version
-
-        udp = UDPbroadcast(this, tremolaState.wai)
-
-        val t0 = thread(isDaemon=true) {
-            try {
-                udp!!.beacon(tremolaState.idStore.identity.verifyKey, lck, Constants.SSB_IPV4_TCPPORT)
-            } catch (e: Exception) {
-                Log.d("beacon thread", "died ${e}")
-            }
-        }
-
-        val t1 = thread(isDaemon=true) {
-            try {
-                udp!!.listen(lck)
-            } catch (e: Exception) {
-                Log.d("listen thread", "died ${e}")
-            }
-        }*/
-        /*val t2 = thread(isDaemon=true)  { // accept loop, robust against reassigned server_socket
-             while (true) {
-                 var socket: Socket?
-                 try {
-                     socket = server_socket!!.accept()
-                 } catch (e: Exception) {
-                     sleep(3000)
-                     continue
-                 }
-                 thread() { // one thread per connection
-                     val rpcStream = RpcResponder(tremolaState, socket,
-                         Constants.SSB_NETWORKIDENTIFIER)
-                     rpcStream.defineServices(RpcServices(tremolaState))
-                     rpcStream.startStreaming()
-                 }
-            }
-        }*/
-
-
-        val t3 = thread(isDaemon=true) {
-            try {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    tinyIO.senderLoop()
-                }
-            } catch (e: Exception) {
-                Log.d("tssb sender thread", "died ${e}")
-            }
-        }
-        val t4 = thread(isDaemon=true) {
-            tinyIO.mcReceiverLoop(ioLock)
-        }
-        val t5 = thread(isDaemon=true) {
-            tinyGoset.loop()
-        }
-        val t6 = thread(isDaemon=true) {
-            tinyNode.loop(ioLock)
-        }
-
-        /*
-        t0.priority = 10
-        t1.priority = 10
-        t2.priority = 6
-        Log.d("Thread priorities", "${t0.priority} ${t1.priority} ${t2.priority}")
-        */
-
-        t3.priority = 8
-        t4.priority = 10
-        t5.priority = 8
-        t6.priority = 8
         Log.d("MainActivity", "Finished onCreate()")
     }
 
@@ -396,7 +283,8 @@ class MainActivity : Activity() {
             tremolaState.wai.eval("b2f_new_voice('${voice}')")
         */
         } else if (requestCode == 555 && resultCode == RESULT_OK) { // enable fine grained location
-            ble?.startBluetooth()
+            // Might not be necessary anymore, as the BLE Foreground Service is started in onResume()
+            //ble?.startBluetooth() // this should already happen in foreground service
         }
         super.onActivityResult(requestCode, resultCode, data)
     }
@@ -420,17 +308,15 @@ class MainActivity : Activity() {
         }*/
 
         Log.d("MainActivity", "Starting websocket soon ...")
-        websocket = WebsocketIO(this, settings!!.getWebsocketUrl())
-        websocket!!.start()
+
+        // This is moved to ForegroundService aswell
+        /*websocket = WebsocketIO(this, settings!!.getWebsocketUrl())
+        websocket!!.start()*/
         Log.d("MainActivity", "Started websocket")
 
         //val filter = IntentFilter("MESSAGE_FROM_SERVICE")
         //LocalBroadcastManager.getInstance(this).registerReceiver(foregroundserviceReceiver, filter)
         if (isForegroundServiceRunning()) { return }
-        if (!settings!!.isBleEnabled()) {
-            Toast.makeText(this, "Bluetooth is disabled!", Toast.LENGTH_SHORT).show()
-            return
-        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !isLocationPermissionGranted) {
             ActivityCompat.requestPermissions(this, arrayOf(
                 Manifest.permission.ACCESS_FINE_LOCATION), 555)
@@ -449,7 +335,7 @@ class MainActivity : Activity() {
     override fun onPause() {
         Log.d("onPause", "")
         super.onPause()
-        ble?.stopBluetooth()
+        //ble?.stopBluetooth() // This happens in the ForegroundService
 
         if (websocket != null)
             websocket!!.stop()
@@ -475,7 +361,7 @@ class MainActivity : Activity() {
         server_socket = null
         */
         super.onDestroy()
-        ble?.stopBluetooth()
+        //ble?.stopBluetooth()
 
         if (websocket != null) {
             websocket!!.stop()

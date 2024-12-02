@@ -1,11 +1,15 @@
 package nz.scuttlebutt.tremolavossbol.tssb
 
+import android.content.Intent
 import android.util.AtomicFile
 import android.util.Log
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import nz.scuttlebutt.tremolavossbol.MainActivity
 import nz.scuttlebutt.tremolavossbol.crypto.SodiumAPI.Companion.sha256
 import nz.scuttlebutt.tremolavossbol.crypto.SodiumAPI.Companion.signDetached
 import nz.scuttlebutt.tremolavossbol.crypto.SodiumAPI.Companion.verifySignDetached
+import nz.scuttlebutt.tremolavossbol.tssb.ble.BleForegroundService
+import nz.scuttlebutt.tremolavossbol.tssb.ble.ForegroundNotificationType
 import nz.scuttlebutt.tremolavossbol.utils.Bipf
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.DMX_LEN
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.DMX_PFX
@@ -69,7 +73,7 @@ class State {
     }
 }
 
-class Replica(val context: MainActivity, val datapath: File, val fid: ByteArray) {
+class Replica(val service: BleForegroundService, val datapath: File, val fid: ByteArray) {
 
     private val path = File(datapath, fid.toHex())
     private val log = File(path, "log.bin")
@@ -168,9 +172,9 @@ class Replica(val context: MainActivity, val datapath: File, val fid: ByteArray)
         if (chunk_cnt > 0) {
             val ptr = pkt.sliceArray(36 until 56)
             state.pend_sc[seq] = Pending(0, chunk_cnt, ptr, state.max_pos + TINYSSB_PKT_LEN)
-            context.tinyRepo.addNumberOfPendingChunks(chunk_cnt)
-            val chunk_fct = { chunk: ByteArray, fid: ByteArray?, seq: Int -> context.tinyNode.incoming_chunk(chunk,fid,seq) }
-            context.tinyDemux.arm_blb(ptr, chunk_fct, fid, seq, 0)
+            BleForegroundService.getTinyRepo()!!.addNumberOfPendingChunks(chunk_cnt)
+            val chunk_fct = { chunk: ByteArray, fid: ByteArray?, seq: Int -> BleForegroundService.getTinyNode()!!.incoming_chunk(chunk,fid,seq) }
+            BleForegroundService.getTinyDemux()!!.arm_blb(ptr, chunk_fct, fid, seq, 0)
         } else { // no sidechain, entry is complete
             sendToFront = true
         }
@@ -179,21 +183,60 @@ class Replica(val context: MainActivity, val datapath: File, val fid: ByteArray)
         val pos = state.max_pos + log_entry.size
         persist_frontier(seq, pos, (nam + pkt).sha256().sliceArray(0 until HASH_LEN))
 
-        context.tinyDemux.arm_dmx(dmx) // remove old dmx handler
+        BleForegroundService.getTinyDemux()!!.arm_dmx(dmx) // remove old dmx handler
         // arm dmx handler for next entry
         val new_nam = DMX_PFX + fid + (seq + 1).toByteArray() + (nam + pkt).sha256().sliceArray(0 until HASH_LEN)
         val new_dmx = new_nam.sha256().sliceArray(0 until DMX_LEN)
-        val fct = { buf: ByteArray, fid: ByteArray?, _: String? -> context.tinyNode.incoming_pkt(buf,fid!!) }
-        context.tinyDemux.arm_dmx(new_dmx, fct, fid)
+        val fct = { buf: ByteArray, fid: ByteArray?, _: String? -> BleForegroundService.getTinyNode()!!.incoming_pkt(buf,fid!!) }
+        BleForegroundService.getTinyDemux()!!.arm_dmx(new_dmx, fct, fid)
 
         val (_, sz) = Bipf.varint_decode(pkt, DMX_LEN + 1, DMX_LEN + 4)
         val content = pkt.sliceArray(8 + sz until 36)
 
-        context.wai.sendIncompleteEntryToFrontend(fid, seq, (nam + pkt).sha256().sliceArray(0 until HASH_LEN), content)
+        sendIncompleteEntryToActivity(fid, seq, (nam + pkt).sha256().sliceArray(0 until HASH_LEN), content)
 
         if(sendToFront)
-            context.wai.sendTinyEventToFrontend(fid, seq, (nam + pkt).sha256().sliceArray(0 until HASH_LEN), read_content(seq)!!)
+            //context.wai.sendTinyEventToFrontend(fid, seq, (nam + pkt).sha256().sliceArray(0 until HASH_LEN), read_content(seq)!!)
+            sendTinyEventToActivity(fid, seq, (nam + pkt).sha256().sliceArray(0 until HASH_LEN), read_content(seq)!!)
         return true
+    }
+
+    /**
+     * Helper method creating intent to send over desired data.
+     */
+    private fun sendIncompleteEntryToActivity(
+        fid: ByteArray,
+        seq: Int,
+        hash: ByteArray,
+        content: ByteArray
+    ) {
+        Log.d("Replica", "sendIncompleteEntryToActivity start")
+        val intent = Intent(ForegroundNotificationType.INCOMPLETE_EVENT.name)
+        intent.putExtra("fid", fid)
+        intent.putExtra("seq", seq)
+        intent.putExtra("hash", hash)
+        intent.putExtra("content", content)
+        LocalBroadcastManager.getInstance(service).sendBroadcast(intent)
+        Log.d("Replica", "sendIncompleteEntryToActivity end")
+    }
+
+    /**
+     * Helper method creating intent to send over desired data.
+     */
+    private fun sendTinyEventToActivity(
+        fid: ByteArray,
+        seq: Int,
+        hash: ByteArray,
+        content: ByteArray
+    ) {
+        Log.d("Replica", "sendTinyEventToActivity start")
+        val intent = Intent(ForegroundNotificationType.INCOMPLETE_EVENT.name)
+        intent.putExtra("fid", fid)
+        intent.putExtra("seq", seq)
+        intent.putExtra("hash", hash)
+        intent.putExtra("content", content)
+        LocalBroadcastManager.getInstance(service).sendBroadcast(intent)
+        Log.d("Replica", "sendTinyEventToActivity end")
     }
 
     fun ingest_chunk_pkt(pkt: ByteArray, seq: Int): Boolean {
@@ -212,7 +255,7 @@ class Replica(val context: MainActivity, val datapath: File, val fid: ByteArray)
                 f.write(pkt)
                 pos = f.filePointer.toInt()
             }
-            context.tinyDemux.arm_blb(pend.hptr) // remove old chnk handler
+            BleForegroundService.getTinyDemux()!!.arm_blb(pend.hptr) // remove old chnk handler
         } catch (e: Exception) {
             return false
         }
@@ -221,17 +264,17 @@ class Replica(val context: MainActivity, val datapath: File, val fid: ByteArray)
             val content = read_content(seq)
             val message_id = get_mid(seq)
             if (message_id != null && content != null) {
-                context.wai.sendTinyEventToFrontend(fid, seq, message_id, content)
+                sendTinyEventToActivity(fid, seq, message_id, content)
             }
         } else {
             pend.cnr++
             pend.rem--
             pend.hptr = pkt.sliceArray(pkt.size - 20..pkt.lastIndex)
             pend.pos = pos
-            val chunk_fct = { chunk: ByteArray, fid: ByteArray?, seq: Int -> context.tinyNode.incoming_chunk(chunk,fid,seq) }
-            context.tinyDemux.arm_blb(pend.hptr, chunk_fct, fid, seq, pend.cnr)
+            val chunk_fct = { chunk: ByteArray, fid: ByteArray?, seq: Int -> BleForegroundService.getTinyNode()!!.incoming_chunk(chunk,fid,seq) }
+            BleForegroundService.getTinyDemux()!!.arm_blb(pend.hptr, chunk_fct, fid, seq, pend.cnr)
         }
-        context.tinyRepo.addNumberOfPendingChunks(-1)
+        BleForegroundService.getTinyRepo()!!.addNumberOfPendingChunks(-1)
         val f = fnt.startWrite()
         f.write(state.toWire())
         fnt.finishWrite(f)
@@ -388,7 +431,7 @@ class Replica(val context: MainActivity, val datapath: File, val fid: ByteArray)
         val nam = DMX_PFX + fid + seq.toByteArray() + state.prev
         val dmx = nam.sha256().sliceArray(0 until DMX_LEN)
         val msg = dmx + ByteArray(1) { PKTTYPE_plain48.toByte()} + content
-        val wire = msg + signDetached(nam + msg, context.idStore.identity.signingKey!!)
+        val wire = msg + signDetached(nam + msg, BleForegroundService.getTinyIdStore()!!.identity.signingKey!!)
         if(wire.size != TINYSSB_PKT_LEN)
             return -1
         if(!verifySignDetached(
@@ -433,7 +476,7 @@ class Replica(val context: MainActivity, val datapath: File, val fid: ByteArray)
 
         Log.d("replica write", "dmx is ${dmx.toHex()}, chnk_cnt: ${chunks.size}")
         val msg = dmx + ByteArray(1) { PKTTYPE_chain20.toByte()} + payload
-        var wire = msg + signDetached(nam + msg, context.idStore.identity.signingKey!!)
+        var wire = msg + signDetached(nam + msg, BleForegroundService.getTinyIdStore()!!.identity.signingKey!!)
         if(wire.size != TINYSSB_PKT_LEN)
             return -1
         if(!verifySignDetached(
@@ -449,7 +492,7 @@ class Replica(val context: MainActivity, val datapath: File, val fid: ByteArray)
         // save mid
         mid.appendBytes((nam + wire).sha256().sliceArray(0 until HASH_LEN))
         persist_frontier(seq, state.max_pos + log_entry.size, (nam + wire).sha256().sliceArray(0 until HASH_LEN))
-        context.wai.sendTinyEventToFrontend(fid, seq, (nam + wire).sha256().sliceArray(0 until HASH_LEN), c)
+        sendTinyEventToActivity(fid, seq, (nam + wire).sha256().sliceArray(0 until HASH_LEN), c)
         // Log.d("replica", "write success, len: ${log_entry.size}")
         return seq
     }

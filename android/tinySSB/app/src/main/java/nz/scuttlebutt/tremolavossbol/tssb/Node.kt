@@ -1,8 +1,11 @@
 package nz.scuttlebutt.tremolavossbol.tssb
 
 import android.content.Context
+import android.content.Intent
 import android.util.Log
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import nz.scuttlebutt.tremolavossbol.MainActivity
+import nz.scuttlebutt.tremolavossbol.tssb.ble.BleForegroundService
 import nz.scuttlebutt.tremolavossbol.utils.Bipf
 import nz.scuttlebutt.tremolavossbol.utils.Bipf.Companion.BIPF_INT
 import nz.scuttlebutt.tremolavossbol.utils.Bipf.Companion.BIPF_LIST
@@ -21,7 +24,7 @@ import java.io.File
 import java.io.RandomAccessFile
 import java.util.concurrent.locks.ReentrantLock
 
-class Node(val context: MainActivity) {
+class Node(val service: BleForegroundService) {
     val NODE_ROUND_LEN = 5000L
     var log_offs = 0
     var chunk_offs = 0
@@ -47,8 +50,8 @@ class Node(val context: MainActivity) {
             val fid: ByteArray
             var seq: Int
             try {
-                val ndx = (offs + i - 1) % context.tinyGoset.keys.size
-                fid = context.tinyGoset.keys[ndx]
+                val ndx = (offs + i - 1) % BleForegroundService.getTinyGoset()!!.keys.size
+                fid = BleForegroundService.getTinyGoset()!!.keys[ndx]
                 seq = lst[i].getInt()
                 v += " $ndx.${seq}"
                 vector[ndx] = seq
@@ -58,16 +61,16 @@ class Node(val context: MainActivity) {
             }
             // Log.d("node", "want ${fid.toHex()}.${seq}")
             while (credit > 0) {
-                val pkt = context.tinyRepo.feed_read_pkt(fid, seq)
+                val pkt = BleForegroundService.getTinyRepo()!!.feed_read_pkt(fid, seq)
                 //Log.d("incoming_want", "read pkt ${fid.toHex()}.$seq")
                 if (pkt == null) {
                     // Log.d("incoming_want", "pkt ${fid.toHex()}.${seq} not found")
                     break
                 }
 
-                Log.d("node", "  have entry ${context.tinyGoset.key2ndx(fid)}.${seq} with dmx: ${pkt.sliceArray(0 until DMX_LEN).toHex()} (len: ${pkt.size})")
+                Log.d("node", "  have entry ${BleForegroundService.getTinyGoset()!!.key2ndx(fid)}.${seq} with dmx: ${pkt.sliceArray(0 until DMX_LEN).toHex()} (len: ${pkt.size})")
                 // Log.d("node", "  pkt size ${pkt.size}")
-                context.tinyIO.enqueue(pkt)
+                BleForegroundService.getTinyIO()!!.enqueue(pkt)
                 seq++;
                 credit--;
             }
@@ -98,7 +101,7 @@ class Node(val context: MainActivity) {
                 // Log.d("in_chnk", "inner")
                 val lst = e.getBipfList()
                 fNDX = lst[0].getInt()
-                fid = context.tinyGoset.keys[fNDX]
+                fid = BleForegroundService.getTinyGoset()!!.keys[fNDX]
                 seq = lst[1].getInt()
                 cnr = lst[2].getInt()
                 // v += " ${fid.sliceArray(0..9).toHex()}.${seq}.${cnr}"
@@ -107,7 +110,7 @@ class Node(val context: MainActivity) {
                 Log.d("node", "incoming CHNK error ${e.toString()}")
                 continue
             }
-            val pkt = context.tinyRepo.feed_read_pkt(fid, seq)
+            val pkt = BleForegroundService.getTinyRepo()!!.feed_read_pkt(fid, seq)
             if (pkt == null || pkt[DMX_LEN].toInt() != PKTTYPE_chain20) continue;
             val (sz, szlen) = varint_decode(pkt, DMX_LEN + 1, DMX_LEN + 4)
             if (sz <= 28 - szlen) continue;
@@ -115,11 +118,11 @@ class Node(val context: MainActivity) {
             // Log.d("node", "maxChunks is ${maxChunks}")
             if (cnr > maxChunks) continue
             while (cnr <= maxChunks) {
-                val chunk = context.tinyRepo.feed_read_chunk(fid, seq, cnr)
+                val chunk = BleForegroundService.getTinyRepo()!!.feed_read_chunk(fid, seq, cnr)
                 if (chunk == null) break;
-                Log.d("node", "  have chunk ${context.tinyGoset.key2ndx(fid)}.${seq}.${cnr}")
+                Log.d("node", "  have chunk ${BleForegroundService.getTinyGoset()!!.key2ndx(fid)}.${seq}.${cnr}")
                 // Log.d("node", "  chunk size ${chunk.size}")
-                context.tinyIO.enqueue(chunk);
+                BleForegroundService.getTinyIO()!!.enqueue(chunk);
                 credit--
                 if (credit <= 0)
                     break
@@ -134,46 +137,50 @@ class Node(val context: MainActivity) {
 
     fun loop(lck: ReentrantLock) {
         while (true) {
-            lck.lock()
-            beacon()
-            lck.unlock()
-            Thread.sleep(NODE_ROUND_LEN)
+            try {
+                lck.lock()
+                beacon()
+                lck.unlock()
+                Thread.sleep(NODE_ROUND_LEN)
+            } catch (e: Exception) {
+                Log.e("node", "loop error ${e.toString()}")
+            }
         }
     }
 
     fun beacon() { // called in regular intervals
         // Log.d("node", "beacon")
 
-        val want_buf = context.tinyRepo.mk_want_vect()
+        val want_buf = BleForegroundService.getTinyRepo()!!.mk_want_vect()
         if (want_buf != null) {
             // Log.d("node", "  want_buf size ${want_buf.size}")
-            context.tinyIO.enqueue(want_buf, context.tinyDemux.want_dmx)
+            BleForegroundService.getTinyIO()!!.enqueue(want_buf, BleForegroundService.getTinyDemux()!!.want_dmx)
         }
 
-        val chnk_buf = context.tinyRepo.mk_chnk_vect()
+        val chnk_buf = BleForegroundService.getTinyRepo()!!.mk_chnk_vect()
         if (chnk_buf != null) {
             // Log.d("node", "  chnk_buf size ${chnk_buf.size}")
-            context.tinyIO.enqueue(chnk_buf, context.tinyDemux.chnk_dmx)
+            BleForegroundService.getTinyIO()!!.enqueue(chnk_buf, BleForegroundService.getTinyDemux()!!.chnk_dmx)
         }
     }
 
     fun incoming_pkt(buf: ByteArray, fid: ByteArray) {
         Log.d("node", "incoming logEntry ${buf.size}B, fid: ${fid.toHex()}")
         if (buf.size != TINYSSB_PKT_LEN) return
-        context.tinyRepo.feed_append(fid, buf)
+        BleForegroundService.getTinyRepo()!!.feed_append(fid, buf)
     }
 
     fun incoming_chunk(buf: ByteArray, fid: ByteArray?, seq: Int) {
         Log.d("node", "incoming chunk ${buf.size}B, fid=${fid?.toHex()}, seq=${seq}")
         if (fid == null) return
         if (buf.size != TINYSSB_PKT_LEN) return
-        context.tinyRepo.sidechain_append(buf, fid, seq)
+        BleForegroundService.getTinyRepo()!!.sidechain_append(buf, fid, seq)
     }
 
     fun publish_public_content(content: ByteArray) {
-        val repo = context.tinyRepo
+        val repo = BleForegroundService.getTinyRepo()!!.mk_logEntry(content)
         // Log.d("node", "publish_public_content ${content.size}B")
-        val seq = repo.mk_logEntry(content)
+        //val seq = repo.mk_logEntry(content) // Commented out, because of concurrency
         //Log.d("node", "publish_public_content --> pkt ${if (pkt == null) 0 else pkt.size}B")
         //Log.d("node", "publish_public_content --> content ${if (pkt == null) 0 else pkt.toHex()}B")
         //if (pkt == null) return false
@@ -193,7 +200,7 @@ class Node(val context: MainActivity) {
     // calculates current replication progress and sends update to frontend
     fun update_progress(want_vector: List<Int>, from: String) {
 
-        if (!context.frontend_ready)
+        if (!service.frontend_ready)
             return
 
         var wantsChanged = false // if want vectors did change
@@ -258,9 +265,15 @@ class Node(val context: MainActivity) {
 
                 // Log.d("node","notify frontend: $min_want_entries, $old_min_entries, $old_want_entries, $curr_want_entries, $max_want_entries")
 
-                context.wai.eval("b2f_update_progress($min_want_entries, $old_min_entries, $old_want_entries, $curr_want_entries, $max_want_entries)")
+                //context.wai.eval("b2f_update_progress($min_want_entries, $old_min_entries, $old_want_entries, $curr_want_entries, $max_want_entries)")
+                try {
+                    val intent = Intent("MESSAGE_FROM_SERVICE")
+                    intent.putExtra("message", "b2f_update_progress($min_want_entries, $old_min_entries, $old_want_entries, $curr_want_entries, $max_want_entries)")
+                    LocalBroadcastManager.getInstance(service).sendBroadcast(intent)
+                } catch (e: Exception) {
+                    Log.d("Node", "error sending broadcast: $e")
+                }
             }
         }
-
     }
 }

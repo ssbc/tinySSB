@@ -1,8 +1,12 @@
 package nz.scuttlebutt.tremolavossbol.tssb
 
+import android.content.Intent
 import android.util.Log
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import nz.scuttlebutt.tremolavossbol.MainActivity
 import nz.scuttlebutt.tremolavossbol.crypto.SodiumAPI.Companion.sha256
+import nz.scuttlebutt.tremolavossbol.tssb.ble.BleForegroundService
+import nz.scuttlebutt.tremolavossbol.tssb.ble.ForegroundNotificationType
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.DMX_LEN
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.FID_LEN
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.GOSET_DMX_STR
@@ -27,7 +31,7 @@ class Novelty {
     var wire = ByteArray(0)
 }
 
-class GOset(val context: MainActivity) {
+class GOset(val service: BleForegroundService) {
     /* packet format:
         n 32B 32B? 32B?  // 33 bytes, in the future up to two additional keys
         c 32B 32B 32B B  // 98 bytes
@@ -98,8 +102,12 @@ class GOset(val context: MainActivity) {
 
         if (cl.sz > largest_claim_span)
             largest_claim_span = cl.sz
-        if (context.tinyRepo.isLoaded())
-            context.wai.eval("refresh_goset_progressbar(${keys.size}, ${largest_claim_span})") // notify frontend
+        if (BleForegroundService.getTinyRepo()!!.isLoaded()) {
+            //context.wai.eval("refresh_goset_progressbar(${keys.size}, ${largest_claim_span})") // notify frontend
+            val intent = Intent(ForegroundNotificationType.EVALUATION.name)
+            intent.putExtra("message", "refresh_goset_progressbar(${keys.size}, ${largest_claim_span})")
+            LocalBroadcastManager.getInstance(service).sendBroadcast(intent)
+        }
         // Log.d("rx", "state = ${state.toHex()}, cl.sz=${cl.sz}, k.sz=${keys.size}")
         if (cl.sz == keys.size && byteArrayCmp(state, cl.xo) == 0) {
             Log.d("goset", "seems we are synced (with at least someone), |GOset|=${keys.size}")
@@ -145,18 +153,18 @@ class GOset(val context: MainActivity) {
         }
         */
         // Log.d("GOset", "beacon")
-        if (keys.size == 0 || !context.tinyRepo.isLoaded()) return
+        if (keys.size == 0 || !BleForegroundService.getTinyRepo()!!.isLoaded()) return
         while (novelty_credit-- > 0 && pending_novelty.size > 0)
-            context.tinyIO.enqueue(pending_novelty.removeFirst().wire, goset_dmx, null)
+            BleForegroundService.getTinyIO()!!.enqueue(pending_novelty.removeFirst().wire, goset_dmx, null)
         novelty_credit = NOVELTY_PER_ROUND
 
         val cl = mkClaim(0, keys.size-1)
         if (byteArrayCmp(cl.xo, state) != 0) { // GOset changed
             Log.d("goset", "state change to ${cl.xo.toHex()}, |keys|=${keys.size}")
             state = cl.xo
-            context.tinyDemux.set_want_dmx(state)
+            BleForegroundService.getTinyDemux()!!.set_want_dmx(state)
         }
-        context.tinyIO.enqueue(cl.wire, goset_dmx, null);
+        BleForegroundService.getTinyIO()!!.enqueue(cl.wire, goset_dmx, null);
 
         // sort pending entries, smallest first
         pending_claims.sortBy({c -> c.sz})
@@ -177,7 +185,7 @@ class GOset(val context: MainActivity) {
                     // Serial.print("asking for help " + String(partial->cnt));
                     // Serial.print(String(" ") + to_hex(partial->lo,4) + String(".."));
                     // Serial.println(String(" ") + to_hex(partial->hi,4) + String(".."));
-                    context.tinyIO.enqueue(partial.wire, goset_dmx, null);
+                    BleForegroundService.getTinyIO()!!.enqueue(partial.wire, goset_dmx, null);
                 }
                 if (partial.sz < c.sz) {
                     retain.add(c)
@@ -191,14 +199,14 @@ class GOset(val context: MainActivity) {
                 // Serial.println(String(" ") + to_hex(gp->goset_keys+hi*GOSET_KEY_LEN,4) + String(".."));
                 Log.d("goset", "max_help ${lo}, ${hi}")
                 if (hi <= lo)
-                    context.tinyIO.enqueue(mkNovelty_from_key(keys[lo]).wire, goset_dmx, null)
+                    BleForegroundService.getTinyIO()!!.enqueue(mkNovelty_from_key(keys[lo]).wire, goset_dmx, null)
                 else if (hi - lo <= 2) { // span of 2 or 3
-                    context.tinyIO.enqueue(mkClaim(lo, hi).wire, goset_dmx, null)
+                    BleForegroundService.getTinyIO()!!.enqueue(mkClaim(lo, hi).wire, goset_dmx, null)
                 }
                 else { // split span in two intervals
                     val sz = (hi+1 - lo) / 2
-                    context.tinyIO.enqueue(mkClaim(lo, lo+sz-1).wire, goset_dmx, null)
-                    context.tinyIO.enqueue(mkClaim(lo+sz, hi).wire, goset_dmx, null)
+                    BleForegroundService.getTinyIO()!!.enqueue(mkClaim(lo, lo+sz-1).wire, goset_dmx, null)
+                    BleForegroundService.getTinyIO()!!.enqueue(mkClaim(lo+sz, hi).wire, goset_dmx, null)
                 }
                 continue; // only help once per claim, do not retain
             }
@@ -235,17 +243,17 @@ class GOset(val context: MainActivity) {
     fun _add_key(key: ByteArray) {
         if (!_include_key(key)) // adds key if necessary
             return
-        context.tinyRepo.add_replica(key)
+        BleForegroundService.getTinyRepo()!!.add_replica(key)
 
         keys.sortWith({a:ByteArray,b:ByteArray -> byteArrayCmp(a,b)})
         if (keys.size >= largest_claim_span) { // only rebroadcast if we are up to date
             val n = mkNovelty_from_key(key)
             if (novelty_credit-- > 0)
-                context.tinyIO.enqueue(n.wire, goset_dmx, null)
+                BleForegroundService.getTinyIO()!!.enqueue(n.wire, goset_dmx, null)
             else if (pending_novelty.size < MAX_PENDING)
                 pending_novelty.add(n)
         }
-        context.ble?.refreshShortNameForKey(key) // refresh shortname in devices overview
+        service.ble?.refreshShortNameForKey(key) // refresh shortname in devices overview
         Log.d("goset", "added key ${key.toHex()}, |keys|=${keys.size}")
     }
 
@@ -264,7 +272,7 @@ class GOset(val context: MainActivity) {
         } else
             state = ByteArray(FID_LEN)
         Log.d("goset", "adjust state for ${keys.size} keys, resulted in ${state.toHex()}")
-        context.tinyDemux.set_want_dmx(state)
+        BleForegroundService.getTinyDemux()!!.set_want_dmx(state)
     }
 
     fun mkClaim(pkt: ByteArray): Claim {

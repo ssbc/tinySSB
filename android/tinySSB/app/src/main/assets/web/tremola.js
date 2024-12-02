@@ -757,6 +757,7 @@ function b2f_new_image_blob(ref) {
 }
 
 function b2f_initialize(id, settings) {
+    console.log("initialize: " + id)
     myId = id
     myShortId = id2b32(myId)
     if (window.localStorage.tremola) {

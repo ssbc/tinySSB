@@ -3,6 +3,7 @@ package nz.scuttlebutt.tremolavossbol.tssb
 import android.util.Log
 import nz.scuttlebutt.tremolavossbol.MainActivity
 import nz.scuttlebutt.tremolavossbol.crypto.SodiumAPI.Companion.sha256
+import nz.scuttlebutt.tremolavossbol.tssb.ble.BleForegroundService
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.DMX_LEN
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.DMX_PFX
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.HASH_LEN
@@ -26,7 +27,7 @@ class Chk { // chunk entry
     var bnr: Int = 0
 }
 
-class Demux(val context: MainActivity) {
+class Demux(val service: BleForegroundService) {
     val dmxt = ArrayList<Dmx>()
     val chkt = ArrayList<Chk>()
 
@@ -115,16 +116,16 @@ class Demux(val context: MainActivity) {
         Log.d("demux", "SET NEW DMX FOR STATE ${goset_state.toHex()}")
 
         //undefine current handler
-        if(context.tinyDemux.want_dmx != null)
-            arm_dmx(context.tinyDemux.want_dmx!!, null, null)
+        if(BleForegroundService.getTinyDemux()!!.want_dmx != null)
+            arm_dmx(BleForegroundService.getTinyDemux()!!.want_dmx!!, null, null)
 
-        if(context.tinyDemux.chnk_dmx != null)
-            arm_dmx(context.tinyDemux.chnk_dmx!!, null, null)
+        if(BleForegroundService.getTinyDemux()!!.chnk_dmx != null)
+            arm_dmx(BleForegroundService.getTinyDemux()!!.chnk_dmx!!, null, null)
 
         want_dmx = compute_dmx("want".encodeToByteArray() + goset_state)
         chnk_dmx = compute_dmx("blob".encodeToByteArray() + goset_state)
-        arm_dmx(want_dmx!!, { buf:ByteArray, aux:ByteArray?, sender:String? -> context.tinyNode.incoming_want_request(buf,null, sender)}, null)
-        arm_dmx(chnk_dmx!!, { buf:ByteArray, aux:ByteArray?, _ -> context.tinyNode.incoming_chunk_request(buf,aux)})
+        arm_dmx(want_dmx!!, { buf:ByteArray, aux:ByteArray?, sender:String? -> BleForegroundService.getTinyNode()!!.incoming_want_request(buf,null, sender)}, null)
+        arm_dmx(chnk_dmx!!, { buf:ByteArray, aux:ByteArray?, _ -> BleForegroundService.getTinyNode()!!.incoming_chunk_request(buf,aux)})
         Log.d("demux", "GOset state is  ${goset_state.toHex()}")
         Log.d("demux", "new WANT dmx is ${want_dmx!!.toHex()}")
         Log.d("demux", "new BLOB dmx is ${chnk_dmx!!.toHex()}")

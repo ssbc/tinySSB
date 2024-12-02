@@ -6,6 +6,7 @@ import android.util.Log
 import androidx.annotation.RequiresApi
 import nz.scuttlebutt.tremolavossbol.MainActivity
 import nz.scuttlebutt.tremolavossbol.WebAppInterface
+import nz.scuttlebutt.tremolavossbol.tssb.ble.BleForegroundService
 import nz.scuttlebutt.tremolavossbol.utils.Constants
 import nz.scuttlebutt.tremolavossbol.utils.HelperFunctions.Companion.byteArrayCmp
 import nz.scuttlebutt.tremolavossbol.utils.HelperFunctions.Companion.toHex
@@ -29,7 +30,7 @@ import java.util.zip.CRC32
             mc_socket.leaveGroup(mc_group);
 */
 
-class IO(val activity: MainActivity) {
+class IO(val service: BleForegroundService) {
     val IO_MAX_QUEUE_LEN = 10
     val outqueue = ArrayDeque<ByteArray>()
     val lck = ReentrantLock()
@@ -79,31 +80,31 @@ class IO(val activity: MainActivity) {
                 val buf = outqueue.removeFirst()
                 // Log.d("tinyIO", "send loop: buf size is ${buf.size} bytes")
                 lck.unlock()
-                if (activity.mc_socket != null) { // WiFi, add CRC, TODO removed Context
+                if (service.mc_socket != null) { // WiFi, add CRC, TODO removed Context
                     val msg = appendCRC(buf)
                     val dgram = DatagramPacket(
                         msg, msg.size,
-                        activity.mc_group, Constants.SSB_VOSSBOL_MC_PORT //TODO removed Context
+                        service.mc_group, Constants.SSB_VOSSBOL_MC_PORT //TODO removed Context
                     );
                     try {
                         // Log.d("tinyIO", "send ${msg.size} bytes via UDP mc")
-                        activity.mc_socket?.send(dgram); //TODO removed Context
+                        service.mc_socket?.send(dgram); //TODO removed Context
                     } catch (e: Exception) {
                         Log.d("WiFi sender exc", e.toString())
                     }
                 }
                 try { // BLE, no CRC added
-                    if (activity.ble != null && activity.ble!!.peers.isNotEmpty()) { // && context.ble!!.peers.size > 0 //TODO removed Context
+                    if (service.ble != null && service.ble!!.peers.isNotEmpty()) { // && context.ble!!.peers.size > 0 //TODO removed Context
                         // Log.d("tinyIO", "send ${buf.size} bytes via BLE")
-                        activity.ble!!.write(buf)
+                        service.ble!!.write(buf)
                         //context.ble!!.advertise(buf)
                     }
                 } catch (e: Exception) {
                     Log.d("BLE sender exc", e.toString())
                 }
                 // websocket
-                if (activity.websocket != null) { //TODO removed Context
-                    activity.websocket!!.send(buf) //TODO removed Context
+                if (service.websocket != null) { //TODO removed Context
+                    service.websocket!!.send(buf) //TODO removed Context
                 }
             }
             Thread.sleep(1000) // slow pace
@@ -117,13 +118,13 @@ class IO(val activity: MainActivity) {
             // val s = context.broadcast_socket
             // blocks?? Log.d("listen", "${s}, ports=${s?.port}/${s?.localPort} closed=${s?.isClosed} bound=${s?.isBound}")
             try {
-                if (activity.mc_socket == null) { //TODO removed Context
+                if (service.mc_socket == null) { //TODO removed Context
                     Thread.sleep(Constants.UDP_BROADCAST_INTERVAL) // wait for better conditions
                     continue
                 }
-                activity.mc_socket?.receive(ingram) //TODO removed Context
+                service.mc_socket?.receive(ingram) //TODO removed Context
             } catch (e: Exception) {
-                Log.d("MC mcReceiverLoop", "e=${e}, bsock=${activity.mc_socket}") //TODO removed Context
+                Log.d("MC mcReceiverLoop", "e=${e}, bsock=${service.mc_socket}") //TODO removed Context
                 Thread.sleep(Constants.UDP_BROADCAST_INTERVAL) // wait for better conditions
                 continue
             }
@@ -132,7 +133,7 @@ class IO(val activity: MainActivity) {
             // Log.d("MC received", "${ingram.length} ${(buf+crc).toHex()} crc:${checkCRC(buf, crc)}")
             if (checkCRC(buf,crc)) {
                 lck.lock()
-                if (!activity.tinyDemux.on_rx(buf)) { //TODO removed Context
+                if (!BleForegroundService.getTinyDemux()!!.on_rx(buf)) { //TODO removed Context
                     Log.d("io", "no handler for ${buf.size} Bytes ${buf.toHex()}")
                     // Log.d("demux", "- GOset state ${context.tinyGoset.state.toHex()}")
                     // Log.d("demux", "- WANT dmx is ${context.tinyDemux.want_dmx!!.toHex()}")

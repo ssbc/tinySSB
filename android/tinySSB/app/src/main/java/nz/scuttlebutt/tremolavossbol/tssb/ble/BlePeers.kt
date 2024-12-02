@@ -37,9 +37,9 @@ import nz.scuttlebutt.tremolavossbol.utils.HelperFunctions.Companion.b32encode
 import nz.scuttlebutt.tremolavossbol.utils.HelperFunctions.Companion.toHex
 
 
-class BlePeers(val act: MainActivity) {
+class BlePeers(val foregroundService: BleForegroundService) { // Replace MainActivity with BleForegroundService
 
-    private val bluetoothManager = act.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+    private val bluetoothManager = foregroundService.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
     private val bluetoothAdapter = bluetoothManager.adapter
     private val bleScanner = bluetoothAdapter.bluetoothLeScanner
     private var gattServer: BluetoothGattServer? = null
@@ -63,11 +63,11 @@ class BlePeers(val act: MainActivity) {
         .build()
 
     private val isLocationPermissionGranted
-        get() = ContextCompat.checkSelfPermission(act, Manifest.permission.ACCESS_FINE_LOCATION) ==
+        get() = ContextCompat.checkSelfPermission(foregroundService, Manifest.permission.ACCESS_FINE_LOCATION) ==
                 PackageManager.PERMISSION_GRANTED
 
     private fun isLocationEnabled(): Boolean {
-        val locationManager = act.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        val locationManager = foregroundService.getSystemService(Context.LOCATION_SERVICE) as LocationManager
         return locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)
     }
 
@@ -98,17 +98,20 @@ class BlePeers(val act: MainActivity) {
                 Toast.LENGTH_LONG
             ).show()
         }*/
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !isLocationPermissionGranted) {
+
+        // This is done in MainActivity now, as it requires MainActivity-reference
+        /*if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !isLocationPermissionGranted) {
             ActivityCompat.requestPermissions(act, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), 555)
             return
-        }
+        }*/
 
         //start GATT server + client
         startBleScan()
         startServer()
 
         //inform frontend that ble is enabled
-        act.wai.eval("b2f_ble_enabled()")
+        //act.wai.eval("b2f_ble_enabled()")
+        sendMessageToActivity("b2f_ble_enabled()")
     }
 
     @SuppressLint("MissingPermission")
@@ -118,7 +121,8 @@ class BlePeers(val act: MainActivity) {
             p.value.close()
         }
         stopServer()
-        act.wai.eval("b2f_ble_disabled()")
+        //act.wai.eval("b2f_ble_disabled()")
+        sendMessageToActivity("b2f_ble_disabled()")
     }
 
     @SuppressLint("MissingPermission")
@@ -190,9 +194,9 @@ class BlePeers(val act: MainActivity) {
             super.onCharacteristicChanged(gatt, ch)
             if (ch != null) {
                 // Log.d("ble", "${ch.uuid.toString()} changed: ${ch.value.toHex()}, ${ch.value.size}")
-                act.ioLock.lock()
-                val rc = act.tinyDemux.on_rx(ch.value)
-                act.ioLock.unlock()
+                foregroundService.ioLock.lock()
+                val rc = BleForegroundService.getTinyDemux()!!.on_rx(ch.value)
+                foregroundService.ioLock.unlock()
                 if (!rc)
                     Log.d("BlePeers", "ble - no dmx entry for ${ch.value.toHex()}")
             }
@@ -339,12 +343,11 @@ class BlePeers(val act: MainActivity) {
 
                 }
                  */
-                val g = result.device.connectGatt(act, false, gattCallback, BluetoothDevice.TRANSPORT_LE)
+                //val g = result.device.connectGatt(act, false, gattCallback, BluetoothDevice.TRANSPORT_LE) // TODO changed from this
+                val g = result.device.connectGatt(foregroundService, false, gattCallback, BluetoothDevice.TRANSPORT_LE)
                 pending[result.device] = g
                 //val g = result.device.connectGatt(act, true, gattCallback)
                 //peers[result.device] = g
-
-
             }
 
         }
@@ -376,10 +379,11 @@ class BlePeers(val act: MainActivity) {
 
         gattService.addCharacteristic(chRX)
         gattService.addCharacteristic(chTX)
-        gattServer = bluetoothManager.openGattServer(act, gattServerCallback).apply { addService(gattService)}
+
+        gattServer = bluetoothManager.openGattServer(foregroundService, gattServerCallback).apply { addService(gattService)}
+        // gattServer = bluetoothManager.openGattServer(act, gattServerCallback).apply { addService(gattService)} // TODO changes from this
         Log.d("BlePeers", "ble GATT Server started")
         startAdvertising()
-
     }
 
     @SuppressLint("MissingPermission")
@@ -443,7 +447,7 @@ class BlePeers(val act: MainActivity) {
         ) {
             // Log.d("BlePeers", "ble server - onDescriptorReadRequest")
             super.onDescriptorReadRequest(device, requestId, offset, descriptor)
-            gattServer?.sendResponse(device, requestId, GATT_SUCCESS, offset, act.idStore.identity.verifyKey)
+            gattServer?.sendResponse(device, requestId, GATT_SUCCESS, offset, BleForegroundService.getTinyIdStore()!!.identity.verifyKey)
         }
 
 
@@ -473,9 +477,9 @@ class BlePeers(val act: MainActivity) {
                     gattServer?.sendResponse(device, requestId, GATT_SUCCESS,0, null)
 //                    if (value != null) {
                         try {
-                            act.ioLock.lock()
-                            val rc = act.tinyDemux.on_rx(value!!, device?.address)
-                            act.ioLock.unlock()
+                            foregroundService.ioLock.lock()
+                            val rc = BleForegroundService.getTinyDemux()!!.on_rx(value!!, device?.address)
+                            foregroundService.ioLock.unlock()
                             if (!rc)
                                 Log.d("BlePeers", "ble rx: not dmx entry for ${value}")
                         } catch (e: Exception) {
@@ -517,17 +521,12 @@ class BlePeers(val act: MainActivity) {
         // Log.d("BlePeers", "ble - Connected devices: $connectedDevices, Peers: $peers, Server: ${bluetoothManager.getConnectedDevices(BluetoothProfile.GATT)}")
         if (connectedDevices.any { it.address == device.address} && peers.keys.any { it.address == device.address }) {
             // Log.d("BlePeers", "ble - device online: ${device}")
-            act.wai.eval("b2f_local_peer(\"ble\", \"${device.address}\", \"${name}\", \"${status}\")")
-            val intent = Intent("MESSAGE_FROM_SERVICE")
-            intent.putExtra("message", "b2f_local_peer(\"ble\", \"${device.address}\", \"${name}\", \"${status}\")".toByteArray())
-            LocalBroadcastManager.getInstance(act).sendBroadcast(intent)
+            //act.wai.eval("b2f_local_peer(\"ble\", \"${device.address}\", \"${name}\", \"${status}\")")
+            sendMessageToActivity("b2f_local_peer(\"ble\", \"${device.address}\", \"${name}\", \"${status}\")")
         } else if (status == "offline") {
-            act.wai.eval("b2f_local_peer(\"ble\", \"${device.address}\", \"${name}\", \"${status}\")")
-            val intent = Intent("MESSAGE_FROM_SERVICE")
-            intent.putExtra("message", "b2f_local_peer(\"ble\", \"${device.address}\", \"${name}\", \"${status}\")".toByteArray())
-            LocalBroadcastManager.getInstance(act).sendBroadcast(intent)
+            //act.wai.eval("b2f_local_peer(\"ble\", \"${device.address}\", \"${name}\", \"${status}\")")
+            sendMessageToActivity("b2f_local_peer(\"ble\", \"${device.address}\", \"${name}\", \"${status}\")")
         }
-
     }
 
     @SuppressLint("MissingPermission")
@@ -542,7 +541,7 @@ class BlePeers(val act: MainActivity) {
         if (id != null) {
             val b32 = id.sliceArray(0 until 7).b32encode().substring(0 until 10)
             val b32_name = "${b32.substring(0 until 5)}-${b32.substring(5)}"
-            if (act.tinyGoset.keys.any { it.contentEquals(id) }) {
+            if (BleForegroundService.getTinyGoset()!!.keys.any { it.contentEquals(id) }) {
                 return b32_name
             } else {
                 if (name == null)
@@ -565,5 +564,15 @@ class BlePeers(val act: MainActivity) {
                 return
             }
         }
+    }
+
+    /**
+     *  This method is needed to send a message to the MainActivity from the service.
+     *  It replaces every occurrence of act.wait.eval() in the original code.
+     */
+    private fun sendMessageToActivity(message: String) {
+        val intent = Intent(ForegroundNotificationType.EVALUATION.value)
+        intent.putExtra("message", message)
+        LocalBroadcastManager.getInstance(foregroundService).sendBroadcast(intent)
     }
 }

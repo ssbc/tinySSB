@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Base64
 import android.util.Log
 import nz.scuttlebutt.tremolavossbol.MainActivity
+import nz.scuttlebutt.tremolavossbol.tssb.ble.BleForegroundService
 import nz.scuttlebutt.tremolavossbol.utils.Constants
 import org.json.JSONObject
 import java.io.FileOutputStream
@@ -12,7 +13,7 @@ import nz.scuttlebutt.tremolavossbol.utils.HelperFunctions.Companion.toBase64
 import nz.scuttlebutt.tremolavossbol.utils.HelperFunctions.Companion.toHex
 import java.io.File
 
-class IdStore(val context: MainActivity) {
+class IdStore(val service: BleForegroundService) {
 
     var identity : SSBid
 
@@ -25,10 +26,16 @@ class IdStore(val context: MainActivity) {
         } else
             identity = id
         // for tinyssb:
-        val fdir = File(context.getDir(Constants.TINYSSB_DIR, Context.MODE_PRIVATE), context.tinyRepo.FEED_DIR)
+        val fdir =
+            BleForegroundService.getTinyRepo()?.FEED_DIR?.let {
+                File(service.getDir(Constants.TINYSSB_DIR, Context.MODE_PRIVATE),
+                    it
+                )
+            }
         if (!File(fdir, "${identity.verifyKey.toHex()}").exists()) {
             Log.d("idstore","create new feed repo")
-            context.tinyRepo.add_replica(identity.verifyKey)
+            //context.tinyRepo.add_replica(identity.verifyKey)
+            BleForegroundService.getTinyRepo()?.add_replica(identity.verifyKey)
         } else
             Log.d("idstore","no need to create new feed repo")
     }
@@ -54,23 +61,24 @@ class IdStore(val context: MainActivity) {
                 "# your public name: ${newId.toRef()}\n"
         val fileOutputStream: FileOutputStream
         try {
-            try { context.deleteFile("secret") } catch (e: java.lang.Exception) {
+            try { service.deleteFile("secret") } catch (e: java.lang.Exception) {
                 // Log.d("IdStore write", "no delete?")
             }
-            fileOutputStream = context.openFileOutput("secret", Context.MODE_PRIVATE)
+            fileOutputStream = service.openFileOutput("secret", Context.MODE_PRIVATE)
             fileOutputStream.write(jsonSecret.encodeToByteArray())
             fileOutputStream.close()
             // Log.d("IdStore write", "done")
             return true
         } catch (e: Exception) {
             e.printStackTrace()
+            Log.e("IdStore", "write failed")
         }
         return false
     }
 
     private fun readFromFile(): SSBid? {
         try {
-            val inputStream = context.openFileInput("secret")
+            val inputStream = service.openFileInput("secret")
             val buffer = ByteArray(inputStream.available())
             inputStream.read(buffer)
             inputStream.close()
@@ -83,6 +91,7 @@ class IdStore(val context: MainActivity) {
             }
         } catch (e: java.lang.Exception) {
             // e.message?.let { Log.d("IdStore", it) }
+            Log.d("IdStore", "no secret found")
         }
         return null
     }

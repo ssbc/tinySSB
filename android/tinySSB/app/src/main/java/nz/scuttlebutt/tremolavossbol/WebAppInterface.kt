@@ -42,6 +42,7 @@ import nz.scuttlebutt.tremolavossbol.utils.PlusCodesUtils
 import nz.scuttlebutt.tremolavossbol.games.battleships.BattleshipGame
 import nz.scuttlebutt.tremolavossbol.games.common.GamesHandler
 import nz.scuttlebutt.tremolavossbol.games.battleships.GameStates
+import nz.scuttlebutt.tremolavossbol.tssb.ble.BleForegroundService
 import nz.scuttlebutt.tremolavossbol.utils.Bipf_e
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_ACK
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_DLV
@@ -51,10 +52,10 @@ import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_GAMET
 
 // pt 3 in https://betterprogramming.pub/5-android-webview-secrets-you-probably-didnt-know-b23f8a8b5a0c
 
-class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandler: GamesHandler) {
+class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandler: GamesHandler?) {
 
     val frontend_frontier = act.getSharedPreferences("frontend_frontier", Context.MODE_PRIVATE)
-    var gamesHandler = gameHandler
+    var gamesHandler: GamesHandler? = gameHandler
 
     /**
      * Retrieves the current geolocation of the Android device and returns it as a PlusCode.
@@ -111,23 +112,27 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
                 (act as MainActivity)._onBackPressed()
             }
             "ready" -> {
-                eval("b2f_initialize('${act.idStore.identity.toRef()}', '${act.settings!!.getSettings()}')")
-                act.frontend_ready = true
-                act.tinyRepo.addNumberOfPendingChunks(0) // initialize chunk progress bar
-                act.tinyNode.beacon()
+                eval("b2f_initialize('${BleForegroundService.getTinyIdStore()!!.identity.toRef()}', '${act.settings!!.getSettings()}')")
+                act.frontend_ready = true // maybe add flag inside foreground service
+                BleForegroundService.getTinyRepo()?.addNumberOfPendingChunks(0)
+                BleForegroundService.getTinyNode()?.beacon()
+                //act.tinyRepo.addNumberOfPendingChunks(0) // initialize chunk progress bar
+                //act.tinyNode.beacon()
             }
             "reset" -> { // UI reset
                 // erase DB content
-                eval("b2f_initialize(\"${act.idStore.identity.toRef()}\")")
+                //eval("b2f_initialize(\"${act.idStore.identity.toRef()}\")")
+                eval("b2f_initialize(\"${BleForegroundService.getTinyIdStore()!!.identity.toRef()}\")")
                 onFrontendRequest("restream")
             }
             "restream" -> {
                 eval("restream = true")
-                for (fid in act.tinyRepo.listFeeds()) {
+                for (fid in BleForegroundService.getTinyRepo()?.listFeeds()!!) {
                     Log.d("wai", "restreaming ${fid.toHex()}")
                     var i = 1
                     while (true) {
-                        val r = act.tinyRepo.fid2replica(fid)
+                        //val r = act.tinyRepo.fid2replica(fid)
+                        var r = BleForegroundService.getTinyRepo()?.fid2replica(fid)
                         if(r == null)
                             break
                         val payload = r.read_content(i)
@@ -141,10 +146,13 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
                 eval("restream = false")
             }
             "wipe:others" -> {
-                for (fid in act.tinyRepo.listFeeds()) {
-                    if (fid.contentEquals(act.idStore.identity.verifyKey))
+                for (fid in BleForegroundService.getTinyRepo()?.listFeeds()!!) {
+                    if (fid.contentEquals(BleForegroundService.getTinyIdStore()!!.identity.verifyKey))
                         continue
-                    act.tinyRepo.delete_feed(fid)
+                    //if (fid.contentEquals(act.idStore.identity.verifyKey))
+                    //    continue
+                    //act.tinyRepo.delete_feed(fid)
+                    BleForegroundService.getTinyRepo()?.delete_feed(fid)
                 }
             }
             "qrscan.init" -> {
@@ -157,7 +165,8 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
                 return
             }
             "exportSecret" -> {
-                val json = act.idStore.identity.toExportString()!!
+                //val json = act.idStore.identity.toExportString()!!
+                val json = BleForegroundService.getTinyIdStore()!!.identity.toExportString()!!
                 eval("b2f_showSecret('${json}');")
                 val clipboard = act.getSystemService(ClipboardManager::class.java)
                 val clip = ClipData.newPlainText("simple text", json)
@@ -166,27 +175,31 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
                     Toast.LENGTH_LONG).show()
             }
             "importSecret" -> {
-                act.idStore.setNewIdentity(Base64.decode(args[1], Base64.NO_WRAP))
-                act.tinyRepo.reset()
+                //act.idStore.setNewIdentity(Base64.decode(args[1], Base64.NO_WRAP))
+                BleForegroundService.getTinyIdStore()!!.setNewIdentity(Base64.decode(args[1], Base64.NO_WRAP))
+                BleForegroundService.getTinyRepo()?.reset()
+                //act.tinyRepo.reset()
 
                 // restart App
                 if (act.websocket != null)
                     act.websocket!!.stop()
-                if (act.ble != null)
-                    act.ble!!.stopBluetooth()
+                if (BleForegroundService.getTinyBle() != null)
+                    BleForegroundService.getTinyBle()!!.stopBluetooth()
                 val ctx = act.applicationContext
                 ctx.startActivity(Intent.makeRestartActivityTask(act.applicationContext.packageManager.getLaunchIntentForPackage(ctx.packageName)!!.component))
                 Runtime.getRuntime().exit(0)
             }
             "wipe" -> {
                 act.settings!!.resetToDefault()
-                act.idStore.setNewIdentity(null) // creates new identity
-                act.tinyRepo.reset()
+                //act.idStore.setNewIdentity(null) // creates new identity
+                BleForegroundService.getTinyIdStore()!!.setNewIdentity(null) // creates new identity
+                BleForegroundService.getTinyRepo()?.reset()
+                //act.tinyRepo.reset()
 
                 if (act.websocket != null)
                     act.websocket!!.stop()
-                if (act.ble != null)
-                    act.ble!!.stopBluetooth()
+                if (BleForegroundService.getTinyBle() != null)
+                    BleForegroundService.getTinyBle()!!.stopBluetooth()
                 val ctx = act.applicationContext
                 ctx.startActivity(Intent.makeRestartActivityTask(act.applicationContext.packageManager.getLaunchIntentForPackage(ctx.packageName)!!.component))
                 Runtime.getRuntime().exit(0)
@@ -198,7 +211,8 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
             "add:contact" -> {
                 val id = args[1].substring(1,args[1].length-8)
                 Log.d("ADD", id)
-                act.tinyGoset._add_key(Base64.decode(id, Base64.NO_WRAP))
+                //act.tinyGoset._add_key(Base64.decode(id, Base64.NO_WRAP))
+                BleForegroundService.getTinyGoset()?._add_key(Base64.decode(id, Base64.NO_WRAP))
             }
             /* no alias publishing in tinyTremola
             "add:contact" -> { // ID and alias
@@ -324,7 +338,8 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
 
                 val body = Bipf.encode(lst)
                 if (body != null) {
-                    act.tinyNode.publish_public_content(body)
+                    //act.tinyNode.publish_public_content(body)
+                    BleForegroundService.getTinyNode()?.publish_public_content(body)
                 }
             }
             "games" -> { // Handle battleship communication
@@ -334,13 +349,13 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
                 if (args[1] == "BSH") {
                     when (args[2]) {
                         "INV" -> {
-                            if (gamesHandler.getInviteCount("BSH") != 0) {
+                            if (gamesHandler!!.getInviteCount("BSH") != 0) {
                                 Log.d("BSH-Handler INV", "inviteCounter is not 0")
                                 return
                             }
-                            gameHandler.incInviteCount("BSH")
-                            gamesHandler.addOwnGame(args[1], args[3], GameStates.INVITED)
-                            val inst = gamesHandler.getInstanceFromFid(args[1], args[3])
+                            gamesHandler?.incInviteCount("BSH")
+                            gamesHandler?.addOwnGame(args[1], args[3], GameStates.INVITED)
+                            val inst = gamesHandler?.getInstanceFromFid(args[1], args[3])
                             (inst!!.game as BattleshipGame).setupGame(true)
                             val req = "${args[1]} INV ${args[3]} ${inst.startTime}"
                             public_post_game_request(
@@ -353,7 +368,7 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
                         }
 
                         "INVACC" -> {
-                            val inst = gamesHandler.getInstanceFromFid("BSH", args[3])
+                            val inst = gamesHandler?.getInstanceFromFid("BSH", args[3])
                             var peerHash: String = ""
                             if (inst != null) {
                                 (inst.game as BattleshipGame).setupGame(false)
@@ -361,7 +376,7 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
                             }
 
                             val invacc =
-                                "BSH INVACC ${args[3]} ${gamesHandler.myId.toRef()} $peerHash" // Appending Peer's Shiphash
+                                "BSH INVACC ${args[3]} ${gamesHandler!!.myId.toRef()} $peerHash" // Appending Peer's Shiphash
                             Log.d("GAM APP (INVACC)", invacc)
                             public_post_game_request(
                                 Base64.encodeToString(
@@ -373,11 +388,11 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
                         }
 
                         "SHOT" -> {
-                            val inst = gamesHandler.getInstanceFromFids("BSH", args[3], args[4])
+                            val inst = gamesHandler?.getInstanceFromFids("BSH", args[3], args[4])
                             var isPeer: String = ""
-                            if (gamesHandler.isIdEqualToMine(args[3])) { // I am owner
+                            if (gamesHandler!!.isIdEqualToMine(args[3])) { // I am owner
                                 isPeer = "0"
-                            } else if (gamesHandler.isIdEqualToMine(args[4])) {
+                            } else if (gamesHandler!!.isIdEqualToMine(args[4])) {
                                 isPeer = "1"
                             } else {
                                 return
@@ -402,16 +417,16 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
                         }
 
                         "DUELQUIT" -> {
-                            val inst = gamesHandler.getInstanceFromFids("BSH", args[3], args[4])
+                            val inst = gamesHandler!!.getInstanceFromFids("BSH", args[3], args[4])
                             if (inst == null || !inst.state.isActive()) {
                                 return
                             }
                             inst.state = GameStates.STOPPED
                             (inst.game as BattleshipGame).gameState!!.turn = false
                             var isPeer: String = ""
-                            if (gamesHandler.isIdEqualToMine(args[3])) { // I am owner
+                            if (gamesHandler!!.isIdEqualToMine(args[3])) { // I am owner
                                 isPeer = "0"
-                            } else if (gamesHandler.isIdEqualToMine(args[4])) {
+                            } else if (gamesHandler!!.isIdEqualToMine(args[4])) {
                                 isPeer = "1"
                             }
                             val quit = "${args[1]} ${args[2]} ${args[3]} ${args[4]} $isPeer"
@@ -462,6 +477,7 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
     }
 
     fun eval(js: String) { // send JS string to webkit frontend for execution
+        Log.d("WebAppInterface", "eval: $js")
         webView.post(Runnable {
             webView.evaluateJavascript(js, null)
         })
@@ -483,7 +499,7 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
 
     private fun importIdentity(secret: String): Boolean {
         Log.d("D/importIdentity", secret)
-        if (act.idStore.setNewIdentity(Base64.decode(secret, Base64.DEFAULT))) {
+        if (BleForegroundService.getTinyIdStore()!!.setNewIdentity(Base64.decode(secret, Base64.DEFAULT))) {
             // FIXME: remove all decrypted content in the database, try to decode new one
             Toast.makeText(act, "Imported of ID worked. You must restart the app.",
                 Toast.LENGTH_SHORT).show()
@@ -499,11 +515,13 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
         Bipf.list_append(lst, Bipf.mkString(args[1])) // msg ref
         val body_clear = Bipf.encode(lst)
         val keys: MutableList<ByteArray> = mutableListOf()
-        keys.add(act.idStore.identity.toRef().deRef())
+        keys.add(BleForegroundService.getTinyIdStore()!!.identity.toRef().deRef())
         keys.add(args[2].deRef())
-        val encrypted = body_clear?.let { act.idStore.identity.encryptPrivateMessage(it, keys) }
-        if (encrypted != null)
-            Bipf.encode(Bipf.mkBytes(encrypted))?.let { act.tinyNode.publish_public_content(it) }
+        val encrypted = body_clear?.let { BleForegroundService.getTinyIdStore()!!.identity.encryptPrivateMessage(it, keys) }
+        if (encrypted != null) {
+            Bipf.encode(Bipf.mkBytes(encrypted))?.let { BleForegroundService.getTinyNode()?.publish_public_content(it) }
+            //Bipf.encode(Bipf.mkBytes(encrypted))?.let { act.tinyNode.publish_public_content(it) }
+        }
     }
 
     fun public_post_with_voice(tips: ArrayList<String>, text: String?, voice: ByteArray?) {
@@ -528,8 +546,9 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
         val body = Bipf.encode(lst)
         if (body != null) {
             Log.d("WebAppInterface", "published bytes: " + Bipf.decode(body))
-            act.sendMessageToForegroundservice(body)
-            act.tinyNode.publish_public_content(body)
+            //act.sendMessageToForegroundservice(body) // FIXME unsure about this, might be able to delete
+            //act.tinyNode.publish_public_content(body)
+            BleForegroundService.getTinyNode()?.publish_public_content(body)
         }
     }
 
@@ -553,7 +572,7 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
 
         val recps = Bipf.mkList()
         val keys: MutableList<ByteArray> = mutableListOf()
-        val me = act.idStore.identity.toRef()
+        val me = BleForegroundService.getTinyIdStore()!!.identity.toRef()
         for (r in rcps) {
             if (r != me) {
                 Bipf.list_append(recps, Bipf.mkString(r))
@@ -565,11 +584,13 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
         Bipf.list_append(lst, recps)
 
         val body_clear = Bipf.encode(lst)
-        val encrypted = body_clear!!.let { act.idStore.identity.encryptPrivateMessage(it, keys) }
+        val encrypted = body_clear!!.let { BleForegroundService.getTinyIdStore()!!.identity.encryptPrivateMessage(it, keys) }
         // return encrypted.let { Bipf.mkString(it) }
         val body_encr = Bipf.encode(Bipf.mkBytes(encrypted))
-        if (body_encr != null)
-            act.tinyNode.publish_public_content(body_encr)
+        if (body_encr != null) {
+            //act.tinyNode.publish_public_content(body_encr)
+            BleForegroundService.getTinyNode()?.publish_public_content(body_encr)
+        }
     }
 
     /* Kahoot-Function: Encapsulates the data from Kahoot and sends it as public content. */
@@ -596,7 +617,8 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
         val body = Bipf.encode(lst)
         if (body != null) {
             Log.d("Kahoot", "published bytes: " + Bipf.decode(body))
-            act.tinyNode.publish_public_content(body)
+            //act.tinyNode.publish_public_content(body)
+            BleForegroundService.getTinyNode()?.publish_public_content(body)
         }
     }
 
@@ -610,7 +632,8 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
         Bipf.list_append(lst, tst)
         val body = Bipf.encode(lst)
         if (body != null)
-            act.tinyNode.publish_public_content(body)
+            //act.tinyNode.publish_public_content(body)
+            BleForegroundService.getTinyNode()?.publish_public_content(body)
     }
 
     fun scheduling(bid: String?, prev: List<String>?, operation: String, args: List<String>?) {
@@ -647,7 +670,8 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
 
         if (body != null) {
             Log.d("scheduling", "published bytes: " + Bipf.decode(body))
-            act.tinyNode.publish_public_content(body)
+            //act.tinyNode.publish_public_content(body)
+            BleForegroundService.getTinyNode()?.publish_public_content(body)
         }
     }
 
@@ -685,7 +709,8 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
 
         if (body != null) {
             Log.d("kanban", "published bytes: " + Bipf.decode(body))
-            act.tinyNode.publish_public_content(body)
+            BleForegroundService.getTinyNode()?.publish_public_content(body)
+            //act.tinyNode.publish_public_content(body)
         }
         //val body = Bipf.encode(lst)
         //Log.d("KANBAN BIPF ENCODE", Bipf.bipf_list2JSON(Bipf.decode(body!!)!!).toString())
@@ -706,7 +731,8 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
 
         if (body != null) {
             Log.d("connect_four", "published bytes: " + Bipf.decode(body))
-            act.tinyNode.publish_public_content(body)
+            //act.tinyNode.publish_public_content(body)
+            BleForegroundService.getTinyNode()?.publish_public_content(body)
         }
     }
 
@@ -720,7 +746,8 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
 
         if (body != null) {
             Log.d("connect_four_invite", "published bytes: " + Bipf.decode(body))
-            act.tinyNode.publish_public_content(body)
+            //act.tinyNode.publish_public_content(body)
+            BleForegroundService.getTinyNode()?.publish_public_content(body)
         }
     }
 
@@ -734,7 +761,8 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
 
         if (body != null) {
             Log.d("connect_four_decline_invite", "published bytes: " + Bipf.decode(body))
-            act.tinyNode.publish_public_content(body)
+            //act.tinyNode.publish_public_content(body)
+            BleForegroundService.getTinyNode()?.publish_public_content(body)
         }
     }
 
@@ -748,7 +776,8 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
         val body = Bipf.encode(lst)
         if (body != null) {
             Log.d("connect_four", "published bytes: " + Bipf.decode(body))
-            act.tinyNode.publish_public_content(body)
+            //act.tinyNode.publish_public_content(body)
+            BleForegroundService.getTinyNode()?.publish_public_content(body)
         }
     }
 
@@ -772,7 +801,8 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
             eval("b2f_new_event($e)")
 
         // in-order api
-        val replica = act.tinyRepo.fid2replica(fid)
+        //val replica = act.tinyRepo.fid2replica(fid)
+        val replica = BleForegroundService.getTinyRepo()?.fid2replica(fid)
 
         if (frontend_frontier.getInt(fid.toHex(), 1) == seq && replica != null) {
             for (i in seq .. replica.state.max_seq ) {
@@ -802,7 +832,7 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
         }
         if (bodyList.typ == BIPF_BYTES) { // encrypted
             Log.d("rcvd encrypted log entry", "@" + fid.toBase64() + ".ed25519, seq=" + seq)
-            val clear = act.idStore.identity.decryptPrivateMessage(bodyList.getBytes())
+            val clear = BleForegroundService.getTinyIdStore()!!.identity.decryptPrivateMessage(bodyList.getBytes())
             if (clear != null) {
                 val bodyList2 = Bipf.decode(clear)
                 if (bodyList2 != null) {

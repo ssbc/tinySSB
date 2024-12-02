@@ -147,7 +147,7 @@ function onBackPressed() {
 }
 
 function setScenario(s) {
-    // console.log('setScenario ' + s)
+    console.log('setScenario ' + s)
     closeOverlay();
     var lst = scenarioDisplay[s];
     if (lst) {

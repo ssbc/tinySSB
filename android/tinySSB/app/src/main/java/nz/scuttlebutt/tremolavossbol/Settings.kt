@@ -2,11 +2,12 @@ package nz.scuttlebutt.tremolavossbol
 
 import android.content.Context
 import android.util.Log
+import nz.scuttlebutt.tremolavossbol.tssb.ble.BleForegroundService
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_SIMPLEPUB_URL
 import org.json.JSONObject
 
-class Settings(val context: MainActivity) {
-    private val sharedPreferences = context.getSharedPreferences("tinyssbSettings", Context.MODE_PRIVATE)
+class Settings(val service: BleForegroundService) {
+    private val sharedPreferences = service.getSharedPreferences("tinyssbSettings", Context.MODE_PRIVATE)
 
     // These settings are only used in the frontend and will not affect the backend
     // The settingID must match the one used in the frontend (tremola.settings).
@@ -93,24 +94,24 @@ class Settings(val context: MainActivity) {
     // ------------------------------------------------------------------------------------------//
     fun handleWebsocketEnabled(value: Boolean) {
         if (!value)
-            context.websocket?.stop()
-        context.websocket?.start()
+            service.websocket?.stop()
+        service.websocket?.start()
     }
 
     fun handleBleEnabled(value: Boolean) {
         if(!value)
-            context.ble?.stopBluetooth()
-        context.ble?.startBluetooth()
+            service.ble?.stopBluetooth()
+        service.ble?.startBluetooth()
     }
 
     fun handleUdpMulticastEnabled(value: Boolean) {
         if (!value)
-            context.rmSockets()
-        context.mkSockets()
+            service.rmSockets()
+        service.mkSockets()
     }
 
     fun handleWebsocketUrl(value: String) {
-        context.websocket?.updateUrl(value)
+        service.websocket?.updateUrl(value)
     }
 
     fun handleGeoLocation(value: Boolean) {

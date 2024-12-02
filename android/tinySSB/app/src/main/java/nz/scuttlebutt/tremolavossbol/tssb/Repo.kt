@@ -1,11 +1,15 @@
 package nz.scuttlebutt.tremolavossbol.tssb
 
 import android.content.Context.MODE_PRIVATE
+import android.content.Intent
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import nz.scuttlebutt.tremolavossbol.MainActivity
 import nz.scuttlebutt.tremolavossbol.crypto.SodiumAPI.Companion.sha256
+import nz.scuttlebutt.tremolavossbol.tssb.ble.BleForegroundService
+import nz.scuttlebutt.tremolavossbol.tssb.ble.ForegroundNotificationType
 import nz.scuttlebutt.tremolavossbol.utils.Bipf
 import nz.scuttlebutt.tremolavossbol.utils.Constants
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.DMX_PFX
@@ -21,7 +25,7 @@ import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 import kotlin.random.Random
 
-class Repo(val context: MainActivity) {
+class Repo(val service: BleForegroundService) {
     val TINYSSB_DIR = "tinyssb"
     val FEED_DIR = "feeds"
     private var loadingFinished = false // indicates whether all replicas have already been loaded into the repo.
@@ -41,21 +45,21 @@ class Repo(val context: MainActivity) {
     }
 
     fun delete_feed(fid: ByteArray) {
-        clean(File(File(context.getDir(TINYSSB_DIR, MODE_PRIVATE), FEED_DIR), fid.toHex()))
+        clean(File(File(service.getDir(TINYSSB_DIR, MODE_PRIVATE), FEED_DIR), fid.toHex()))
     }
 
     fun reset() {
-        val fdir = File(context.getDir(TINYSSB_DIR, MODE_PRIVATE), FEED_DIR)
+        val fdir = File(service.getDir(TINYSSB_DIR, MODE_PRIVATE), FEED_DIR)
         clean(fdir);
     }
 
     fun load() {
-        val fdir = File(context.getDir(TINYSSB_DIR, MODE_PRIVATE), FEED_DIR)
+        val fdir = File(service.getDir(TINYSSB_DIR, MODE_PRIVATE), FEED_DIR)
         fdir.mkdirs()
 
         for (f in fdir.listFiles { file -> file.isDirectory && file.name.length == 2 * FID_LEN} ?: emptyArray()) {
             add_replica(f.name.decodeHex())
-            context.tinyGoset._add_key(f.name.decodeHex())
+            BleForegroundService.getTinyGoset()!!._add_key(f.name.decodeHex())
         }
 
         loadingFinished = true
@@ -65,34 +69,36 @@ class Repo(val context: MainActivity) {
     fun add_replica(fid: ByteArray) {
         if (replicas.any { it.fid.contentEquals(fid) })
             return
-        val new_r = Replica(context, File(context.getDir(TINYSSB_DIR, MODE_PRIVATE), FEED_DIR), fid)
+        val new_r = Replica(service, File(service.getDir(TINYSSB_DIR, MODE_PRIVATE), FEED_DIR), fid)
         replicas.add(new_r)
         val seq = new_r.state.max_seq + 1
         val nam = DMX_PFX + fid + seq.toByteArray() + new_r.state.prev
         val dmx = nam.sha256().sliceArray(0 until Constants.DMX_LEN)
-        val fct = { buf: ByteArray, fid: ByteArray?, _: String? -> context.tinyNode.incoming_pkt(buf,fid!!) }
-        context.tinyDemux.arm_dmx(dmx, fct, fid)
+        val fct = { buf: ByteArray, fid: ByteArray?, _: String? -> BleForegroundService.getTinyNode()!!.incoming_pkt(buf,fid!!) }
+        BleForegroundService.getTinyDemux()!!.arm_dmx(dmx, fct, fid)
 
         val chains = new_r.get_open_chains()
-        val chunk_fct = { chunk: ByteArray, fid: ByteArray?, seq: Int -> context.tinyNode.incoming_chunk(chunk,fid,seq) }
+        val chunk_fct = { chunk: ByteArray, fid: ByteArray?, seq: Int -> BleForegroundService.getTinyNode()!!.incoming_chunk(chunk,fid,seq) }
         for ((seq, p) in chains) {
-            context.tinyDemux.arm_blb(p.hptr, chunk_fct,fid,seq, p.cnr)
+            BleForegroundService.getTinyDemux()!!.arm_blb(p.hptr, chunk_fct,fid,seq, p.cnr)
             addNumberOfPendingChunks(p.rem)
         }
 
 
 
-        if (context.tinyGoset.keys.size > 1) {
-            want_offs = Random.nextInt(0, context.tinyGoset.keys.size - 1)
-            chnk_offs = Random.nextInt(0, context.tinyGoset.keys.size - 1)
+        if (BleForegroundService.getTinyGoset()!!.keys.size > 1) {
+            want_offs = Random.nextInt(0, BleForegroundService.getTinyGoset()!!.keys.size - 1)
+            chnk_offs = Random.nextInt(0, BleForegroundService.getTinyGoset()!!.keys.size - 1)
         }
 
-        if(context.frontend_ready) // was: isWaiInitialized()
-            context.wai.eval("b2f_new_contact(\"@${fid.toBase64()}.ed25519\")") // notify frontend
-
+        if(service.frontend_ready) { // was: isWaiInitialized()
+            //context.wai.eval("b2f_new_contact(\"@${fid.toBase64()}.ed25519\")") // notify frontend
+            val intent = Intent(ForegroundNotificationType.EVALUATION.value)
+            intent.putExtra("message", "b2f_new_contact(\"@${fid.toBase64()}.ed25519\")")
+            LocalBroadcastManager.getInstance(service).sendBroadcast(intent)
+        }
         // want_is_valid = false
         // chnk_is_valid = false
-
     }
 
     fun fid2replica(fid: ByteArray): Replica? {
@@ -126,7 +132,7 @@ class Repo(val context: MainActivity) {
     }
 
     fun mk_logEntry(buf: ByteArray): Int {
-        val r = fid2replica(context.idStore.identity.verifyKey)
+        val r = fid2replica(BleForegroundService.getTinyIdStore()!!.identity.verifyKey)
         if (r == null)
             return -1
         return r.write(buf)
@@ -150,9 +156,9 @@ class Repo(val context: MainActivity) {
         lst.add(want_offs)
         var new_want_offs = want_offs + 1
         var i = 0
-        while (i < context.tinyGoset.keys.size) {
-            val ndx = (want_offs + i) % context.tinyGoset.keys.size
-            val fid = context.tinyGoset.keys[ndx]
+        while (i < BleForegroundService.getTinyGoset()!!.keys.size) {
+            val ndx = (want_offs + i) % BleForegroundService.getTinyGoset()!!.keys.size
+            val fid = BleForegroundService.getTinyGoset()!!.keys[ndx]
             val r = fid2replica(fid)
             if (r == null) {
                 i++
@@ -167,7 +173,7 @@ class Repo(val context: MainActivity) {
                 break
             i++
         }
-        want_offs = new_want_offs % context.tinyGoset.keys.size
+        want_offs = new_want_offs % BleForegroundService.getTinyGoset()!!.keys.size
         // want_is_valid = true
         Log.d("repo", "mk_want offs=${want_offs}, vector=${v}]")
 
@@ -177,7 +183,7 @@ class Repo(val context: MainActivity) {
             val front = vec.subList(vec.size - lst[0], vec.size)
             val back = vec.subList(0, vec.size - lst[0])
             vec = front + back
-            context.tinyNode.update_progress(vec, "me")
+            BleForegroundService.getTinyNode()!!.update_progress(vec, "me")
 
             return Bipf.encode(Bipf.mkList(lst))
         }
@@ -194,9 +200,9 @@ class Repo(val context: MainActivity) {
 
         var i = 0
         var new_chnk_offs = chnk_offs + 1
-        while (i < context.tinyGoset.keys.size) {
-            val ndx = (chnk_offs + i) % context.tinyGoset.keys.size
-            val fid = context.tinyGoset.keys[ndx]
+        while (i < BleForegroundService.getTinyGoset()!!.keys.size) {
+            val ndx = (chnk_offs + i) % BleForegroundService.getTinyGoset()!!.keys.size
+            val fid = BleForegroundService.getTinyGoset()!!.keys[ndx]
             val r = fid2replica(fid)
             val pending = r?.get_open_chains()
             if (pending == null || pending.isEmpty()) {
@@ -222,7 +228,7 @@ class Repo(val context: MainActivity) {
                 break
             i++
         }
-        chnk_offs = new_chnk_offs % context.tinyGoset.keys.size
+        chnk_offs = new_chnk_offs % BleForegroundService.getTinyGoset()!!.keys.size
         // chnk_is_valid = true
 
         if (lst.size > 0) {
@@ -252,98 +258,116 @@ class Repo(val context: MainActivity) {
         Build.VERSION_CODES.O
     )
     fun upgrade_repo() {
-        val dir = File(context.getDir(TINYSSB_DIR, MODE_PRIVATE), FEED_DIR)
-        feediterate@ for (f in dir.listFiles()) {
-            if (!f.isDirectory || f.name.length != 2* FID_LEN)
-                continue
-            val feed_dir = File(dir, f.name)
-            val feed_files = feed_dir.listFiles()
-            if(feed_files == null) { // no upgrade needed or unknown file system
-                continue
-            }
-            // crashed after writing log file to disk, which can lead to missing mid.bin file
-            if(feed_files.any { it.name == "log.bin" }) {
-                if(!feed_files.any { it.name == "mid.bin" }) {
-                    Files.move(File(feed_dir, "mid").toPath(), File(feed_dir, "mid.bin").toPath(), StandardCopyOption.ATOMIC_MOVE)
-                    val sidechains = feed_files.filter { it.name.startsWith("!") || it.name.startsWith("-") }
-                    sidechains.forEach { it.delete() }
+        try {
+            val dir = File(service.applicationContext.getDir(TINYSSB_DIR, MODE_PRIVATE), FEED_DIR)
+            Log.d("repo", "Upgrading repo filesystem: ${dir?.absolutePath}")
+            feediterate@ for (f in dir.listFiles()) {
+                if (!f.isDirectory || f.name.length != 2* FID_LEN) {
+                    Log.d("repo", "Skipping file: ${f.name}")
+                    continue
                 }
-                continue // frontier, mid and log file are already successfully upgraded
-            }
-            val old_log = RandomAccessFile(File(feed_dir, "log"), "r")
-            var buffer = ByteArray(TINYSSB_PKT_LEN)
-            var pos = 0
-            val new_log = File(feed_dir, "log.bin.tmp")
-
-            if(new_log.exists()) // remove unsuccessful upgrade attempt and restart the upgrade
-                new_log.delete()
-            new_log.createNewFile()
-
-            val pend = mutableMapOf<Int, Pending>()
-
-            while(old_log.read(buffer) == TINYSSB_PKT_LEN) {
-                pos += TINYSSB_PKT_LEN
-                var chunk_cnt = 0
-                val curr_seq = pos / TINYSSB_PKT_LEN
-                if (buffer[7].toInt() == Constants.PKTTYPE_chain20) {
-                    var (len, sz) = Bipf.varint_decode(buffer, Constants.DMX_LEN + 1, Constants.DMX_LEN + 4)
-                    len -= 48 - 20 - sz
-                    chunk_cnt = (len + 99) / 100
+                Log.d("repo", "Upgrading feed: ${f.name}")
+                val feed_dir = File(dir, f.name)
+                val feed_files = feed_dir.listFiles()
+                if(feed_files == null) { // no upgrade needed or unknown file system
+                    continue
                 }
-                var logentry = buffer
-                if (chunk_cnt > 0) {
-                    val finishedSidechain = File(feed_dir, "-$curr_seq")
-                    val openSidechain = File(feed_dir, "!$curr_seq")
-                    if(finishedSidechain.exists()) {
-                        logentry += finishedSidechain.readBytes()
-                    } else if(openSidechain.exists()) {
-                        val num_missing = chunk_cnt - (openSidechain.length() % TINYSSB_PKT_LEN).toInt()
-                        val chain = openSidechain.readBytes()
-                        logentry += chain + ByteArray((num_missing * TINYSSB_PKT_LEN))
-                        pend[curr_seq] = Pending((openSidechain.length() % TINYSSB_PKT_LEN).toInt(), num_missing, chain.sliceArray(chain.size - 20 .. chain.lastIndex), new_log.length().toInt() + TINYSSB_PKT_LEN + openSidechain.length().toInt())
-                    } else {
-                        continue@feediterate //TODO handle corrupted filesystems (e.g. clear corrupted feeds)
+                // crashed after writing log file to disk, which can lead to missing mid.bin file
+                if(feed_files.any { it.name == "log.bin" }) {
+                    if(!feed_files.any { it.name == "mid.bin" }) {
+                        Files.move(File(feed_dir, "mid").toPath(), File(feed_dir, "mid.bin").toPath(), StandardCopyOption.ATOMIC_MOVE)
+                        val sidechains = feed_files.filter { it.name.startsWith("!") || it.name.startsWith("-") }
+                        sidechains.forEach { it.delete() }
                     }
+                    continue // frontier, mid and log file are already successfully upgraded
                 }
-                logentry += new_log.length().toInt().toByteArray()
-                new_log.appendBytes(logentry)
+                val old_log = RandomAccessFile(File(feed_dir, "log"), "r")
+                var buffer = ByteArray(TINYSSB_PKT_LEN)
+                var pos = 0
+                val new_log = File(feed_dir, "log.bin.tmp")
+
+                if(new_log.exists()) // remove unsuccessful upgrade attempt and restart the upgrade
+                    new_log.delete()
+                new_log.createNewFile()
+
+                val pend = mutableMapOf<Int, Pending>()
+
+                while(old_log.read(buffer) == TINYSSB_PKT_LEN) {
+                    pos += TINYSSB_PKT_LEN
+                    var chunk_cnt = 0
+                    val curr_seq = pos / TINYSSB_PKT_LEN
+                    if (buffer[7].toInt() == Constants.PKTTYPE_chain20) {
+                        var (len, sz) = Bipf.varint_decode(buffer, Constants.DMX_LEN + 1, Constants.DMX_LEN + 4)
+                        len -= 48 - 20 - sz
+                        chunk_cnt = (len + 99) / 100
+                    }
+                    var logentry = buffer
+                    if (chunk_cnt > 0) {
+                        val finishedSidechain = File(feed_dir, "-$curr_seq")
+                        val openSidechain = File(feed_dir, "!$curr_seq")
+                        if(finishedSidechain.exists()) {
+                            logentry += finishedSidechain.readBytes()
+                        } else if(openSidechain.exists()) {
+                            val num_missing = chunk_cnt - (openSidechain.length() % TINYSSB_PKT_LEN).toInt()
+                            val chain = openSidechain.readBytes()
+                            logentry += chain + ByteArray((num_missing * TINYSSB_PKT_LEN))
+                            pend[curr_seq] = Pending((openSidechain.length() % TINYSSB_PKT_LEN).toInt(), num_missing, chain.sliceArray(chain.size - 20 .. chain.lastIndex), new_log.length().toInt() + TINYSSB_PKT_LEN + openSidechain.length().toInt())
+                        } else {
+                            continue@feediterate //TODO handle corrupted filesystems (e.g. clear corrupted feeds)
+                        }
+                    }
+                    logentry += new_log.length().toInt().toByteArray()
+                    new_log.appendBytes(logentry)
+                }
+
+                val new_state = State()
+                val old_mid = File(feed_dir, "mid")
+
+                new_state.max_pos = new_log.length().toInt()
+                new_state.pend_sc = pend
+                if (old_mid.exists() && old_mid.length() > 0)
+                    new_state.prev = old_mid.readBytes().sliceArray(old_mid.length().toInt() - 20 until old_mid.length().toInt())
+                new_state.max_seq  = File(feed_dir, "log").length().toInt() / 120
+
+
+
+                // log file successfully upgraded, persist changes
+                val frontier = File(feed_dir, "frontier.bin")
+                if (frontier.exists())
+                    frontier.delete()
+                frontier.createNewFile()
+                frontier.appendBytes(new_state.toWire())
+                //context.wai.frontend_frontier.edit().putInt(f.name, new_state.max_pos + 1).apply()
+                sendEditFrontierToMainActivity(f.name, new_state.max_pos + 1)
+
+                Files.move(new_log.toPath(), File(feed_dir, "log.bin").toPath(), StandardCopyOption.ATOMIC_MOVE)
+                File(feed_dir, "log").delete()
+                Files.move(old_mid.toPath(), File(feed_dir, "mid.bin").toPath(), StandardCopyOption.ATOMIC_MOVE)
+
+
+                val sidechains = feed_files.filter { it.name.startsWith("!") || it.name.startsWith("-") }
+                sidechains.forEach { it.delete() }
             }
 
-            val new_state = State()
-            val old_mid = File(feed_dir, "mid")
+            // file containing the version number of the current repo filesystem
+            val version_file = File(dir, "version")
+            if(version_file.exists())
+                version_file.delete()
 
-            new_state.max_pos = new_log.length().toInt()
-            new_state.pend_sc = pend
-            if (old_mid.exists() && old_mid.length() > 0)
-                new_state.prev = old_mid.readBytes().sliceArray(old_mid.length().toInt() - 20 until old_mid.length().toInt())
-            new_state.max_seq  = File(feed_dir, "log").length().toInt() / 120
-
-
-
-            // log file successfully upgraded, persist changes
-            val frontier = File(feed_dir, "frontier.bin")
-            if (frontier.exists())
-                frontier.delete()
-            frontier.createNewFile()
-            frontier.appendBytes(new_state.toWire())
-            context.wai.frontend_frontier.edit().putInt(f.name, new_state.max_pos + 1).apply()
-
-            Files.move(new_log.toPath(), File(feed_dir, "log.bin").toPath(), StandardCopyOption.ATOMIC_MOVE)
-            File(feed_dir, "log").delete()
-            Files.move(old_mid.toPath(), File(feed_dir, "mid.bin").toPath(), StandardCopyOption.ATOMIC_MOVE)
-
-
-            val sidechains = feed_files.filter { it.name.startsWith("!") || it.name.startsWith("-") }
-            sidechains.forEach { it.delete() }
+            version_file.writeText("3fpf-0.0.1")
+        } catch (e: Exception) {
+            Log.e("repo", "Error upgrading repo filesystem: ${e.message}")
         }
+    }
 
-        // file containing the version number of the current repo filesystem
-        val version_file = File(dir, "version")
-        if(version_file.exists())
-            version_file.delete()
-
-        version_file.writeText("3fpf-0.0.1")
-
+    /**
+     * Sends a broadcast to the MainActivity to update the frontier of a feed.
+     */
+    private fun sendEditFrontierToMainActivity(name: String, value: Int) {
+        val intent = Intent(ForegroundNotificationType.EDIT_FRONTEND_FRONTIER.value)
+        intent.putExtra("name", name)
+        intent.putExtra("value", value)
+        LocalBroadcastManager.getInstance(service).sendBroadcast(intent)
     }
 
     fun isLoaded(): Boolean {
@@ -352,7 +376,10 @@ class Repo(val context: MainActivity) {
 
     fun addNumberOfPendingChunks(amount: Int) {
         numberOfPendingChunks += amount
-        context.wai.eval("refresh_chunk_progressbar($numberOfPendingChunks)")
+        val intent = Intent(ForegroundNotificationType.EVALUATION.value)
+        intent.putExtra("message", "refresh_chunk_progressbar($numberOfPendingChunks)")
+        LocalBroadcastManager.getInstance(service).sendBroadcast(intent)
+        //context.wai.eval("refresh_chunk_progressbar($numberOfPendingChunks)")
     }
 
     fun getNumberOfPendingCHunks(): Int {
