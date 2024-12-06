@@ -4,6 +4,7 @@ package nz.scuttlebutt.tremolavossbol
 
 // import nz.scuttlebutt.tremolavossbol.tssb.ble.BlePeers
 
+import MyWorker
 import android.app.Activity
 import android.bluetooth.BluetoothAdapter
 import android.content.BroadcastReceiver
@@ -32,6 +33,8 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.webkit.WebViewAssetLoader
 import androidx.webkit.WebViewAssetLoader.AssetsPathHandler
 import androidx.webkit.WebViewClientCompat
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
 import com.google.zxing.integration.android.IntentIntegrator
 import nz.scuttlebutt.tremolavossbol.crypto.IdStore
 import nz.scuttlebutt.tremolavossbol.tssb.Demux
@@ -43,9 +46,15 @@ import nz.scuttlebutt.tremolavossbol.tssb.WebsocketIO
 import nz.scuttlebutt.tremolavossbol.tssb.ble.BlePeers
 import nz.scuttlebutt.tremolavossbol.tssb.ble.BluetoothEventListener
 import nz.scuttlebutt.tremolavossbol.utils.Constants
+import org.json.JSONObject
 import tremolavossbol.R
+import java.io.File
 import java.net.InetAddress
 import java.net.MulticastSocket
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.thread
 
@@ -260,6 +269,44 @@ class MainActivity : Activity() {
         t5.priority = 8
         t6.priority = 8
 
+        scheduleWorker(this)
+
+    }
+
+    fun scheduleWorker(context: Context) {
+        val workRequest = PeriodicWorkRequestBuilder<MyWorker>(15, TimeUnit.MINUTES)
+            .build()
+
+        WorkManager.getInstance(context).enqueueUniquePeriodicWork(
+            "NewRealWorker", // Unique name for the worker to prevent duplicates
+            androidx.work.ExistingPeriodicWorkPolicy.KEEP, // Keep the existing worker if already scheduled
+            workRequest
+        )
+    }
+
+    fun removeEntryFromJsonFile(keyHex: String) {
+        //get the json file with name "untrusted.json", create one if it doesn't exist
+        val jsonFile = File(filesDir, "contacts.json")
+        if (!jsonFile.exists()) {
+            jsonFile.createNewFile()
+        }
+
+        //if the json file is empty, return
+        if (jsonFile.length() == 0L) {
+            return
+        }
+        //read the json file
+        val json = jsonFile.readText()
+        //parse the json string to a json object
+        val jsonObject = JSONObject(json)
+
+        //if hex key is in the json object, remove it
+        if (jsonObject.has(keyHex)) {
+            jsonObject.remove(keyHex)
+        }
+
+        //write the json object to the json file
+        jsonFile.writeText(jsonObject.toString())
     }
 
     override fun onBackPressed() {
@@ -322,8 +369,123 @@ class MainActivity : Activity() {
         super.onActivityResult(requestCode, resultCode, data)
     }
 
+    fun saveContactToJSONFile(keyHex: String, hours: Int) {
+        //get the json file with name "contacts.json", create one if it doesn't exist
+        val jsonFile = File(filesDir, "contacts.json")
+        if (!jsonFile.exists()) {
+            jsonFile.createNewFile()
+        }
+
+        //get current time
+        var currentTime = System.currentTimeMillis()
+
+        //Add number of hours to the current time
+        currentTime += (hours - 24) * 3600000
+
+        val formattedTime = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date(currentTime))
+
+        //if the json file is empty, add the first entry
+        if (jsonFile.length() == 0L) {
+            val jsonObject = JSONObject()
+            jsonObject.put(keyHex, formattedTime)
+            jsonFile.writeText(jsonObject.toString())
+            return
+        }
+        //read the json file
+        val json = jsonFile.readText()
+        //parse the json string to a json object
+        val jsonObject = JSONObject(json)
+
+        //if hex key is not already in the json object, add it
+        if (!jsonObject.has(keyHex)) {
+            jsonObject.put(keyHex, formattedTime)
+        }
+
+        //write the json object to the json file
+        jsonFile.writeText(jsonObject.toString())
+    }
+
+    // Function to put all untrusted contacts in the JSON file
+    fun registerUntrusted() {
+        val contactsTrustLevel = wai.getContactsTrustLevel();
+        //contactsTrustLevel is a map<string,int>
+        Log.d("contactsTrustLevel", contactsTrustLevel.toString())
+        for (contact in contactsTrustLevel) {
+            if (contact.value == 0) {
+                saveContactToJSONFile(contact.key, 24)
+            } else {
+                removeEntryFromJsonFile(contact.key)
+            }
+        }
+
+    }
+
+    private fun executeThisTask() {
+        // Add your task logic here
+        Log.d("MyRealWorker", "Worker is working...")
+
+        // write in a txt file the time at which the worker was executing
+        val currentTime = System.currentTimeMillis()
+
+        // Format the time into a readable string
+        val formattedTime = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date(currentTime))
+
+        applicationContext.openFileOutput("output.txt", Context.MODE_APPEND).use {
+            it.write("$formattedTime\n".toByteArray()) // Appending the formatted time with a newline
+        }
+
+        //if json file does not exist, return
+        val jsonFile = File(filesDir, "contacts.json")
+        if (!jsonFile.exists()) {
+            return
+        }
+
+        //prepare kill list file if it doesn't exist
+        val killListFile = applicationContext.openFileOutput("killList.txt", Context.MODE_APPEND)
+
+        //Open JSON file and check all keys (contacts) and their value (time)
+        val jsonFileNew = File(filesDir, "contacts.json").bufferedReader().use { it.readText() }
+        val json = JSONObject(jsonFileNew)
+        val keys = json.keys()
+        for (key in keys) {
+            val value = json.getString(key)
+            //check if the value is older than currentTime, value has following format "yyyy-MM-dd HH:mm:ss"
+            if (SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).parse(value).time < currentTime) {
+                //add key to kill list
+                killListFile.write("$key\n".toByteArray())
+                //remove key from contacts.json
+                removeEntryFromJsonFile(key)
+            }
+        }
+    }
+
+    // Function to delete all contacts in the kill list
+    fun deleteFromKillList() {
+        val killListFile = File(filesDir, "killList.txt")
+        Log.d("deleteFromKillList", "Deleting contacts")
+        if (!killListFile.exists()) {
+            killListFile.createNewFile()
+        }
+        val killList = killListFile.readLines()
+        Log.d("deleteFromKillList", "Kill list is $killList")
+        for (contact in killList) {
+            Log.d("deleteFromKillList", "Looking at " + contact)
+            //if trust level is 0, delete the contact
+            val contactTrustLevel = wai.getContactTrust(contact)
+            if (contactTrustLevel == 0) {
+                Log.d("deleteFromKillList", "Deleting contact $contact with trust level 0")
+                removeEntryFromJsonFile(contact)
+                wai.deleteContact(contact)
+                //remove the contact from the kill list
+                killListFile.writeText(killList.filter { it != contact }.joinToString("\n"))
+            }
+        }
+    }
+
     override fun onResume() {
         Log.d("onResume", "")
+        registerUntrusted()
+        deleteFromKillList()
         super.onResume()
         /*
         try {

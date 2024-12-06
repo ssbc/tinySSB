@@ -249,7 +249,21 @@ class GOset(val context: MainActivity) {
         context.ble?.refreshShortNameForKey(key) // refresh shortname in devices overview
         //Set
         Log.d("goset", "added key ${key.toHex()}, |keys|=${keys.size}")
+        if (!trusted) {
+            //add entry to json file with the hex
+            context.saveContactToJSONFile(key.toHex(), 24)
+        }
         return key.toHex()
+    }
+
+    fun remove_key(key: ByteArray) {
+        for (k in keys) {
+            if (k.contentEquals(key)) {
+                keys.remove(k)
+                Log.d("goset", "removed key ${key.toHex()}, |keys|=${keys.size}")
+                break
+            }
+        }
     }
 
     fun _add_pending_claim(cl: Claim) {

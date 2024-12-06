@@ -47,11 +47,15 @@ class Repo(val context: MainActivity) {
     }
 
     private fun clean(dir: File) {
+        //delete all files in directory
         for (f in dir.listFiles() ?: emptyArray()) {
-            if (f.isDirectory)
+            if (f.isDirectory) {
                 clean(File(dir, f.name))
+            }
             f.delete()
         }
+        //delete directory itself
+        dir.delete()
     }
 
     fun delete_feed(fid: ByteArray) {
@@ -77,8 +81,9 @@ class Repo(val context: MainActivity) {
     }
 
     fun add_replica(fid: ByteArray, trusted: Boolean = false, alias: String = "") {
-        if (replicas.any { it.fid.contentEquals(fid) })
+        if (replicas.any { it.fid.contentEquals(fid) }) { //what does this do?
             return
+        }
         val new_r = Replica(context, File(context.getDir(TINYSSB_DIR, MODE_PRIVATE), FEED_DIR), fid)
         replicas.add(new_r)
         val seq = new_r.state.max_seq + 1
@@ -109,6 +114,20 @@ class Repo(val context: MainActivity) {
         // want_is_valid = false
         // chnk_is_valid = false
 
+    }
+    fun delete_replica(fid: ByteArray): Boolean {
+        // Find the index of the replica with the matching fid
+        val replicaIndex = replicas.indexOfFirst { it.fid.contentEquals(fid) }
+
+        // Check if the replica was found
+        if (replicaIndex != -1) {
+            replicas.removeAt(replicaIndex)
+            Log.d("repo", "Replica with fid ${fid.toHex()} deleted.")
+            return true
+        } else {
+            Log.d("repo", "Replica with fid ${fid.toHex()} not found.")
+            return false
+        }
     }
 
     fun fid2replica(fid: ByteArray): Replica? {

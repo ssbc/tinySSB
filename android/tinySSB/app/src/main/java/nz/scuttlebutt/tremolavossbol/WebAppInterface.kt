@@ -35,6 +35,7 @@ import nz.scuttlebutt.tremolavossbol.utils.HelperFunctions.Companion.toHex
 import nz.scuttlebutt.tremolavossbol.utils.PlusCodesUtils
 import nz.scuttlebutt.tremolavossbol.utils.Bipf_e
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_ACK
+import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_DELETED
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_DLV
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_NEWTRUSTED
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_TICTACTOE
@@ -337,10 +338,68 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
                 setContactTrust(args[1], args[2].toInt(), tips);
             }
 
+            "contacts:delete" -> {
+                Log.d("deleteContact", "Deleting contact with ID: ${args[1]}")
+                deleteContact(args[1])
+            }
+
+            "contacts:checkDeleted" -> {
+                val deleted = readContactDeleted(args[1])
+                if (deleted == 1) {
+                    eval("forget_contact('${args[1]}')")
+                }
+            }
+
             else -> {
                 Log.d("onFrontendRequest", "unknown")
             }
         }
+    }
+
+    fun deleteContact(contactID: String) {
+        act.tinyRepo.delete_feed(contactID.decodeHex().toByteArray())
+        act.tinyGoset.remove_key(contactID.decodeHex().toByteArray())
+        act.tinyRepo.delete_replica(contactID.decodeHex().toByteArray())
+        createContactDeletedEntry(contactID)
+        Log.d("deleteContact", "Contact with ID: $contactID deleted")
+
+        //remove contact from frontend contacts list
+        eval("deleteContact('${contactID}')")
+    }
+
+    fun getContactsTrustLevel(): Map<String, Int> {
+        //use a similar implementation to getContactTrust, traverse through log file and get all contactst here with their trust level
+        val contactsTrustLevel = mutableMapOf<String, Int>()
+        val userFeed = act.tinyRepo.fid2replica(act.idStore.identity.verifyKey)
+        val lastSeq = userFeed?.state?.max_seq
+        if (lastSeq != null) {
+            for (i in lastSeq downTo 1) {
+                var entry = userFeed.read_content(lastSeq)
+                //decode the entry using Bipf decode
+                val decodedEntry = entry?.let { Bipf.decode(it) }
+                Log.d("decodedEntry", decodedEntry.toString())
+
+                //get bytes from the decoded entry
+                val entryBytes = decodedEntry?.let {it.getBytes()}
+                Log.d("entryBytes", entryBytes.toString())
+
+                //decrypt the bytes to get the clear text
+                val clear = entryBytes?.let { act.idStore.identity.decryptPrivateMessage(it) }
+                Log.d("clear", clear.toString())
+
+                val entryType = clear?.let { getFromEntry(it, 0) }
+                if (entryType == "TRT") {
+                    if (clear is ByteArray) {
+                        val contactID = getFromEntry(clear, 2)
+                        val trustLevel = getFromEntry(clear, 3)
+                        if (contactID != null && trustLevel != null) {
+                            contactsTrustLevel[contactID.toString()] = trustLevel.toString().toInt()
+                        }
+                    }
+                }
+            }
+        }
+        return contactsTrustLevel
     }
 
     fun setContactTrust(contactID: String, trustLevel: Int, tips: ArrayList<String>) {
@@ -469,8 +528,6 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
     }
 
     fun trust_contact(contactID: String, trustLevel: Int, tips: ArrayList<String> = ArrayList()) {
-        Log.d("contactID" , contactID)
-        //TODO: Write entry in private feed that lists contact as trusted
         val lst = Bipf.mkList()
         Bipf.list_append(lst, TINYSSB_APP_NEWTRUSTED)
         val tip_lst = Bipf.mkList()
@@ -511,7 +568,71 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
 
         if (body_encr != null)
             act.tinyNode.publish_public_content(body_encr)
+
+        if (trustLevel != 0) {
+            act.removeEntryFromJsonFile(contactID)
+        } else {
+            act.saveContactToJSONFile(contactID, 24)
+        }
+
         reloadContactsTrustLevel()
+    }
+
+    fun createContactDeletedEntry(fid: String, value: Int = 1) {
+        if (readContactDeleted(fid) == value) {
+            return
+        }
+        val lst = Bipf.mkList()
+        Bipf.list_append(lst, TINYSSB_APP_DELETED)
+        Bipf.list_append(lst, Bipf.mkString(fid))
+        Bipf.list_append(lst, Bipf.mkInt(value))
+
+        //encrypt the entry such that only I can read it
+        val recps = Bipf.mkList()
+        val keys: MutableList<ByteArray> = mutableListOf()
+        val me = act.idStore.identity.toRef()
+        Bipf.list_append(recps, Bipf.mkString(me))
+        keys.add(me.deRef())
+        Bipf.list_append(lst, recps)
+
+        val body_clear = Bipf.encode(lst)
+        val encrypted = body_clear!!.let { act.idStore.identity.encryptPrivateMessage(it, keys) }
+
+        val body_encr = Bipf.encode(Bipf.mkBytes(encrypted))
+
+        if (body_encr != null)
+            act.tinyNode.publish_public_content(body_encr)
+    }
+
+    fun readContactDeleted(fid: String): Int {
+        val userFeed = act.tinyRepo.fid2replica(act.idStore.identity.verifyKey)
+        val lastSeq = userFeed?.state?.max_seq
+        if (lastSeq != null) {
+            for (i in lastSeq downTo 1) {
+                var entry = userFeed.read_content(i)
+                //decode the entry using Bipf decode
+                val decodedEntry = entry?.let { Bipf.decode(it) }
+
+                //get bytes from the decoded entry
+                val entryBytes = decodedEntry?.let {it.getBytes()}
+
+                //decrypt the bytes to get the clear text
+                val clear = entryBytes?.let { act.idStore.identity.decryptPrivateMessage(it) }
+
+                val entryType = clear?.let { getFromEntry(it, 0) }
+                if (entryType == "DEL") {
+                    if (clear is ByteArray) {
+                        val contactID = getFromEntry(clear, 1)
+                        val deleted = getFromEntry(clear, 2)
+                        Log.d("readContactDeleted", "Contact ID: $contactID, Deleted: $deleted")
+                        if (contactID.toString() == fid) {
+                            return deleted.toString().toInt()
+                        }
+                    }
+                }
+            }
+        }
+        return 0
     }
 
     //get the trust level of all contacts and save them in a dictionary, then send them to the frontend

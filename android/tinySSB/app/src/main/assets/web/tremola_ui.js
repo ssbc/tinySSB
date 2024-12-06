@@ -309,6 +309,7 @@ function closeOverlay() {
     document.getElementById('div:modal_img').style.display = 'none';
     document.getElementById('connection-overlay').style.display = 'none';
     document.getElementById('import-id-overlay').style.display = 'none';
+    document.getElementById('toast-overlay').style.display = 'none';
 
     // kanban overlays
     document.getElementById('div:menu_history').style.display = 'none';
@@ -374,6 +375,20 @@ function launch_snackbar(txt) {
     setTimeout(function () {
         sb.className = sb.className.replace("show", "");
     }, 3000);
+}
+
+function launch_toast(title, description, function_yes, function_no) {
+    closeOverlay();
+    var ts = document.getElementById("toast-overlay");
+    //set the title
+    document.getElementById("toast-title").innerHTML = title;
+    //set the description
+    document.getElementById("toast-text").innerHTML = description;
+    //set the functions
+    document.getElementById("toast-button-yes").onclick = function_yes;
+    document.getElementById("toast-button-no").onclick = function_no;
+    //show the toast
+    ts.style.display = 'inline';
 }
 
 function chat_open_attachments_menu() {
@@ -449,7 +464,11 @@ function qr_scan_success(s) {
                     }
                     backend("contacts:setTrust " + decodeScuttlebuttId(new_contact_id) + " 2" + " " + tips);
                 } else if (tremola.contacts[new_contact_id].trusted == 2) {
-                    launch_snackbar("This contact already exists and is verified");
+                    if (tremola.contacts[new_contact_id].forgotten) {
+                        launch_toast("Unforget Contact", "This contact is in your forgotten list, do you also want to unforget it?", function() { unforget_contact(new_contact_id); }, closeOverlay);
+                    } else {
+                        launch_snackbar("This contact already exists and is verified");
+                    }
                 }
                 return;
             }

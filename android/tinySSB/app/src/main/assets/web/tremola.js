@@ -646,11 +646,8 @@ function b2f_new_event(e) { // incoming SSB log event: we get map with three ent
                 ch["posts"][e.header.ref] = p;
                 // console.log(`chat add tips ${a[1]}`)
                 ch.timeline.add(e.header.ref, a[1])
-                if (ch["touched"] < e.header.tst)
-                    ch["touched"] = e.header.tst
                 if (curr_scenario == "posts" && curr_chat == conv_name) {
                     load_chat(conv_name); // reload all messages (not very efficient ...)
-                    ch.lastRead = Object.keys(ch.posts).length; // Date.now();
                 }
                 set_chats_badge(conv_name)
             } else {
@@ -752,6 +749,7 @@ function b2f_new_contact(fid, trustLevel="untrusted", alias="") {
         "color": colors[Math.floor(colors.length * Math.random())],
         "iam": "", "forgotten": false, "trusted": trusted
     };
+    backend("contacts:checkDeleted " + decodeScuttlebuttId(fid));
     console.log(tremola.contacts[fid]);
     persist();
     load_contact_list();

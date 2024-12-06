@@ -399,6 +399,43 @@
   animation: fadein 0.5s, fadeout 0.5s 2.5s;
 }
 
+#toast-overlay {
+    display: none;
+    position: fixed;
+    top: 40vh;
+    background-color: var(--neutralCol); /* Black background color */
+    z-index: 1; /* Add a z-index if needed */
+
+}
+
+#toast-button-yes {
+    background-color: var(--lightA);
+    color: var(--fontCol);
+    border: none;
+    border-radius: 4px;
+    padding: 10px 24px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 16px;
+    margin: 4px 2px;
+    cursor: pointer;
+}
+
+#toast-button-no {
+    background-color: var(--lightB);
+    color: var(--fontCol);
+    border: none;
+    border-radius: 4px;
+    padding: 10px 24px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 16px;
+    margin: 4px 2px;
+    cursor: pointer;
+}
+
 /* Animations to fade the snackbar in and out */
 @-webkit-keyframes fadein {
   from {bottom: 0; opacity: 0;}
