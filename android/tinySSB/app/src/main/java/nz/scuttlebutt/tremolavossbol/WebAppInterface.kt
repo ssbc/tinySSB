@@ -381,7 +381,7 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
 
                 //get bytes from the decoded entry
                 val entryBytes = decodedEntry?.let {it.getBytes()}
-                Log.d("entryBytes", entryBytes.toString())
+                Log.d("entryBytes1", entryBytes.toString())
 
                 //decrypt the bytes to get the clear text
                 val clear = entryBytes?.let { act.idStore.identity.decryptPrivateMessage(it) }
@@ -643,26 +643,34 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
             val lastSeq = userFeed?.state?.max_seq
             if (lastSeq != null) {
                 for (i in lastSeq downTo 1) {
-                    var entry = userFeed.read_content(lastSeq)
+                    var entry = userFeed.read_content(i)
                     //decode the entry using Bipf decode
                     val decodedEntry = entry?.let { Bipf.decode(it) }
                     Log.d("decodedEntry", decodedEntry.toString())
 
-                    //get bytes from the decoded entry
-                    val entryBytes = decodedEntry?.let {it.getBytes()}
-                    Log.d("entryBytes", entryBytes.toString())
+                    if (decodedEntry != null) {
+                        if (decodedEntry.isBytes()) {
+                            //get bytes from the decoded entry
+                            val entryBytes = decodedEntry?.let {it.getBytes()}
+                            Log.d("entryBytes2", entryBytes.toString())
 
-                    //decrypt the bytes to get the clear text
-                    val clear = entryBytes?.let { act.idStore.identity.decryptPrivateMessage(it) }
-                    Log.d("clear", clear.toString())
+                            //decrypt the bytes to get the clear text
+                            val clear = entryBytes?.let { act.idStore.identity.decryptPrivateMessage(it) }
+                            Log.d("clear", clear.toString())
 
-                    val entryType = clear?.let { getFromEntry(it, 0) }
-                    if (entryType == "TRT") {
-                        if (clear is ByteArray) {
-                            val contactID = getFromEntry(clear, 2)
-                            val trustLevel = getFromEntry(clear, 3)
-                            if (contactID != null && trustLevel != null) {
-                                contactsTrustLevel[contactID.toString()] = trustLevel.toString().toInt()
+                            val entryType = clear?.let { getFromEntry(it, 0) }
+                            if (entryType == "TRT") {
+                                if (clear is ByteArray) {
+                                    val contactID = getFromEntry(clear, 2)
+                                    val trustLevel = getFromEntry(clear, 3)
+                                    if (contactID != null && trustLevel != null) {
+                                        //check if the contact is already in the dictionary
+                                        if (!contactsTrustLevel.containsKey(contactID.toString())) {
+                                            //if the contact is not in the dictionary, add the contact to the dictionary
+                                            contactsTrustLevel[contactID.toString()] = trustLevel.toString().toInt()
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
