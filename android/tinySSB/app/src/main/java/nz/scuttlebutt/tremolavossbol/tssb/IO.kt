@@ -94,9 +94,9 @@ class IO(val service: BleForegroundService) {
                     }
                 }
                 try { // BLE, no CRC added
-                    if (service.ble != null && service.ble!!.peers.isNotEmpty()) { // && context.ble!!.peers.size > 0 //TODO removed Context
+                    if (BleForegroundService.getTinyBle() != null && BleForegroundService.getTinyBle()!!.peers.isNotEmpty()) { // && context.ble!!.peers.size > 0 //TODO removed Context
                         // Log.d("tinyIO", "send ${buf.size} bytes via BLE")
-                        service.ble!!.write(buf)
+                        BleForegroundService.getTinyBle()!!.write(buf)
                         //context.ble!!.advertise(buf)
                     }
                 } catch (e: Exception) {

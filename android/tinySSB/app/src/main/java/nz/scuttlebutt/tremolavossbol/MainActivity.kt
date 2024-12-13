@@ -120,23 +120,21 @@ class MainActivity : Activity() {
                     }
                 }
                 ForegroundNotificationType.TINY_EVENT.value -> {
-                    Log.d("MainActivity", "Received TINY_EVENT message")
-                    val fid = intent.getByteArrayExtra("fid")
-                    val seq = intent.getIntExtra("seq", 0) // TODO default value of seq number!
-                    val mid = intent.getByteArrayExtra("mid")
-                    val body = intent.getByteArrayExtra("body")
-                    if (fid != null && mid != null && body != null) {
-                        wai.sendTinyEventToFrontend(fid, seq, mid, body)
-                    }
-                }
-                ForegroundNotificationType.INCOMPLETE_EVENT.value -> {
-                    Log.d("MainActivity", "Received INCOMPLETE_EVENT message")
                     val fid = intent.getByteArrayExtra("fid")
                     val seq = intent.getIntExtra("seq", 0) // TODO default value of seq number!
                     val hash = intent.getByteArrayExtra("hash")
-                    val content = intent.getByteArrayExtra("content")
-                    if (fid != null && hash != null && content != null) {
-                        wai.sendIncompleteEntryToFrontend(fid, seq, hash, content)
+                    val body = intent.getByteArrayExtra("body")
+                    if (fid != null && hash != null && body != null) {
+                        wai.sendTinyEventToFrontend(fid, seq, hash, body)
+                    }
+                }
+                ForegroundNotificationType.INCOMPLETE_EVENT.value -> {
+                    val fid = intent.getByteArrayExtra("fid")
+                    val seq = intent.getIntExtra("seq", 0) // TODO default value of seq number!
+                    val hash = intent.getByteArrayExtra("hash")
+                    val body = intent.getByteArrayExtra("body")
+                    if (fid != null && hash != null && body != null) {
+                        wai.sendIncompleteEntryToFrontend(fid, seq, hash, body)
                     }
                 }
                 /**

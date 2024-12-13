@@ -203,7 +203,8 @@ class Replica(val service: BleForegroundService, val datapath: File, val fid: By
     }
 
     /**
-     * Helper method creating intent to send over desired data.
+     * Helper method creating intent to send desired data over to the Activity (and later WebAppInterface).
+     * Replaces: context.wai.sendIncompleteEntryToFrontend(fid, seq, hash, content)
      */
     private fun sendIncompleteEntryToActivity(
         fid: ByteArray,
@@ -222,7 +223,8 @@ class Replica(val service: BleForegroundService, val datapath: File, val fid: By
     }
 
     /**
-     * Helper method creating intent to send over desired data.
+     * Helper method creating intent to send desired data over to the Activity (and later WebAppInterface).
+     * Replaces: context.wai.sendTinyEventToFrontend(fid, seq, hash, body)
      */
     private fun sendTinyEventToActivity(
         fid: ByteArray,
@@ -231,7 +233,7 @@ class Replica(val service: BleForegroundService, val datapath: File, val fid: By
         body: ByteArray
     ) {
         Log.d("Replica", "sendTinyEventToActivity start")
-        val intent = Intent(ForegroundNotificationType.INCOMPLETE_EVENT.name)
+        val intent = Intent(ForegroundNotificationType.TINY_EVENT.name)
         intent.putExtra("fid", fid)
         intent.putExtra("seq", seq)
         intent.putExtra("hash", hash)
@@ -477,7 +479,7 @@ class Replica(val service: BleForegroundService, val datapath: File, val fid: By
             val nam = DMX_PFX + fid + seq.toByteArray() + state.prev
             val dmx = nam.sha256().sliceArray(0 until DMX_LEN)
 
-            Log.d("replica write", "dmx is ${dmx.toHex()}, chnk_cnt: ${chunks.size}")
+            Log.d("Replica", "dmx is ${dmx.toHex()}, chnk_cnt: ${chunks.size}")
             val msg = dmx + ByteArray(1) { PKTTYPE_chain20.toByte()} + payload
             var wire = msg + signDetached(nam + msg, BleForegroundService.getTinyIdStore()!!.identity.signingKey!!)
             if(wire.size != TINYSSB_PKT_LEN)

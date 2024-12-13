@@ -804,6 +804,7 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
 
     fun sendIncompleteEntryToFrontend(fid: ByteArray, seq: Int, mid:ByteArray, body: ByteArray) {
         val e = toFrontendObject(fid, seq, mid, body)
+        Log.d("WebAppInterface", "sendIncompleteEntryToFrontend ${e.toString()}")
         if (e != null)
             eval("b2f_new_incomplete_event($e)")
 
@@ -811,25 +812,39 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
 
     fun sendTinyEventToFrontend(fid: ByteArray, seq: Int, mid:ByteArray, body: ByteArray) {
         // Log.d("wai","sendTinyEvent ${body.toHex()}")
-        var e = toFrontendObject(fid, seq, mid, body)
+        var e: String?
+        try {
+            Log.d("WebAppInterface", "sendTinyEventToFrontend")
+            e = toFrontendObject(fid, seq, mid, body)
+            Log.d("WebAppInterface", "sendTinyEventToFrontend ${e.toString()}")
+        } catch (ex: Exception) {
+            Log.e("WebAppInterface", "Error in sendTinyEventToFrontend: ${ex.message}")
+            e = ""
+        }
+
+        Log.d("WebAppInterface", "sendTinyEventToFrontend ${e.toString()}")
         if (e != null)
             eval("b2f_new_event($e)")
 
         // in-order api
         //val replica = act.tinyRepo.fid2replica(fid)
         val replica = BleForegroundService.getTinyRepo()!!.fid2replica(fid)
-
-        if (frontend_frontier.getInt(fid.toHex(), 1) == seq && replica != null) {
-            for (i in seq .. replica.state.max_seq ) {
-                val content = replica.read_content(i)
-                val message_id= replica.get_mid(seq)
-                if(content == null || message_id == null || !replica.isSidechainComplete(i))
-                    break
-                e = toFrontendObject(fid, i, message_id, content)
-                if (e != null)
-                    eval("b2f_new_in_order_event($e)")
-                frontend_frontier.edit().putInt(fid.toHex(), i + 1).apply()
+        Log.d("WebAppInterface", "sendTinyEventToFrontend ${replica.toString()}")
+        try {
+            if (frontend_frontier.getInt(fid.toHex(), 1) == seq && replica != null) {
+                for (i in seq .. replica.state.max_seq ) {
+                    val content = replica.read_content(i)
+                    val message_id= replica.get_mid(seq)
+                    if(content == null || message_id == null || !replica.isSidechainComplete(i))
+                        break
+                    e = toFrontendObject(fid, i, message_id, content)
+                    if (e != null)
+                        eval("b2f_new_in_order_event($e)")
+                    frontend_frontier.edit().putInt(fid.toHex(), i + 1).apply()
+                }
             }
+        } catch (e: Exception) {
+            Log.e("WebAppInterface", "Error in sendTinyEventToFrontend: ${e.message}")
         }
     }
 
