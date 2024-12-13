@@ -477,9 +477,7 @@ class BlePeers(val foregroundService: BleForegroundService) { // Replace MainAct
                     gattServer?.sendResponse(device, requestId, GATT_SUCCESS,0, null)
 //                    if (value != null) {
                         try {
-                            foregroundService.ioLock.lock()
                             val rc = BleForegroundService.getTinyDemux()!!.on_rx(value!!, device?.address)
-                            foregroundService.ioLock.unlock()
                             if (!rc)
                                 Log.d("BlePeers", "ble rx: not dmx entry for ${value}")
                         } catch (e: Exception) {
@@ -571,8 +569,13 @@ class BlePeers(val foregroundService: BleForegroundService) { // Replace MainAct
      *  It replaces every occurrence of act.wait.eval() in the original code.
      */
     private fun sendMessageToActivity(message: String) {
-        val intent = Intent(ForegroundNotificationType.EVALUATION.value)
-        intent.putExtra("message", message)
-        LocalBroadcastManager.getInstance(foregroundService).sendBroadcast(intent)
+        try {
+            Log.d("BlePeers", "Sending message to MainActivity: $message")
+            val intent = Intent(ForegroundNotificationType.EVALUATION.value)
+            intent.putExtra("message", message)
+            LocalBroadcastManager.getInstance(foregroundService).sendBroadcast(intent)
+        } catch (e: Exception) {
+            Log.e("BlePeers", "Error while sending message to MainActivity: ${e.message}")
+        }
     }
 }

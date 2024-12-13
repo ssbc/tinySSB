@@ -54,28 +54,46 @@ class Repo(val service: BleForegroundService) {
     }
 
     fun load() {
-        val fdir = File(service.getDir(TINYSSB_DIR, MODE_PRIVATE), FEED_DIR)
-        fdir.mkdirs()
+        try {
+            val fdir = File(service.getDir(TINYSSB_DIR, MODE_PRIVATE), FEED_DIR)
+            fdir.mkdirs()
+            Log.d("Repo", "Loading repo from ${fdir.absolutePath}")
+            for (f in fdir.listFiles { file -> file.isDirectory && file.name.length == 2 * FID_LEN} ?: emptyArray()) {
+                Log.d("Repo", "Loading feed ${f.name}")
+                add_replica(f.name.decodeHex()) // TODO this happens just once
+                try {
+                    BleForegroundService.getTinyGoset()!!._add_key(f.name.decodeHex())
+                } catch (e: Exception) {
+                    Log.e("Repo", "Error getting TinyGotset and adding key: ${e.message}")
+                }
+            }
+            Log.d("Repo", "Repo successfully loaded!")
 
-        for (f in fdir.listFiles { file -> file.isDirectory && file.name.length == 2 * FID_LEN} ?: emptyArray()) {
-            add_replica(f.name.decodeHex())
-            BleForegroundService.getTinyGoset()!!._add_key(f.name.decodeHex())
+            loadingFinished = true
+        } catch (e: Exception) {
+            Log.e("Repo", "Error loading repo: ${e.message}")
         }
-
-        loadingFinished = true
-
     }
 
     fun add_replica(fid: ByteArray) {
         if (replicas.any { it.fid.contentEquals(fid) })
             return
-        val new_r = Replica(service, File(service.getDir(TINYSSB_DIR, MODE_PRIVATE), FEED_DIR), fid)
+        Log.d("Repo", "Adding replica for ${fid.toBase64()}")
+        val new_r : Replica;
+        try {
+            new_r = Replica(service, File(service.getDir(TINYSSB_DIR, MODE_PRIVATE), FEED_DIR), fid)
+        } catch (e: Exception) {
+            Log.e("Repo", "Error creating replica: ${e.message}")
+            return
+        }
+        Log.d("Repo", "About to call replicas.add(${new_r.datapath})")
         replicas.add(new_r)
         val seq = new_r.state.max_seq + 1
         val nam = DMX_PFX + fid + seq.toByteArray() + new_r.state.prev
         val dmx = nam.sha256().sliceArray(0 until Constants.DMX_LEN)
         val fct = { buf: ByteArray, fid: ByteArray?, _: String? -> BleForegroundService.getTinyNode()!!.incoming_pkt(buf,fid!!) }
         BleForegroundService.getTinyDemux()!!.arm_dmx(dmx, fct, fid)
+        Log.d("Repo", "Demux armed for ${fid.toBase64()}")
 
         val chains = new_r.get_open_chains()
         val chunk_fct = { chunk: ByteArray, fid: ByteArray?, seq: Int -> BleForegroundService.getTinyNode()!!.incoming_chunk(chunk,fid,seq) }
@@ -83,7 +101,7 @@ class Repo(val service: BleForegroundService) {
             BleForegroundService.getTinyDemux()!!.arm_blb(p.hptr, chunk_fct,fid,seq, p.cnr)
             addNumberOfPendingChunks(p.rem)
         }
-
+        Log.d("Repo", "Replica added for ${fid.toBase64()}")
 
 
         if (BleForegroundService.getTinyGoset()!!.keys.size > 1) {
@@ -91,18 +109,31 @@ class Repo(val service: BleForegroundService) {
             chnk_offs = Random.nextInt(0, BleForegroundService.getTinyGoset()!!.keys.size - 1)
         }
 
+        Log.d("Repo", "About to enter if for frontend_ready")
         if(service.frontend_ready) { // was: isWaiInitialized()
             //context.wai.eval("b2f_new_contact(\"@${fid.toBase64()}.ed25519\")") // notify frontend
-            val intent = Intent(ForegroundNotificationType.EVALUATION.value)
-            intent.putExtra("message", "b2f_new_contact(\"@${fid.toBase64()}.ed25519\")")
-            LocalBroadcastManager.getInstance(service).sendBroadcast(intent)
+            try {
+                val intent = Intent(ForegroundNotificationType.EVALUATION.value)
+                intent.putExtra("message", "b2f_new_contact(\"@${fid.toBase64()}.ed25519\")")
+                LocalBroadcastManager.getInstance(service).sendBroadcast(intent)
+            } catch (e: Exception) {
+                Log.e("Repo", "Error notifying frontend: ${e.message}")
+                Log.e("Repo", "b2f_new_contact(\"@${fid.toBase64()}.ed25519\")")
+            }
         }
         // want_is_valid = false
         // chnk_is_valid = false
     }
 
     fun fid2replica(fid: ByteArray): Replica? {
-        return replicas.find { it.fid.contentEquals(fid) }
+        try {
+            //Log.d("Repo", "Finding replica for ${fid.toBase64()}")
+            //Log.d("Repo", replicas.toString())
+            return replicas.find { it.fid.contentEquals(fid) }
+        } catch (e: Exception) {
+            Log.e("Repo", "Error finding replica: ${e.message}")
+            return null
+        }
     }
 
     fun feed_read_pkt(fid: ByteArray, seq: Int): ByteArray? {
@@ -132,10 +163,26 @@ class Repo(val service: BleForegroundService) {
     }
 
     fun mk_logEntry(buf: ByteArray): Int {
-        val r = fid2replica(BleForegroundService.getTinyIdStore()!!.identity.verifyKey)
-        if (r == null)
+        try {
+            Log.d("Repo", BleForegroundService.getTinyIdStore()!!.identity.verifyKey.toBase64())
+            val r = fid2replica(BleForegroundService.getTinyIdStore()!!.identity.verifyKey)
+            Log.d("Repo", "Retrieved replica?")
+            if (r == null) {
+                Log.d(
+                    "Repo",
+                    "Retrieved replica is null"
+                )
+                return -1
+            }
+            Log.d("Repo", "Writing log entry")
+            return r.write(buf)
+        } catch (e: Exception) {
+            Log.e(
+                "Repo",
+                "Error creating log entry: ${e.message}"
+            )
             return -1
-        return r.write(buf)
+        }
     }
 
     fun sidechain_append(buf: ByteArray, fid:ByteArray, seq: Int): Boolean {
@@ -259,14 +306,14 @@ class Repo(val service: BleForegroundService) {
     )
     fun upgrade_repo() {
         try {
-            val dir = File(service.applicationContext.getDir(TINYSSB_DIR, MODE_PRIVATE), FEED_DIR)
+            val dir = File(service.getDir(TINYSSB_DIR, MODE_PRIVATE), FEED_DIR)
             Log.d("repo", "Upgrading repo filesystem: ${dir?.absolutePath}")
             feediterate@ for (f in dir.listFiles()) {
                 if (!f.isDirectory || f.name.length != 2* FID_LEN) {
-                    Log.d("repo", "Skipping file: ${f.name}")
+                    Log.d("Repo", "Skipping file: ${f.name}")
                     continue
                 }
-                Log.d("repo", "Upgrading feed: ${f.name}")
+                Log.d("Repo", "Upgrading feed: ${f.name}")
                 val feed_dir = File(dir, f.name)
                 val feed_files = feed_dir.listFiles()
                 if(feed_files == null) { // no upgrade needed or unknown file system
@@ -356,7 +403,7 @@ class Repo(val service: BleForegroundService) {
 
             version_file.writeText("3fpf-0.0.1")
         } catch (e: Exception) {
-            Log.e("repo", "Error upgrading repo filesystem: ${e.message}")
+            Log.e("Repo", "Error upgrading repo filesystem: ${e.message}")
         }
     }
 

@@ -286,9 +286,14 @@ function import_id(json_str) {
 // --- Interface to Kotlin side and local (browser) storage
 
 function backend(cmdStr) { // send this to Kotlin (or simulate in case of browser-only testing)
-    if (typeof Android != 'undefined') {
-        Android.onFrontendRequest(cmdStr);
-        return;
+    try {
+        if (typeof Android !== 'undefined') {
+            Android.onFrontendRequest(cmdStr);
+            return;
+        }
+    } catch (error) {
+        console.error("Error occurred while calling Android.onFrontendRequest: ", error);
+        console.log("CMD STRING:", cmdStr)
     }
     cmdStr = cmdStr.split(' ')
     if (cmdStr[0] == 'ready')

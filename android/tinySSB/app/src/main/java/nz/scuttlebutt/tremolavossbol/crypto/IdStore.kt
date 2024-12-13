@@ -18,26 +18,32 @@ class IdStore(val service: BleForegroundService) {
     var identity : SSBid
 
     init {
-        val id = readFromFile()
-        if (id == null) {
-            // Log.d("IdStore init", "no secret found")
-            identity = SSBid() // create
-            writeToFile(identity)
-        } else
-            identity = id
-        // for tinyssb:
-        val fdir =
-            BleForegroundService.getTinyRepo()?.FEED_DIR?.let {
-                File(service.getDir(Constants.TINYSSB_DIR, Context.MODE_PRIVATE),
-                    it
-                )
-            }
-        if (!File(fdir, "${identity.verifyKey.toHex()}").exists()) {
-            Log.d("idstore","create new feed repo")
-            //context.tinyRepo.add_replica(identity.verifyKey)
-            BleForegroundService.getTinyRepo()?.add_replica(identity.verifyKey)
-        } else
-            Log.d("idstore","no need to create new feed repo")
+        try {
+            val id = readFromFile()
+            if (id == null) {
+                Log.d("IdStore", "no secret found")
+                identity = SSBid() // create
+                writeToFile(identity)
+            } else
+                identity = id
+            // for tinyssb:
+            val fdir =
+                BleForegroundService.getTinyRepo()!!.FEED_DIR.let {
+                    File(service.getDir(Constants.TINYSSB_DIR, Context.MODE_PRIVATE),
+                        it
+                    )
+                }
+            Log.d("IdStore","fdir: $fdir")
+            if (!File(fdir, "${identity.verifyKey.toHex()}").exists()) {
+                Log.d("IdStore","create new feed repo")
+                //context.tinyRepo.add_replica(identity.verifyKey)
+                BleForegroundService.getTinyRepo()!!.add_replica(identity.verifyKey)
+            } else
+                Log.d("IdStore","no need to create new feed repo")
+        } catch (e: Exception) {
+            Log.e("IdStore", "init failed $e")
+            identity = SSBid()
+        }
     }
 
     private fun writeToFile(newId: SSBid): Boolean {

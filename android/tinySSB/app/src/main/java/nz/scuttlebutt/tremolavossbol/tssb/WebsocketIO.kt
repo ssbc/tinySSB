@@ -24,7 +24,7 @@ class WebsocketIO(val service: BleForegroundService, private var url: String) {
 
     fun start() {
 
-        if (!service.settings!!.isWebsocketEnabled())
+        if (!BleForegroundService.getTinySettings()!!.isWebsocketEnabled())
             return
 
         Log.d("Websocket","starting Websocket")

@@ -20,6 +20,8 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.os.Message
+import android.os.Messenger
 import android.util.Log
 import android.view.View
 import android.webkit.WebView
@@ -193,11 +195,23 @@ class BleForegroundService: Service() {
             }
             return null
         }
+        private val tinySettingsLock = ReentrantLock()
+        @Volatile
+        private var tinySettings: Settings? = null
+        fun getTinySettings(): Settings? {
+            if (tinySettingsLock.tryLock()) {
+                try {
+                    return tinySettings
+                } finally {
+                    tinySettingsLock.unlock()
+                }
+            }
+            return null
+        }
     }
 
     private val CHANNEL_ID = "BLE_FOREGROUND_SERVICE_CHANNEL"
     var frontend_ready = false
-    var settings: Settings? = null
     @Volatile var mc_group: InetAddress? = null
     @Volatile var mc_socket: MulticastSocket? = null
     var ble: BlePeers? = null
@@ -217,6 +231,25 @@ class BleForegroundService: Service() {
     private var mcreceiverThreadFuture: Future<*>? = null
     private var gosetLoopThreadFuture: Future<*>? = null
     private var nodeLoopThreadFuture: Future<*>? = null
+    private val messenger = Messenger(IncomingHandler())
+
+    private class IncomingHandler : Handler() {
+        override fun handleMessage(msg: Message) {
+            try {
+                when (msg.toString()) {
+                    ApplicationNotificationType.PUBLISH_PUBLIC_CONTENT.type -> {
+                        Log.d("BleForegroundService", "Received message: ${ApplicationNotificationType.PUBLISH_PUBLIC_CONTENT.type}")
+                        getTinyNode()!!.publish_public_content(msg.obj as ByteArray)
+                    }
+                    else -> super.handleMessage(msg)
+                }
+            } catch (e: Exception) {
+                Log.e("BleForegroundService", "Error while handling message: $e")
+            }
+        }
+    }
+
+
 
     @SuppressLint(
         "SetJavaScriptEnabled"
@@ -226,13 +259,15 @@ class BleForegroundService: Service() {
     )
     override fun onCreate() {
         Log.d("BleForegroundService", "Creating Service")
-        settings = Settings(this)
-        if (!settings!!.isBleEnabled()) {
+        tinySettings = Settings(this)
+        if (!getTinySettings()!!.isBleEnabled()) {
             showToastOnMainThread("Bluetooth is disabled!")
             return
         }
-        val filter = IntentFilter("MESSAGE_FROM_ACTIVITY")
-        LocalBroadcastManager.getInstance(this).registerReceiver(mainActivityReceiver, filter)
+        val filterMainActivityReceiver = IntentFilter().apply {
+            addAction(ApplicationNotificationType.PUBLISH_PUBLIC_CONTENT.name)
+        }
+        registerReceiver(mainActivityReceiver, filterMainActivityReceiver)
         super.onCreate()
         initializeFields()
         registerReceivers()
@@ -260,7 +295,7 @@ class BleForegroundService: Service() {
                     Handler().postDelayed({
                         mkSockets()
                         if (websocket == null)
-                            websocket = WebsocketIO(this@BleForegroundService, settings!!.getWebsocketUrl())
+                            websocket = WebsocketIO(this@BleForegroundService, getTinySettings()!!.getWebsocketUrl())
                         websocket!!.start()
                         Log.d("main", "msc_sock ${mc_socket.toString()}")
                     }, 1000)
@@ -289,39 +324,41 @@ class BleForegroundService: Service() {
     private fun initializeFields() {
         try {
             Log.d("BleForegroundService", "Initializing fields")
-            var tinySsbDir = File(getDir("tinyssb", MODE_PRIVATE), "feeds")
+            /*var tinySsbDir = File(getDir("tinyssb", MODE_PRIVATE), "feeds")
             if (tinySsbDir != null && !tinySsbDir.exists()) {
                 Log.d("BleForegroundService", "Creating directory: ${tinySsbDir.absolutePath}")
             } else if (tinySsbDir != null){
                 Log.d("BleForegroundService", "Directory already exists: ${tinySsbDir.absolutePath}")
-            }
+            }*/
+            tinyNode = Node(this)
+            tinyRepo = Repo(this) // IdStore needs Repo
+            tinyDemux = Demux(this)
+            tinyGoset = GOset(this)
 
             tinyIdStore = IdStore(this)
             Log.d("BleForegroundService", "IdStore initialized")
-            tinyRepo = Repo(this)
             tinyRepo!!.upgrade_repo()
             Log.d("BleForegroundService", "Repo initialized")
             tinyIO = IO(this)
-            tinyGoset = GOset(this)
             Log.d("BleForegroundService", "GOset initialized")
-            tinyGoset!!._include_key(tinyIdStore!!.identity.verifyKey) // make sure our local key is in
+            tinyGoset!!._include_key(getTinyIdStore()!!.identity.verifyKey) // make sure our local key is in
             Log.d("BleForegroundService", "GOset key included")
             tinyRepo!!.load()
             Log.d("BleForegroundService", "Repo loaded")
-            tinyDemux = Demux(this)
-            tinyGoset!!.adjust_state()
-            tinyNode = Node(this)
+            tinyGoset!!.adjust_state() // maybe this before .load(), as it is needed
             Log.d("BleForegroundService", "GOset state adjusted")
-            tinyDemux!!.arm_dmx(tinyGoset!!.goset_dmx,  {buf:ByteArray, aux:ByteArray?, _ -> tinyGoset!!.rx(buf,aux)}, null)
-            tinyDemux!!.arm_dmx(tinyDemux!!.want_dmx!!, {buf:ByteArray, aux:ByteArray?, sender:String? -> tinyNode!!.incoming_want_request(buf,aux,sender)})
-            tinyDemux!!.arm_dmx(tinyDemux!!.chnk_dmx!!, { buf:ByteArray, aux:ByteArray?, _ -> tinyNode!!.incoming_chunk_request(buf,aux)})
-            Log.d("IDENTITY", "is ${tinyIdStore!!.identity.toRef()} (${tinyIdStore!!.identity.verifyKey})")
-            gamesHandler = GamesHandler(tinyIdStore!!.identity)
+            tinyDemux!!.arm_dmx(getTinyGoset()!!.goset_dmx,  { buf:ByteArray, aux:ByteArray?, _ -> getTinyGoset()!!.rx(buf,aux)}, null)
+            tinyDemux!!.arm_dmx(getTinyDemux()!!.want_dmx!!, { buf:ByteArray, aux:ByteArray?, sender:String? -> getTinyNode()!!.incoming_want_request(buf,aux,sender)})
+            tinyDemux!!.arm_dmx(getTinyDemux()!!.chnk_dmx!!, { buf:ByteArray, aux:ByteArray?, _ -> getTinyNode()!!.incoming_chunk_request(buf,aux)})
+            Log.d("IDENTITY", "is ${getTinyIdStore()!!.identity.toRef()} (${getTinyIdStore()!!.identity.verifyKey})")
+            gamesHandler = GamesHandler(getTinyIdStore()!!.identity)
             Log.d("BleForegroundService", "Fields initialized")
         } catch (e: Exception) {
             Log.e("BleForegroundService", "Error while initializing fields: $e")
         }
     }
+
+
 
     /**
      * This function is being called to check if the location is enabled on the device.
@@ -336,11 +373,19 @@ class BleForegroundService: Service() {
      */
     private val mainActivityReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
-            val message = intent.getByteArrayExtra("message")
-            if (message != null) {
-                Log.d("BleForegroundService", "(1) Received message from activity: ${message.toString(Charsets.UTF_8)}")
-                // TODO add here method which sends the message to the BLE device
-                handleOutgoingMessage(message)
+            val type = intent.action
+            try {
+                when (type) {
+                    ApplicationNotificationType.PUBLISH_PUBLIC_CONTENT.name -> {
+                        Log.d("BleForegroundService", "Received message: ${ApplicationNotificationType.PUBLISH_PUBLIC_CONTENT.name}")
+                        getTinyNode()!!.publish_public_content(intent.getByteArrayExtra("message")!!)
+                    }
+                    else -> {
+                        Log.d("BleForegroundService", "Unknown message type: $type")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("BleForegroundService", "Error while handling message: $e")
             }
         }
     }
@@ -348,6 +393,7 @@ class BleForegroundService: Service() {
     private fun handleOutgoingMessage(message: ByteArray) {
         Log.d("BleForegroundService", "(2) Received message from activity: $message")
         // Here, send the message over Bluetooth or process it
+        Log.d("BleForegroundService", "New log entry number: ${getTinyNode()!!.publish_public_content(message)}")
     }
 
     private fun sendMessageToActivity(message: ByteArray, actionType: ForegroundNotificationType) {
@@ -400,7 +446,7 @@ class BleForegroundService: Service() {
         shutdownOperations()
         super.onDestroy()
         Log.d("MyForegroundService", "Service destroyed")
-        LocalBroadcastManager.getInstance(this).unregisterReceiver(mainActivityReceiver)
+        unregisterReceiver(mainActivityReceiver)
         unregisterReceiver(bluetoothEventListener)
         /*unregisterReceiver(broadcastReceiver)
         unregisterReceiver(ble_event_listener)
@@ -557,7 +603,7 @@ class BleForegroundService: Service() {
     override fun onBind(
         p0: Intent?
     ): IBinder? {
-        return null
+        return messenger.binder
     }
 
     /**
@@ -617,7 +663,7 @@ class BleForegroundService: Service() {
 
 
     fun mkSockets() {
-        if(!settings!!.isUdpMulticastEnabled())
+        if(!getTinySettings()!!.isUdpMulticastEnabled())
             return
         rmSockets()
         try {

@@ -9,9 +9,11 @@ import android.app.Activity
 import android.app.ActivityManager
 import android.bluetooth.BluetoothAdapter
 import android.content.BroadcastReceiver
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.ServiceConnection
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.net.*
@@ -19,6 +21,8 @@ import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
+import android.os.IBinder
+import android.os.Messenger
 import android.util.Log
 import android.view.View
 import android.view.Window
@@ -30,12 +34,14 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.google.zxing.integration.android.IntentIntegrator
+import kotlinx.coroutines.CompletableDeferred
 import nz.scuttlebutt.tremolavossbol.crypto.IdStore
 import nz.scuttlebutt.tremolavossbol.tssb.ble.BlePeers
 import nz.scuttlebutt.tremolavossbol.tssb.*
 import nz.scuttlebutt.tremolavossbol.tssb.ble.BluetoothEventListener
 import nz.scuttlebutt.tremolavossbol.utils.Constants
 import nz.scuttlebutt.tremolavossbol.games.common.GamesHandler
+import nz.scuttlebutt.tremolavossbol.tssb.ble.ApplicationNotificationType
 import nz.scuttlebutt.tremolavossbol.tssb.ble.BleForegroundService
 import nz.scuttlebutt.tremolavossbol.tssb.ble.ForegroundNotificationType
 import nz.scuttlebutt.tremolavossbol.utils.HelperFunctions.Companion.toHex
@@ -52,11 +58,6 @@ class MainActivity : Activity() {
     // lateinit var tremolaState: TremolaState
     lateinit var wai: WebAppInterface
     var frontend_ready = false
-    //val tinyNode = Node(this)
-    //val tinyRepo = Repo(this)
-    //val tinyDemux = Demux(this)
-    //val tinyGoset = GOset(this)
-    var settings: Settings? = null
     @Volatile var mc_group: InetAddress? = null
     @Volatile var mc_socket: MulticastSocket? = null
     var websocket: WebsocketIO? =null
@@ -65,41 +66,88 @@ class MainActivity : Activity() {
     var isWifiConnected = false
     var ble_event_listener: BluetoothEventListener? = null
 
+    // used for messaging
+    private var serviceConnection: ServiceConnection? = null
+    private var serviceMessenger: Messenger? = null
+
+
     /**
-     *  Receives incoming messages from the ForegroundService.
-     *  This is being split into different kinds of messages, which are then forwarded to the WebAppInterface.
+     * This is used for the communication between the MainActivity and the ForegroundService.
      */
+    companion object {
+        private val pendingCallbacks = mutableMapOf<String, CompletableDeferred<Any?>>()
+
+        fun completeCallback(callbackId: String, result: Any?) {
+            pendingCallbacks[callbackId]?.complete(result)
+            pendingCallbacks.remove(callbackId)
+        }
+
+        fun registerCallback(callbackId: String): CompletableDeferred<Any?> {
+            val deferred = CompletableDeferred<Any?>()
+            pendingCallbacks[callbackId] = deferred
+            return deferred
+        }
+    }
+
+    private fun bindToService() {
+        val intent = Intent(this, BleForegroundService::class.java)
+        serviceConnection = object : ServiceConnection {
+            override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
+                serviceMessenger = Messenger(service)
+            }
+
+            override fun onServiceDisconnected(name: ComponentName?) {
+                serviceMessenger = null
+            }
+        }
+        bindService(intent, serviceConnection!!, Context.BIND_AUTO_CREATE)
+    }
+
+    /**
+     *  We need to receive messages from the ForegroundService (This includes several classes within the service!).
+     *  This is being split into different kinds of broadcasters, which are then forwarded to the WebAppInterface.
+     */
+
     private val foregroundServiceReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
-            val message = intent.getByteArrayExtra("message")
-            if (message != null) {
-                handleIncomingMessage(message)
-                when (intent.action) {
-                    ForegroundNotificationType.EVALUATION.value -> {
-                        Log.d("MainActivity", "Received EVALUATION message")
-                        val message = intent.getStringExtra("message")
-                        if (message != null)
-                            wai.eval(message)
+            //handleIncomingMessage(message) // TODO unsure about this
+            Log.d("MainActivity", "[${intent.action}]")
+            when (intent.action) {
+                ForegroundNotificationType.EVALUATION.value -> {
+                    val message = intent.getStringExtra("message")
+                    if (message != null) {
+                        wai.eval(message)
                     }
-                    ForegroundNotificationType.TINY_EVENT.value -> {
-                        Log.d("MainActivity", "Received TINY_EVENT message")
-                        val fid = intent.getByteArrayExtra("fid")
-                        val seq = intent.getIntExtra("seq", 0) // TODO default value of seq number!
-                        val mid = intent.getByteArrayExtra("mid")
-                        val body = intent.getByteArrayExtra("body")
-                        if (fid != null && mid != null && body != null) {
-                            wai.sendTinyEventToFrontend(fid, seq, mid, body)
-                        }
+                }
+                ForegroundNotificationType.TINY_EVENT.value -> {
+                    Log.d("MainActivity", "Received TINY_EVENT message")
+                    val fid = intent.getByteArrayExtra("fid")
+                    val seq = intent.getIntExtra("seq", 0) // TODO default value of seq number!
+                    val mid = intent.getByteArrayExtra("mid")
+                    val body = intent.getByteArrayExtra("body")
+                    if (fid != null && mid != null && body != null) {
+                        wai.sendTinyEventToFrontend(fid, seq, mid, body)
                     }
-                    ForegroundNotificationType.INCOMPLETE_EVENT.value -> {
-                        Log.d("MainActivity", "Received INCOMPLETE_EVENT message")
-                        val fid = intent.getByteArrayExtra("fid")
-                        val seq = intent.getIntExtra("seq", 0) // TODO default value of seq number!
-                        val hash = intent.getByteArrayExtra("hash")
-                        val content = intent.getByteArrayExtra("content")
-                        if (fid != null && hash != null && content != null) {
-                            wai.sendIncompleteEntryToFrontend(fid, seq, hash, content)
-                        }
+                }
+                ForegroundNotificationType.INCOMPLETE_EVENT.value -> {
+                    Log.d("MainActivity", "Received INCOMPLETE_EVENT message")
+                    val fid = intent.getByteArrayExtra("fid")
+                    val seq = intent.getIntExtra("seq", 0) // TODO default value of seq number!
+                    val hash = intent.getByteArrayExtra("hash")
+                    val content = intent.getByteArrayExtra("content")
+                    if (fid != null && hash != null && content != null) {
+                        wai.sendIncompleteEntryToFrontend(fid, seq, hash, content)
+                    }
+                }
+                /**
+                 * Usage in: Repo.kt
+                 */
+                ForegroundNotificationType.EDIT_FRONTEND_FRONTIER.value -> {
+                    Log.d("MainActivity", "Received EDIT_FRONTEND_FRONTIER message")
+                    val name = intent.getStringExtra("name")
+                    val value = intent.getIntExtra("value", 0)
+                    if (name != null) {
+                        wai.frontend_frontier.edit().putInt(name, value).apply()
                     }
                 }
             }
@@ -113,18 +161,18 @@ class MainActivity : Activity() {
     /**
      * Handles incoming messages from the ForegroundService and forwards them to the WebAppInterface.
      */
-    private fun handleIncomingMessage(message: ByteArray) {
+    private fun handleIncomingMessage(message: String) {
         Log.d("MainActivity", "Received message: $message")
         // TODO add here possibly log entries and stuff (everything except BLE)
         //wai.eval("b2f_new_message('${message.toHex()}')")
-        wai.eval(message.toHex()) // maybe just this one, as the one before is stricly for messages
+        wai.eval(message) // maybe just this one, as the one before is stricly for messages
     }
 
-    fun sendMessageToForegroundservice(message: ByteArray) {
+    fun sendMessageToForegroundserviceWithoutOutput(type: ApplicationNotificationType, message: ByteArray) {
         Log.d("MainActivity", "Sending message to Foregroundservice: $message")
-        val intent = Intent("MESSAGE_FROM_ACTIVITY")
+        val intent = Intent(type.type)
         intent.putExtra("message", message)
-        LocalBroadcastManager.getInstance(this).sendBroadcast(intent)
+        sendBroadcast(intent)
     }
     /*
     var broadcast_socket: DatagramSocket? = null
@@ -171,6 +219,7 @@ class MainActivity : Activity() {
                 applicationContext.startService(intent)  // Für ältere Android-Versionen
             }
         }
+        bindToService() // Bind messenger to service
         Log.d("MainActivity", "Started BLE service")
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT)
         requestWindowFeature(Window.FEATURE_NO_TITLE)
@@ -370,6 +419,10 @@ class MainActivity : Activity() {
         // TODO change back if turns out to be whack in Foreground Service
         //unregisterReceiver(broadcastReceiver)
         //unregisterReceiver(ble_event_listener)
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(foregroundServiceReceiver)
+        serviceConnection?.let {
+            unbindService(it)
+        }
     }
 
     fun mkSockets() {
@@ -390,7 +443,7 @@ class MainActivity : Activity() {
         Log.d("new bcast sock", "${broadcast_socket}, UDP port ${broadcast_socket?.localPort}")
         */
 
-        if(!settings!!.isUdpMulticastEnabled())
+        if(!BleForegroundService.getTinySettings()!!.isUdpMulticastEnabled())
             return
 
         rmSockets()

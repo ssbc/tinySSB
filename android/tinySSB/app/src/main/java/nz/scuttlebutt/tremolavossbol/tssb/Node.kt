@@ -178,7 +178,13 @@ class Node(val service: BleForegroundService) {
     }
 
     fun publish_public_content(content: ByteArray) {
-        val repo = BleForegroundService.getTinyRepo()!!.mk_logEntry(content)
+        try {
+            Log.d("Node", "publish_public_content ${content.size}B")
+            val repo = BleForegroundService.getTinyRepo()!!.mk_logEntry(content)
+        } catch (e: Exception) {
+            Log.d("Node", "publish_public_content error ${e.toString()}")
+        }
+
         // Log.d("node", "publish_public_content ${content.size}B")
         //val seq = repo.mk_logEntry(content) // Commented out, because of concurrency
         //Log.d("node", "publish_public_content --> pkt ${if (pkt == null) 0 else pkt.size}B")

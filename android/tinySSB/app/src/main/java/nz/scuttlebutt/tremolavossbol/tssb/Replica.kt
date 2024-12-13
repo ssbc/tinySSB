@@ -125,6 +125,7 @@ class Replica(val service: BleForegroundService, val datapath: File, val fid: By
                 persist_frontier(seq, pos, (nam + pkt).sha256().sliceArray(0 until HASH_LEN))
             }
         }
+        Log.d("Replica", "Finished Init()")
     }
 
     fun persist_frontier(seq: Int, pos: Int, prev: ByteArray) {
@@ -227,14 +228,14 @@ class Replica(val service: BleForegroundService, val datapath: File, val fid: By
         fid: ByteArray,
         seq: Int,
         hash: ByteArray,
-        content: ByteArray
+        body: ByteArray
     ) {
         Log.d("Replica", "sendTinyEventToActivity start")
         val intent = Intent(ForegroundNotificationType.INCOMPLETE_EVENT.name)
         intent.putExtra("fid", fid)
         intent.putExtra("seq", seq)
         intent.putExtra("hash", hash)
-        intent.putExtra("content", content)
+        intent.putExtra("body", body)
         LocalBroadcastManager.getInstance(service).sendBroadcast(intent)
         Log.d("Replica", "sendTinyEventToActivity end")
     }
@@ -446,55 +447,61 @@ class Replica(val service: BleForegroundService, val datapath: File, val fid: By
     }
 
     fun write(c: ByteArray): Int {
-        var content = c
-        if(log.length().toInt() != state.max_pos)
-            return -1//
-        val chunks = ArrayList<ByteArray>()
-        val seq = state.max_seq + 1
-        val sz = Bipf.varint_encode(content.size)
-        var payload = sz + content.sliceArray(0 until min(28 - sz.size, content.size))
-        if (payload.size < 28) { //TODO: compare with simplepub code l. 260
-            payload += ByteArray(28 - payload.size)
-        }
-        content = content.sliceArray(28 - sz.size .. content.lastIndex)
-        var i = content.size % 100
-        if (i > 0)
-            content += ByteArray(100-i)
-        var ptr = ByteArray(HASH_LEN)
-        var d = 0
-        while (content.size > 0) {
-            val buf = content.sliceArray(content.size - 100 .. content.lastIndex) + ptr
-            chunks.add(buf)
-            ptr = buf.sha256().sliceArray(0 until HASH_LEN)
-            d++
-            content = content.sliceArray(0 .. content.lastIndex - 100)
-        }
-        chunks.reverse()
-        payload += ptr
-        val nam = DMX_PFX + fid + seq.toByteArray() + state.prev
-        val dmx = nam.sha256().sliceArray(0 until DMX_LEN)
+        try {
+            Log.d("Replica", "write start")
+            var content = c
+            if(log.length().toInt() != state.max_pos)
+                return -1//
+            val chunks = ArrayList<ByteArray>()
+            val seq = state.max_seq + 1
+            val sz = Bipf.varint_encode(content.size)
+            var payload = sz + content.sliceArray(0 until min(28 - sz.size, content.size))
+            if (payload.size < 28) { //TODO: compare with simplepub code l. 260
+                payload += ByteArray(28 - payload.size)
+            }
+            content = content.sliceArray(28 - sz.size .. content.lastIndex)
+            var i = content.size % 100
+            if (i > 0)
+                content += ByteArray(100-i)
+            var ptr = ByteArray(HASH_LEN)
+            var d = 0
+            while (content.size > 0) {
+                val buf = content.sliceArray(content.size - 100 .. content.lastIndex) + ptr
+                chunks.add(buf)
+                ptr = buf.sha256().sliceArray(0 until HASH_LEN)
+                d++
+                content = content.sliceArray(0 .. content.lastIndex - 100)
+            }
+            chunks.reverse()
+            payload += ptr
+            val nam = DMX_PFX + fid + seq.toByteArray() + state.prev
+            val dmx = nam.sha256().sliceArray(0 until DMX_LEN)
 
-        Log.d("replica write", "dmx is ${dmx.toHex()}, chnk_cnt: ${chunks.size}")
-        val msg = dmx + ByteArray(1) { PKTTYPE_chain20.toByte()} + payload
-        var wire = msg + signDetached(nam + msg, BleForegroundService.getTinyIdStore()!!.identity.signingKey!!)
-        if(wire.size != TINYSSB_PKT_LEN)
+            Log.d("replica write", "dmx is ${dmx.toHex()}, chnk_cnt: ${chunks.size}")
+            val msg = dmx + ByteArray(1) { PKTTYPE_chain20.toByte()} + payload
+            var wire = msg + signDetached(nam + msg, BleForegroundService.getTinyIdStore()!!.identity.signingKey!!)
+            if(wire.size != TINYSSB_PKT_LEN)
+                return -1
+            if(!verifySignDetached(
+                    wire.sliceArray(56..wire.lastIndex),
+                    nam + wire.sliceArray(0 until 56),
+                    fid
+                ))
+                return -1
+            chunks.add(0, wire)
+            var log_entry = chunks.reduce {acc, it -> acc + it}
+            log_entry += state.max_pos.toByteArray()
+            log.appendBytes(log_entry)
+            // save mid
+            mid.appendBytes((nam + wire).sha256().sliceArray(0 until HASH_LEN))
+            persist_frontier(seq, state.max_pos + log_entry.size, (nam + wire).sha256().sliceArray(0 until HASH_LEN))
+            sendTinyEventToActivity(fid, seq, (nam + wire).sha256().sliceArray(0 until HASH_LEN), c)
+            // Log.d("replica", "write success, len: ${log_entry.size}")
+            return seq
+        } catch (e: Exception) {
+            Log.e("Replica", "write failed: ${e.message}")
             return -1
-        if(!verifySignDetached(
-            wire.sliceArray(56..wire.lastIndex),
-            nam + wire.sliceArray(0 until 56),
-            fid
-        ))
-            return -1
-        chunks.add(0, wire)
-        var log_entry = chunks.reduce {acc, it -> acc + it}
-        log_entry += state.max_pos.toByteArray()
-        log.appendBytes(log_entry)
-        // save mid
-        mid.appendBytes((nam + wire).sha256().sliceArray(0 until HASH_LEN))
-        persist_frontier(seq, state.max_pos + log_entry.size, (nam + wire).sha256().sliceArray(0 until HASH_LEN))
-        sendTinyEventToActivity(fid, seq, (nam + wire).sha256().sliceArray(0 until HASH_LEN), c)
-        // Log.d("replica", "write success, len: ${log_entry.size}")
-        return seq
+        }
     }
 
     fun isSidechainComplete(seq: Int): Boolean {

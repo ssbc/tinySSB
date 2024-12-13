@@ -64,37 +64,42 @@ function menu_pick_image() {
 // --- workflow entry points
 
 function new_text_post(s) {
-    if (s.length == 0) {
-        return;
+    try {
+        if (s.length == 0) {
+            return;
+        }
+        var draft = ''
+        if (Android.isGeoLocationEnabled() == "true") {
+            var plusCode = Android.getCurrentLocationAsPlusCode();
+            if (plusCode != null && plusCode.length > 0) //check if we actually received a location
+                draft += "pfx:loc/plus," + plusCode + "|";
+        }
+        draft += unicodeStringToTypedArray(document.getElementById('draft').value); // escapeHTML(
+        var ch = tremola.chats[curr_chat]
+        //console.log("new_text_post() variable ch", JSON.stringify(ch, null, 2));
+        if (!(ch.timeline instanceof Timeline)) {
+            ch.timeline = Timeline.fromJSON(ch.timeline)
+        }
+        let tips = JSON.stringify(ch.timeline.get_tips())
+        console.log(`tips: ${tips}`)
+        if (curr_chat == "ALL") {
+            var cmd = `publ:post ${tips} ` + btoa(draft) + " null"; // + recps
+            // console.log(cmd)
+            backend(cmd);
+        } else {
+            var recps = tremola.chats[curr_chat].members.join(' ');
+            var cmd = `priv:post ${tips} ` + btoa(draft) + " null " + recps;
+            backend(cmd);
+        }
+        document.getElementById('draft').value = '';
+        closeOverlay();
+        setTimeout(function () { // let image rendering (fetching size) take place before we scroll
+            var c = document.getElementById('core');
+            c.scrollTop = c.scrollHeight;
+          }, 100);
+    } catch (error) {
+        console.error("new_text_post()-Error: ", error);
     }
-    var draft = ''
-    if (Android.isGeoLocationEnabled() == "true") {
-        var plusCode = Android.getCurrentLocationAsPlusCode();
-        if (plusCode != null && plusCode.length > 0) //check if we actually received a location
-            draft += "pfx:loc/plus," + plusCode + "|";
-    }
-    draft += unicodeStringToTypedArray(document.getElementById('draft').value); // escapeHTML(
-    var ch = tremola.chats[curr_chat]
-    if (!(ch.timeline instanceof Timeline)) {
-        ch.timeline = Timeline.fromJSON(ch.timeline)
-    }
-    let tips = JSON.stringify(ch.timeline.get_tips())
-    // console.log(`tips: ${tips}`)
-    if (curr_chat == "ALL") {
-        var cmd = `publ:post ${tips} ` + btoa(draft) + " null"; // + recps
-        // console.log(cmd)
-        backend(cmd);
-    } else {
-        var recps = tremola.chats[curr_chat].members.join(' ');
-        var cmd = `priv:post ${tips} ` + btoa(draft) + " null " + recps;
-        backend(cmd);
-    }
-    document.getElementById('draft').value = '';
-    closeOverlay();
-    setTimeout(function () { // let image rendering (fetching size) take place before we scroll
-        var c = document.getElementById('core');
-        c.scrollTop = c.scrollHeight;
-      }, 100);
 }
 
 function new_voice_post(voice_b64) {

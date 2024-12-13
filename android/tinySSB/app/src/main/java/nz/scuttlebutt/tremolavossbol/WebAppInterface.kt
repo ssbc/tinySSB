@@ -13,6 +13,7 @@ import android.webkit.WebView
 import android.widget.Toast
 import androidx.core.content.ContextCompat.checkSelfPermission
 import androidx.annotation.RequiresPermission
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.google.zxing.integration.android.IntentIntegrator
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.tasks.CancellationTokenSource
@@ -42,6 +43,7 @@ import nz.scuttlebutt.tremolavossbol.utils.PlusCodesUtils
 import nz.scuttlebutt.tremolavossbol.games.battleships.BattleshipGame
 import nz.scuttlebutt.tremolavossbol.games.common.GamesHandler
 import nz.scuttlebutt.tremolavossbol.games.battleships.GameStates
+import nz.scuttlebutt.tremolavossbol.tssb.ble.ApplicationNotificationType
 import nz.scuttlebutt.tremolavossbol.tssb.ble.BleForegroundService
 import nz.scuttlebutt.tremolavossbol.utils.Bipf_e
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_ACK
@@ -95,7 +97,7 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
 
     @JavascriptInterface
     fun isGeoLocationEnabled(): String {
-        return if (act.settings!!.isGeoLocationEnabled()) {
+        return if (BleForegroundService.getTinySettings()!!.isGeoLocationEnabled()) {
             "true"
         } else {
             "false"
@@ -105,17 +107,25 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
     @JavascriptInterface
     fun onFrontendRequest(s: String) {
         //handle the data captured from webview}
-        Log.d("FrontendRequest", s)
+        Log.d("WebAppInterface", "FrontendRequest: $s")
         val args = s.split(" ")
         when (args[0]) {
             "onBackPressed" -> {
                 (act as MainActivity)._onBackPressed()
             }
             "ready" -> {
-                eval("b2f_initialize('${BleForegroundService.getTinyIdStore()!!.identity.toRef()}', '${act.settings!!.getSettings()}')")
-                act.frontend_ready = true // maybe add flag inside foreground service
-                BleForegroundService.getTinyRepo()?.addNumberOfPendingChunks(0)
-                BleForegroundService.getTinyNode()?.beacon()
+                Log.d("WebAppInterface", "Calling b2f_initialize: ${BleForegroundService.getTinyIdStore()!!.identity.toRef()}")
+                try {
+                    eval("b2f_initialize('${BleForegroundService.getTinyIdStore()!!.identity.toRef()}', '${BleForegroundService.getTinySettings()!!.getSettings()}')")
+                    act.frontend_ready = true // maybe add flag inside foreground service
+                    BleForegroundService.getTinyRepo()!!.addNumberOfPendingChunks(0)
+                    BleForegroundService.getTinyNode()!!.beacon()
+                } catch (e: Exception) {
+                    Log.e(
+                        "WebAppInterface",
+                        "Error in ready: ${e.message}"
+                    )
+                }
                 //act.tinyRepo.addNumberOfPendingChunks(0) // initialize chunk progress bar
                 //act.tinyNode.beacon()
             }
@@ -190,7 +200,7 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
                 Runtime.getRuntime().exit(0)
             }
             "wipe" -> {
-                act.settings!!.resetToDefault()
+                BleForegroundService.getTinySettings()!!.resetToDefault()
                 //act.idStore.setNewIdentity(null) // creates new identity
                 BleForegroundService.getTinyIdStore()!!.setNewIdentity(null) // creates new identity
                 BleForegroundService.getTinyRepo()?.reset()
@@ -339,7 +349,8 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
                 val body = Bipf.encode(lst)
                 if (body != null) {
                     //act.tinyNode.publish_public_content(body)
-                    BleForegroundService.getTinyNode()?.publish_public_content(body)
+                    //BleForegroundService.getTinyNode()?.publish_public_content(body) // TODO intent via broadcast
+                    act.sendMessageToForegroundserviceWithoutOutput(ApplicationNotificationType.PUBLISH_PUBLIC_CONTENT, body)
                 }
             }
             "games" -> { // Handle battleship communication
@@ -450,11 +461,11 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
                 }
             }
             "settings:set" -> {
-                act.settings!!.set(args[1], args[2])
+                BleForegroundService.getTinySettings()!!.set(args[1], args[2])
             }
             "settings:get" -> {
-                val settings = act.settings!!.getSettings()
-                act.wai.eval("b2f_get_settings('${settings}')")
+                val settings = BleForegroundService.getTinySettings()!!.getSettings()
+                eval("b2f_get_settings('${settings}')")
             }
 
             "connect_four" -> {
@@ -477,10 +488,13 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
     }
 
     fun eval(js: String) { // send JS string to webkit frontend for execution
-        Log.d("WebAppInterface", "eval: $js")
-        webView.post(Runnable {
-            webView.evaluateJavascript(js, null)
-        })
+        try {
+            webView.post(Runnable {
+                webView.evaluateJavascript(js, null)
+            })
+        } catch (e: Exception) {
+            Log.e("WebAppInterface", "Error in eval: ${e.message}")
+        }
     }
 
     private fun mk_tip_list(tip_string: String): Bipf_e {
@@ -519,12 +533,13 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
         keys.add(args[2].deRef())
         val encrypted = body_clear?.let { BleForegroundService.getTinyIdStore()!!.identity.encryptPrivateMessage(it, keys) }
         if (encrypted != null) {
-            Bipf.encode(Bipf.mkBytes(encrypted))?.let { BleForegroundService.getTinyNode()?.publish_public_content(it) }
+            Bipf.encode(Bipf.mkBytes(encrypted))?.let { act.sendMessageToForegroundserviceWithoutOutput(ApplicationNotificationType.PUBLISH_PUBLIC_CONTENT, it) }
             //Bipf.encode(Bipf.mkBytes(encrypted))?.let { act.tinyNode.publish_public_content(it) }
         }
     }
 
     fun public_post_with_voice(tips: ArrayList<String>, text: String?, voice: ByteArray?) {
+        Log.d("WebAppInterface", "public_post_with_voice")
         /*
         if (text != null)
             Log.d("wai", "post_voice t- ${text}/${text.length}")
@@ -548,7 +563,7 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
             Log.d("WebAppInterface", "published bytes: " + Bipf.decode(body))
             //act.sendMessageToForegroundservice(body) // FIXME unsure about this, might be able to delete
             //act.tinyNode.publish_public_content(body)
-            BleForegroundService.getTinyNode()?.publish_public_content(body)
+            act.sendMessageToForegroundserviceWithoutOutput(ApplicationNotificationType.PUBLISH_PUBLIC_CONTENT, body)
         }
     }
 
@@ -589,7 +604,7 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
         val body_encr = Bipf.encode(Bipf.mkBytes(encrypted))
         if (body_encr != null) {
             //act.tinyNode.publish_public_content(body_encr)
-            BleForegroundService.getTinyNode()?.publish_public_content(body_encr)
+            act.sendMessageToForegroundserviceWithoutOutput(ApplicationNotificationType.PUBLISH_PUBLIC_CONTENT, body_encr)
         }
     }
 
@@ -618,7 +633,7 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
         if (body != null) {
             Log.d("Kahoot", "published bytes: " + Bipf.decode(body))
             //act.tinyNode.publish_public_content(body)
-            BleForegroundService.getTinyNode()?.publish_public_content(body)
+            act.sendMessageToForegroundserviceWithoutOutput(ApplicationNotificationType.PUBLISH_PUBLIC_CONTENT, body)
         }
     }
 
@@ -633,7 +648,7 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
         val body = Bipf.encode(lst)
         if (body != null)
             //act.tinyNode.publish_public_content(body)
-            BleForegroundService.getTinyNode()?.publish_public_content(body)
+            act.sendMessageToForegroundserviceWithoutOutput(ApplicationNotificationType.PUBLISH_PUBLIC_CONTENT, body)
     }
 
     fun scheduling(bid: String?, prev: List<String>?, operation: String, args: List<String>?) {
@@ -671,7 +686,7 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
         if (body != null) {
             Log.d("scheduling", "published bytes: " + Bipf.decode(body))
             //act.tinyNode.publish_public_content(body)
-            BleForegroundService.getTinyNode()?.publish_public_content(body)
+            act.sendMessageToForegroundserviceWithoutOutput(ApplicationNotificationType.PUBLISH_PUBLIC_CONTENT, body)
         }
     }
 
@@ -709,7 +724,7 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
 
         if (body != null) {
             Log.d("kanban", "published bytes: " + Bipf.decode(body))
-            BleForegroundService.getTinyNode()?.publish_public_content(body)
+            act.sendMessageToForegroundserviceWithoutOutput(ApplicationNotificationType.PUBLISH_PUBLIC_CONTENT, body)
             //act.tinyNode.publish_public_content(body)
         }
         //val body = Bipf.encode(lst)
@@ -732,7 +747,7 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
         if (body != null) {
             Log.d("connect_four", "published bytes: " + Bipf.decode(body))
             //act.tinyNode.publish_public_content(body)
-            BleForegroundService.getTinyNode()?.publish_public_content(body)
+            act.sendMessageToForegroundserviceWithoutOutput(ApplicationNotificationType.PUBLISH_PUBLIC_CONTENT, body)
         }
     }
 
@@ -747,7 +762,7 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
         if (body != null) {
             Log.d("connect_four_invite", "published bytes: " + Bipf.decode(body))
             //act.tinyNode.publish_public_content(body)
-            BleForegroundService.getTinyNode()?.publish_public_content(body)
+            act.sendMessageToForegroundserviceWithoutOutput(ApplicationNotificationType.PUBLISH_PUBLIC_CONTENT, body)
         }
     }
 
@@ -762,7 +777,7 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
         if (body != null) {
             Log.d("connect_four_decline_invite", "published bytes: " + Bipf.decode(body))
             //act.tinyNode.publish_public_content(body)
-            BleForegroundService.getTinyNode()?.publish_public_content(body)
+            act.sendMessageToForegroundserviceWithoutOutput(ApplicationNotificationType.PUBLISH_PUBLIC_CONTENT, body)
         }
     }
 
@@ -777,7 +792,7 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
         if (body != null) {
             Log.d("connect_four", "published bytes: " + Bipf.decode(body))
             //act.tinyNode.publish_public_content(body)
-            BleForegroundService.getTinyNode()?.publish_public_content(body)
+            act.sendMessageToForegroundserviceWithoutOutput(ApplicationNotificationType.PUBLISH_PUBLIC_CONTENT, body)
         }
     }
 
@@ -802,7 +817,7 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
 
         // in-order api
         //val replica = act.tinyRepo.fid2replica(fid)
-        val replica = BleForegroundService.getTinyRepo()?.fid2replica(fid)
+        val replica = BleForegroundService.getTinyRepo()!!.fid2replica(fid)
 
         if (frontend_frontier.getInt(fid.toHex(), 1) == seq && replica != null) {
             for (i in seq .. replica.state.max_seq ) {
