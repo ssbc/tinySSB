@@ -210,14 +210,14 @@ class Replica(val service: BleForegroundService, val datapath: File, val fid: By
         fid: ByteArray,
         seq: Int,
         hash: ByteArray,
-        content: ByteArray
+        body: ByteArray
     ) {
         Log.d("Replica", "sendIncompleteEntryToActivity start")
         val intent = Intent(ForegroundNotificationType.INCOMPLETE_EVENT.name)
         intent.putExtra("fid", fid)
         intent.putExtra("seq", seq)
         intent.putExtra("hash", hash)
-        intent.putExtra("content", content)
+        intent.putExtra("body", body)
         LocalBroadcastManager.getInstance(service).sendBroadcast(intent)
         Log.d("Replica", "sendIncompleteEntryToActivity end")
     }

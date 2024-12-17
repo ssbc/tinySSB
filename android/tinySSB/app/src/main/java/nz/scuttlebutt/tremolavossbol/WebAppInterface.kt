@@ -118,16 +118,15 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
                 try {
                     eval("b2f_initialize('${BleForegroundService.getTinyIdStore()!!.identity.toRef()}', '${BleForegroundService.getTinySettings()!!.getSettings()}')")
                     act.frontend_ready = true // maybe add flag inside foreground service
-                    BleForegroundService.getTinyRepo()!!.addNumberOfPendingChunks(0)
-                    BleForegroundService.getTinyNode()!!.beacon()
+                    act.sendMessageToForegroundserviceWithoutOutput(ApplicationNotificationType.ADD_NUMBER_OF_PENDING_CHUNKS,  0)
+                    act.sendMessageToForegroundserviceWithoutOutput(ApplicationNotificationType.BEACON,  null)
                 } catch (e: Exception) {
                     Log.e(
                         "WebAppInterface",
                         "Error in ready: ${e.message}"
                     )
                 }
-                //act.tinyRepo.addNumberOfPendingChunks(0) // initialize chunk progress bar
-                //act.tinyNode.beacon()
+
             }
             "reset" -> { // UI reset
                 // erase DB content
@@ -162,7 +161,8 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
                     //if (fid.contentEquals(act.idStore.identity.verifyKey))
                     //    continue
                     //act.tinyRepo.delete_feed(fid)
-                    BleForegroundService.getTinyRepo()?.delete_feed(fid)
+                    //BleForegroundService.getTinyRepo()?.delete_feed(fid)
+                    act.sendMessageToForegroundserviceWithoutOutput(ApplicationNotificationType.DELETE_FEED, fid)
                 }
             }
             "qrscan.init" -> {
@@ -186,30 +186,30 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
             }
             "importSecret" -> {
                 //act.idStore.setNewIdentity(Base64.decode(args[1], Base64.NO_WRAP))
-                BleForegroundService.getTinyIdStore()!!.setNewIdentity(Base64.decode(args[1], Base64.NO_WRAP))
-                BleForegroundService.getTinyRepo()?.reset()
+                act.sendMessageToForegroundserviceWithoutOutput(ApplicationNotificationType.SET_NEW_IDENTITY, Base64.decode(args[1], Base64.NO_WRAP))
+                act.sendMessageToForegroundserviceWithoutOutput(ApplicationNotificationType.RESET, null)
                 //act.tinyRepo.reset()
 
                 // restart App
                 if (act.websocket != null)
                     act.websocket!!.stop()
                 if (BleForegroundService.getTinyBle() != null)
-                    BleForegroundService.getTinyBle()!!.stopBluetooth()
+                    act.sendMessageToForegroundserviceWithoutOutput(ApplicationNotificationType.STOP_BLUETOOTH, null)
                 val ctx = act.applicationContext
                 ctx.startActivity(Intent.makeRestartActivityTask(act.applicationContext.packageManager.getLaunchIntentForPackage(ctx.packageName)!!.component))
                 Runtime.getRuntime().exit(0)
             }
             "wipe" -> {
-                BleForegroundService.getTinySettings()!!.resetToDefault()
+                act.sendMessageToForegroundserviceWithoutOutput(ApplicationNotificationType.RESET_TO_DEFAULT, null)
                 //act.idStore.setNewIdentity(null) // creates new identity
-                BleForegroundService.getTinyIdStore()!!.setNewIdentity(null) // creates new identity
-                BleForegroundService.getTinyRepo()?.reset()
+                act.sendMessageToForegroundserviceWithoutOutput(ApplicationNotificationType.SET_NEW_IDENTITY, null)
+                act.sendMessageToForegroundserviceWithoutOutput(ApplicationNotificationType.RESET, null)
                 //act.tinyRepo.reset()
 
                 if (act.websocket != null)
                     act.websocket!!.stop()
                 if (BleForegroundService.getTinyBle() != null)
-                    BleForegroundService.getTinyBle()!!.stopBluetooth()
+                    act.sendMessageToForegroundserviceWithoutOutput(ApplicationNotificationType.STOP_BLUETOOTH, null)
                 val ctx = act.applicationContext
                 ctx.startActivity(Intent.makeRestartActivityTask(act.applicationContext.packageManager.getLaunchIntentForPackage(ctx.packageName)!!.component))
                 Runtime.getRuntime().exit(0)
@@ -222,7 +222,7 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
                 val id = args[1].substring(1,args[1].length-8)
                 Log.d("ADD", id)
                 //act.tinyGoset._add_key(Base64.decode(id, Base64.NO_WRAP))
-                BleForegroundService.getTinyGoset()?._add_key(Base64.decode(id, Base64.NO_WRAP))
+                act.sendMessageToForegroundserviceWithoutOutput(ApplicationNotificationType.ADD_KEY, Base64.decode(id, Base64.NO_WRAP))
             }
             /* no alias publishing in tinyTremola
             "add:contact" -> { // ID and alias
@@ -461,7 +461,7 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
                 }
             }
             "settings:set" -> {
-                BleForegroundService.getTinySettings()!!.set(args[1], args[2])
+                act.sendMessageToForegroundserviceWithoutOutput(ApplicationNotificationType.SET_SETTINGS, "$args[1]!$args[2]")
             }
             "settings:get" -> {
                 val settings = BleForegroundService.getTinySettings()!!.getSettings()
@@ -489,6 +489,7 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
 
     fun eval(js: String) { // send JS string to webkit frontend for execution
         try {
+            Log.d("WebAppInterface", "eval: $js")
             webView.post(Runnable {
                 webView.evaluateJavascript(js, null)
             })
@@ -829,9 +830,11 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
         // in-order api
         //val replica = act.tinyRepo.fid2replica(fid)
         val replica = BleForegroundService.getTinyRepo()!!.fid2replica(fid)
+        // TODO How should we allow this access on the replica? Technically we should split the concerns.
         Log.d("WebAppInterface", "sendTinyEventToFrontend ${replica.toString()}")
         try {
             if (frontend_frontier.getInt(fid.toHex(), 1) == seq && replica != null) {
+                Log.d("WebAppInterface", "sendTinyEventToFrontend loop")
                 for (i in seq .. replica.state.max_seq ) {
                     val content = replica.read_content(i)
                     val message_id= replica.get_mid(seq)

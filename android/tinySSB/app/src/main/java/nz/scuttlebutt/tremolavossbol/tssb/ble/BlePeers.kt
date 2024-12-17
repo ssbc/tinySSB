@@ -186,7 +186,6 @@ class BlePeers(val foregroundService: BleForegroundService) { // Replace MainAct
                 device_pubkey[gatt.device] = descriptor!!.value
                 refreshShortNameForKey(descriptor!!.value)
             }
-
         }
 
         override fun onCharacteristicChanged(gatt: BluetoothGatt?, ch: BluetoothGattCharacteristic?) {
@@ -194,9 +193,7 @@ class BlePeers(val foregroundService: BleForegroundService) { // Replace MainAct
             super.onCharacteristicChanged(gatt, ch)
             if (ch != null) {
                 // Log.d("ble", "${ch.uuid.toString()} changed: ${ch.value.toHex()}, ${ch.value.size}")
-                foregroundService.ioLock.lock()
                 val rc = BleForegroundService.getTinyDemux()!!.on_rx(ch.value)
-                foregroundService.ioLock.unlock()
                 if (!rc)
                     Log.d("BlePeers", "ble - no dmx entry for ${ch.value.toHex()}")
             }
@@ -473,13 +470,13 @@ class BlePeers(val foregroundService: BleForegroundService) { // Replace MainAct
             // Log.d("BlePeers", "ble GATT server - Characteristic Write Request! ${characteristic?.uuid}, $responseNeeded")
             if (characteristic != null) {
                 if(characteristic.uuid == TINYSSB_BLE_RX_CHARACTERISTIC) {
-                    // Log.d("GATT_Server", "Received characteristic: ${value}, sender: ${device?.address}")
+                    Log.d("GATT_Server", "Received characteristic: ${value}, sender: ${device?.address}")
                     gattServer?.sendResponse(device, requestId, GATT_SUCCESS,0, null)
 //                    if (value != null) {
                         try {
                             val rc = BleForegroundService.getTinyDemux()!!.on_rx(value!!, device?.address)
                             if (!rc)
-                                Log.d("BlePeers", "ble rx: not dmx entry for ${value}")
+                                Log.e("BlePeers", "ble rx: not dmx entry for ${value}")
                         } catch (e: Exception) {
                             Log.e("BlePeers", "ble GATT server - error on tinyDemux: ${e.stackTrace}")
                         }

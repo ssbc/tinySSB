@@ -100,7 +100,7 @@ class IO(val service: BleForegroundService) {
                         //context.ble!!.advertise(buf)
                     }
                 } catch (e: Exception) {
-                    Log.d("BLE sender exc", e.toString())
+                    Log.e("IO", "Sender exception: ${e.toString()}")
                 }
                 // websocket
                 if (service.websocket != null) { //TODO removed Context

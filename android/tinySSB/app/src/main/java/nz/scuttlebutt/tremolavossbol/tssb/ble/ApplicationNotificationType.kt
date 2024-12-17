@@ -14,5 +14,9 @@ enum class ApplicationNotificationType(val type: String) {
     STOP_BLUETOOTH("STOP_BLUETOOTH"),
     IS_BLE_ENABLED("IS_BLE_ENABLED"), // -> Boolean
     RESET_TO_DEFAULT("RESET_TO_DEFAULT"),
+    GET_SETTINGS("GET_SETTINGS"), // -> String?
+    LIST_FEEDS("LIST_FEEDS"), // -> List<ByteArray>
+    IS_GEO_ENABLED("IS_GEO_ENABLED"), // -> Boolean
+    SET_SETTINGS("SET_SETTINGS"), // String -> ByteArray
     ADD_KEY("ADD_KEY") // ByteArray
 }

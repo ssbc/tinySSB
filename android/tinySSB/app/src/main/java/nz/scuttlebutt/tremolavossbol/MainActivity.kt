@@ -43,6 +43,7 @@ import nz.scuttlebutt.tremolavossbol.utils.Constants
 import nz.scuttlebutt.tremolavossbol.games.common.GamesHandler
 import nz.scuttlebutt.tremolavossbol.tssb.ble.ApplicationNotificationType
 import nz.scuttlebutt.tremolavossbol.tssb.ble.BleForegroundService
+import nz.scuttlebutt.tremolavossbol.tssb.ble.BleForegroundService.Companion.getTinyIdStore
 import nz.scuttlebutt.tremolavossbol.tssb.ble.ForegroundNotificationType
 import nz.scuttlebutt.tremolavossbol.utils.HelperFunctions.Companion.toHex
 import tremolavossbol.R
@@ -166,12 +167,73 @@ class MainActivity : Activity() {
         wai.eval(message) // maybe just this one, as the one before is stricly for messages
     }
 
-    fun sendMessageToForegroundserviceWithoutOutput(type: ApplicationNotificationType, message: ByteArray) {
-        Log.d("MainActivity", "Sending message to Foregroundservice: $message")
+    fun sendMessageToForegroundserviceWithoutOutput(type: ApplicationNotificationType, message: Any?) {
+        Log.d("MainActivity", "Sending message to Foregroundservice: ${type.name}")
         val intent = Intent(type.type)
-        intent.putExtra("message", message)
+        when (type) { // Only special treatment for types which need parameters
+            ApplicationNotificationType.ADD_NUMBER_OF_PENDING_CHUNKS -> {
+                val chunks = message as Int
+                intent.putExtra("chunk", chunks)
+            }
+            ApplicationNotificationType.DELETE_FEED -> {
+                val feed = message as ByteArray
+                intent.putExtra("feed", feed)
+            }
+            ApplicationNotificationType.SET_NEW_IDENTITY -> {
+                if (message != null) {
+                    val identity = message as ByteArray
+                    intent.putExtra("identity", identity)
+                }
+            }
+            ApplicationNotificationType.ADD_KEY -> {
+                val key = message as ByteArray
+                intent.putExtra("key", key)
+            }
+            ApplicationNotificationType.SET_SETTINGS -> {
+                val args = message as List<String>
+                intent.putExtra("setting", args[1])
+                intent.putExtra("value", args[2])
+            }
+        }
         sendBroadcast(intent)
     }
+
+    fun sendMessageToForegroundserviceWithOutput(type: ApplicationNotificationType, message: Any?): CompletableDeferred<Any?> {
+        Log.d("MainActivity", "Sending message to Foregroundservice: ${type.name}")
+        val intent = Intent(type.type)
+        val callbackId = System.currentTimeMillis().toString()
+        when (type) { // Only special treatment for types which need parameters
+            ApplicationNotificationType.SET_NEW_IDENTITY -> { // There are cases where return value is needed
+                // TODO
+                val identity = intent.getByteArrayExtra("identity")
+                val bool = getTinyIdStore()!!.setNewIdentity(identity)
+            }
+            ApplicationNotificationType.GET_SETTINGS -> { // Returns String
+                val setting = message as String
+                intent.putExtra("setting", setting)
+            }
+            ApplicationNotificationType.TO_EXPORT_STRING -> { // Returns String
+                // TODO
+            }
+            ApplicationNotificationType.LIST_FEEDS -> { // Returns List<ByteArray>
+                // TODO
+            }
+            ApplicationNotificationType.VERIFY_KEY -> { // Returns ByteArray
+                // TODO
+            }
+            ApplicationNotificationType.IDENTITY_TO_REF -> { // Returns String
+                // TODO
+            }
+            ApplicationNotificationType.IS_GEO_ENABLED -> { // Returns Boolean
+                // TODO
+            }
+        }
+        intent.putExtra("callbackId", callbackId)
+        sendBroadcast(intent)
+        return registerCallback(callbackId)
+    }
+
+
     /*
     var broadcast_socket: DatagramSocket? = null
     var server_socket: ServerSocket? = null

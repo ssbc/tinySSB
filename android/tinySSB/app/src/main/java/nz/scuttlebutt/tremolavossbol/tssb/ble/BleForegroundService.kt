@@ -375,10 +375,36 @@ class BleForegroundService: Service() {
         override fun onReceive(context: Context, intent: Intent) {
             val type = intent.action
             try {
+                Log.d("BleForegroundService", "mainActivityReceiver: ${type}")
                 when (type) {
                     ApplicationNotificationType.PUBLISH_PUBLIC_CONTENT.name -> {
-                        Log.d("BleForegroundService", "Received message: ${ApplicationNotificationType.PUBLISH_PUBLIC_CONTENT.name}")
                         getTinyNode()!!.publish_public_content(intent.getByteArrayExtra("message")!!)
+                    }
+                    ApplicationNotificationType.DELETE_FEED.name -> {
+                        getTinyRepo()!!.delete_feed(intent.getByteArrayExtra("feed")!!)
+                    }
+                    ApplicationNotificationType.BEACON.name -> {
+                        getTinyNode()!!.beacon()
+                    }
+                    ApplicationNotificationType.STOP_BLUETOOTH.name -> {
+                        getTinyBle()!!.stopBluetooth()
+                    }
+                    ApplicationNotificationType.RESET_TO_DEFAULT.name -> {
+                        getTinySettings()!!.resetToDefault()
+                    }
+                    ApplicationNotificationType.RESET.name -> {
+                        getTinyRepo()!!.reset()
+                    }
+                    ApplicationNotificationType.ADD_KEY.name -> {
+                        val key = intent.getByteArrayExtra("key")
+                        getTinyGoset()!!._add_key(key!!)
+                    }
+                    ApplicationNotificationType.SET_SETTINGS.name -> {
+                        val setting = intent.getStringExtra("setting")
+                        val value = intent.getStringExtra("value")
+                        if (setting != null && value != null) {
+                            getTinySettings()!!.set(setting, value)
+                        }
                     }
                     else -> {
                         Log.d("BleForegroundService", "Unknown message type: $type")
