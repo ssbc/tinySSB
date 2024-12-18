@@ -6,6 +6,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.os.Bundle
 import android.util.Base64
 import android.util.Log
 import android.webkit.JavascriptInterface
@@ -49,13 +50,14 @@ import nz.scuttlebutt.tremolavossbol.utils.Bipf_e
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_ACK
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_DLV
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_GAMETEXT
-
+import kotlinx.coroutines.*
 
 
 // pt 3 in https://betterprogramming.pub/5-android-webview-secrets-you-probably-didnt-know-b23f8a8b5a0c
 
 class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandler: GamesHandler?) {
 
+    private val coroutineScope = CoroutineScope(Dispatchers.Main + Job())
     val frontend_frontier = act.getSharedPreferences("frontend_frontier", Context.MODE_PRIVATE)
     var gamesHandler: GamesHandler? = gameHandler
 
@@ -97,10 +99,20 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
 
     @JavascriptInterface
     fun isGeoLocationEnabled(): String {
-        return if (BleForegroundService.getTinySettings()!!.isGeoLocationEnabled()) {
-            "true"
-        } else {
-            "false"
+        // TODO moving 'setting' variables inside mainapplication for better access, as this might be causing heavy load
+        // FIXME this is a workaround, as we cannot directly return values from coroutines, which is why i throw an exception triggering a false
+        try {
+            coroutineScope.launch {
+                val settings = withContext(Dispatchers.IO) {
+                    act.sendMessageToForegroundserviceWithOutput(ApplicationNotificationType.IS_GEO_ENABLED, null)
+                }.await() as Boolean
+                if (!settings)
+                    throw Exception("GeoLocation is not enabled.")
+            }
+            return "true"
+        } catch (e: Exception) {
+            Log.e("WebAppInterface", "Error in isGeoLocationEnabled: ${e.message}")
+            return "false"
         }
     }
 
@@ -116,10 +128,23 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
             "ready" -> {
                 Log.d("WebAppInterface", "Calling b2f_initialize: ${BleForegroundService.getTinyIdStore()!!.identity.toRef()}")
                 try {
-                    eval("b2f_initialize('${BleForegroundService.getTinyIdStore()!!.identity.toRef()}', '${BleForegroundService.getTinySettings()!!.getSettings()}')")
-                    act.frontend_ready = true // maybe add flag inside foreground service
-                    act.sendMessageToForegroundserviceWithoutOutput(ApplicationNotificationType.ADD_NUMBER_OF_PENDING_CHUNKS,  0)
-                    act.sendMessageToForegroundserviceWithoutOutput(ApplicationNotificationType.BEACON,  null)
+                    coroutineScope.launch {
+                        try {
+                            val ref = withContext(Dispatchers.IO) {
+                                act.sendMessageToForegroundserviceWithOutput(ApplicationNotificationType.IDENTITY_TO_REF, null)
+                            }.await() as String?
+                            val settings = withContext(Dispatchers.IO) {
+                                act.sendMessageToForegroundserviceWithOutput(ApplicationNotificationType.GET_SETTINGS, null)
+                            }.await() as String?
+                            eval("b2f_initialize('$ref}', '$settings')")
+                            act.frontend_ready = true // maybe add flag inside foreground service
+                            act.sendMessageToForegroundserviceWithoutOutput(ApplicationNotificationType.ADD_NUMBER_OF_PENDING_CHUNKS,  0)
+                            act.sendMessageToForegroundserviceWithoutOutput(ApplicationNotificationType.BEACON,  null)
+                        } catch (e: Exception) {
+                            Log.e("WebAppInterface", "Error in ready-coroutine: ${e.message}")
+                        }
+                    }
+
                 } catch (e: Exception) {
                     Log.e(
                         "WebAppInterface",
@@ -130,12 +155,22 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
             }
             "reset" -> { // UI reset
                 // erase DB content
-                //eval("b2f_initialize(\"${act.idStore.identity.toRef()}\")")
-                eval("b2f_initialize(\"${BleForegroundService.getTinyIdStore()!!.identity.toRef()}\")")
-                onFrontendRequest("restream")
+                try {
+                    coroutineScope.launch {
+                        val ref = withContext(Dispatchers.IO) {
+                            act.sendMessageToForegroundserviceWithOutput(ApplicationNotificationType.IDENTITY_TO_REF, null)
+                        }.await() as String?
+                        eval("b2f_initialize(\"${ref}\")")
+                        onFrontendRequest("restream")
+                    }
+                } catch (e: Exception) {
+                    Log.e("WebAppInterface", "Error in reset: ${e.message}")
+                }
             }
             "restream" -> {
                 eval("restream = true")
+                // TODO discuss how we can fix this issue
+                // We somehow need the replica, but we wanted to split WebApp from FGS
                 for (fid in BleForegroundService.getTinyRepo()?.listFeeds()!!) {
                     Log.d("wai", "restreaming ${fid.toHex()}")
                     var i = 1
@@ -155,14 +190,23 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
                 eval("restream = false")
             }
             "wipe:others" -> {
-                for (fid in BleForegroundService.getTinyRepo()?.listFeeds()!!) {
-                    if (fid.contentEquals(BleForegroundService.getTinyIdStore()!!.identity.verifyKey))
-                        continue
-                    //if (fid.contentEquals(act.idStore.identity.verifyKey))
-                    //    continue
-                    //act.tinyRepo.delete_feed(fid)
-                    //BleForegroundService.getTinyRepo()?.delete_feed(fid)
-                    act.sendMessageToForegroundserviceWithoutOutput(ApplicationNotificationType.DELETE_FEED, fid)
+                try {
+                    coroutineScope.launch {
+                        val verifyKey = withContext(Dispatchers.IO) {
+                            act.sendMessageToForegroundserviceWithOutput(ApplicationNotificationType.VERIFY_KEY, null)
+                        }.await() as ByteArray
+                        for (fid in BleForegroundService.getTinyRepo()?.listFeeds()!!) {
+                            if (fid.contentEquals(verifyKey))
+                                continue
+                            //if (fid.contentEquals(act.idStore.identity.verifyKey))
+                            //    continue
+                            //act.tinyRepo.delete_feed(fid)
+                            //BleForegroundService.getTinyRepo()?.delete_feed(fid)
+                            act.sendMessageToForegroundserviceWithoutOutput(ApplicationNotificationType.DELETE_FEED, fid)
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e("WebAppInterface", "Error in wipe: ${e.message}")
                 }
             }
             "qrscan.init" -> {
@@ -176,13 +220,21 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
             }
             "exportSecret" -> {
                 //val json = act.idStore.identity.toExportString()!!
-                val json = BleForegroundService.getTinyIdStore()!!.identity.toExportString()!!
-                eval("b2f_showSecret('${json}');")
-                val clipboard = act.getSystemService(ClipboardManager::class.java)
-                val clip = ClipData.newPlainText("simple text", json)
-                clipboard.setPrimaryClip(clip)
-                Toast.makeText(act, "secret key was also\ncopied to clipboard",
-                    Toast.LENGTH_LONG).show()
+                try {
+                    coroutineScope.launch {
+                        val json = withContext(Dispatchers.IO) {
+                            act.sendMessageToForegroundserviceWithOutput(ApplicationNotificationType.TO_EXPORT_STRING, null)
+                        }.await() as String?
+                        eval("b2f_showSecret('${json}');")
+                        val clipboard = act.getSystemService(ClipboardManager::class.java)
+                        val clip = ClipData.newPlainText("simple text", json)
+                        clipboard.setPrimaryClip(clip)
+                        Toast.makeText(act, "secret key was also\ncopied to clipboard", // TODO maybe problem because of coroutine
+                            Toast.LENGTH_LONG).show()
+                    }
+                } catch (e: Exception) {
+                    Log.e("WebAppInterface", "Error in exportSecret: ${e.message}")
+                }
             }
             "importSecret" -> {
                 //act.idStore.setNewIdentity(Base64.decode(args[1], Base64.NO_WRAP))
@@ -193,8 +245,7 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
                 // restart App
                 if (act.websocket != null)
                     act.websocket!!.stop()
-                if (BleForegroundService.getTinyBle() != null)
-                    act.sendMessageToForegroundserviceWithoutOutput(ApplicationNotificationType.STOP_BLUETOOTH, null)
+                act.sendMessageToForegroundserviceWithoutOutput(ApplicationNotificationType.STOP_BLUETOOTH, null)
                 val ctx = act.applicationContext
                 ctx.startActivity(Intent.makeRestartActivityTask(act.applicationContext.packageManager.getLaunchIntentForPackage(ctx.packageName)!!.component))
                 Runtime.getRuntime().exit(0)
@@ -208,8 +259,7 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
 
                 if (act.websocket != null)
                     act.websocket!!.stop()
-                if (BleForegroundService.getTinyBle() != null)
-                    act.sendMessageToForegroundserviceWithoutOutput(ApplicationNotificationType.STOP_BLUETOOTH, null)
+                act.sendMessageToForegroundserviceWithoutOutput(ApplicationNotificationType.STOP_BLUETOOTH, null)
                 val ctx = act.applicationContext
                 ctx.startActivity(Intent.makeRestartActivityTask(act.applicationContext.packageManager.getLaunchIntentForPackage(ctx.packageName)!!.component))
                 Runtime.getRuntime().exit(0)
@@ -247,20 +297,25 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
                 return
             }
             "publ:post" -> { // publ:post tips txt voice
-                val a = JSONArray(args[1])
-                val tips = ArrayList<String>(0)
-                for (i in 0..a.length()-1) {
-                    val s = a[i].toString() // (a[i] as JSONObject).toString()
-                    tips.add(s)
+                try {
+                    val a = JSONArray(args[1])
+                    val tips = ArrayList<String>(0)
+                    for (i in 0..a.length()-1) {
+                        val s = a[i].toString() // (a[i] as JSONObject).toString()
+                        tips.add(s)
+                    }
+                    var t: String? = null
+                    if (args[2] != "null")
+                        t = Base64.decode(args[2], Base64.NO_WRAP).decodeToString()
+                    var v: ByteArray? = null
+                    if (args.size > 3 && args[3] != "null")
+                        v = Base64.decode(args[3], Base64.NO_WRAP)
+                    public_post_with_voice(tips, t, v)
+                    return
+                } catch (e: Exception) {
+                    Log.e("WebAppInterface", "Error in publ:post: ${e.message}")
+                    return
                 }
-                var t: String? = null
-                if (args[2] != "null")
-                    t = Base64.decode(args[2], Base64.NO_WRAP).decodeToString()
-                var v: ByteArray? = null
-                if (args.size > 3 && args[3] != "null")
-                    v = Base64.decode(args[3], Base64.NO_WRAP)
-                public_post_with_voice(tips, t, v)
-                return
             }
             "priv:post" -> { // priv:post tips atob(text) atob(voice) rcp1 rcp2 ...
                 val a = JSONArray(args[1])
@@ -464,8 +519,16 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
                 act.sendMessageToForegroundserviceWithoutOutput(ApplicationNotificationType.SET_SETTINGS, "$args[1]!$args[2]")
             }
             "settings:get" -> {
-                val settings = BleForegroundService.getTinySettings()!!.getSettings()
-                eval("b2f_get_settings('${settings}')")
+                try {
+                    coroutineScope.launch {
+                        val settings = withContext(Dispatchers.IO) {
+                            act.sendMessageToForegroundserviceWithOutput(ApplicationNotificationType.GET_SETTINGS, null)
+                        }.await() as String?
+                        eval("b2f_get_settings('${settings}')")
+                    }
+                } catch (e: Exception) {
+                    Log.e("WebAppInterface", "Error in settings:get: ${e.message}")
+                }
             }
 
             "connect_four" -> {
@@ -514,29 +577,60 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
 
     private fun importIdentity(secret: String): Boolean {
         Log.d("D/importIdentity", secret)
-        if (BleForegroundService.getTinyIdStore()!!.setNewIdentity(Base64.decode(secret, Base64.DEFAULT))) {
-            // FIXME: remove all decrypted content in the database, try to decode new one
-            Toast.makeText(act, "Imported of ID worked. You must restart the app.",
-                Toast.LENGTH_SHORT).show()
+        try {
+            coroutineScope.launch {
+                val res = withContext(Dispatchers.IO) {
+                    act.sendMessageToForegroundserviceWithOutput(ApplicationNotificationType.SET_NEW_IDENTITY,Base64.decode(secret, Base64.DEFAULT))
+                }.await() as Boolean
+                if (res) {
+                    Toast.makeText(act, "Imported of ID worked. You must restart the app.", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(act, "Import of new ID failed.", Toast.LENGTH_LONG).show()
+                    throw Exception("Import of new ID failed.") // FIXME: is this the right way to handle this? Looks hacky
+                }
+            }
             return true
+        } catch (e: Exception) {
+            Log.e("WebAppInterface", "Error in importIdentity: ${e.message}")
+            return false
         }
-        Toast.makeText(act, "Import of new ID failed.", Toast.LENGTH_LONG).show()
-        return false
     }
 
     private fun confirm_post(args: List<String>, typ: Bipf_e) {
-        val lst = Bipf.mkList()
-        Bipf.list_append(lst, typ) // DLV or ACK
-        Bipf.list_append(lst, Bipf.mkString(args[1])) // msg ref
-        val body_clear = Bipf.encode(lst)
-        val keys: MutableList<ByteArray> = mutableListOf()
-        keys.add(BleForegroundService.getTinyIdStore()!!.identity.toRef().deRef())
-        keys.add(args[2].deRef())
-        val encrypted = body_clear?.let { BleForegroundService.getTinyIdStore()!!.identity.encryptPrivateMessage(it, keys) }
-        if (encrypted != null) {
-            Bipf.encode(Bipf.mkBytes(encrypted))?.let { act.sendMessageToForegroundserviceWithoutOutput(ApplicationNotificationType.PUBLISH_PUBLIC_CONTENT, it) }
-            //Bipf.encode(Bipf.mkBytes(encrypted))?.let { act.tinyNode.publish_public_content(it) }
+        try {
+            coroutineScope.launch {
+                val identityRef = withContext(Dispatchers.IO) {
+                    act.sendMessageToForegroundserviceWithOutput(ApplicationNotificationType.IDENTITY_TO_REF, null)
+                }.await() as String
+                val lst = Bipf.mkList()
+                Bipf.list_append(lst, typ) // DLV or ACK
+                Bipf.list_append(lst, Bipf.mkString(args[1])) // msg ref
+                val body_clear = Bipf.encode(lst)
+                val keys: MutableList<ByteArray> = mutableListOf()
+                keys.add(identityRef.deRef())
+                keys.add(args[2].deRef())
+                val bundle = Bundle()
+                bundle.putByteArray("body_clear", body_clear)
+                bundle.putSerializable("keys", keys as java.io.Serializable) // Retrieve with -> val retrievedKeys: MutableList<ByteArray>? = bundle.getSerializable("keys") as? MutableList<ByteArray>
+                val encrypted = withContext(Dispatchers.IO) {
+                    act.sendMessageToForegroundserviceWithOutput(ApplicationNotificationType.ENCRYPT_PRIV_MSG, bundle)
+                }.await() as ByteArray?
+                if (encrypted != null) {
+                    Bipf.encode(Bipf.mkBytes(encrypted))?.let { act.sendMessageToForegroundserviceWithoutOutput(ApplicationNotificationType.PUBLISH_PUBLIC_CONTENT, it) }
+                    //Bipf.encode(Bipf.mkBytes(encrypted))?.let { act.tinyNode.publish_public_content(it) }
+                }
+                val ref = withContext(Dispatchers.IO) {
+                    act.sendMessageToForegroundserviceWithOutput(ApplicationNotificationType.IDENTITY_TO_REF, null)
+                }.await() as String?
+                val settings = withContext(Dispatchers.IO) {
+                    act.sendMessageToForegroundserviceWithOutput(ApplicationNotificationType.GET_SETTINGS, null)
+                }.await() as String?
+                eval("b2f_initialize('$ref}', '$settings')")
+            }
+        } catch (e: Exception) {
+            Log.e("WebAppInterface", "Error in confirm_post: ${e.message}")
         }
+
     }
 
     fun public_post_with_voice(tips: ArrayList<String>, text: String?, voice: ByteArray?) {
@@ -588,7 +682,12 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
 
         val recps = Bipf.mkList()
         val keys: MutableList<ByteArray> = mutableListOf()
-        val me = BleForegroundService.getTinyIdStore()!!.identity.toRef()
+        var me = ""
+        runBlocking { // coroutines should not work here i believe
+            me = withContext(Dispatchers.IO) {
+                act.sendMessageToForegroundserviceWithOutput(ApplicationNotificationType.IDENTITY_TO_REF, null)
+            }.await() as String
+        }
         for (r in rcps) {
             if (r != me) {
                 Bipf.list_append(recps, Bipf.mkString(r))
@@ -600,9 +699,17 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
         Bipf.list_append(lst, recps)
 
         val body_clear = Bipf.encode(lst)
-        val encrypted = body_clear!!.let { BleForegroundService.getTinyIdStore()!!.identity.encryptPrivateMessage(it, keys) }
+        var encrypted: ByteArray? = null
+        runBlocking {
+            val bundle = Bundle()
+            bundle.putByteArray("body_clear", body_clear)
+            bundle.putSerializable("keys", keys as java.io.Serializable)
+            encrypted = withContext(Dispatchers.IO) {
+                act.sendMessageToForegroundserviceWithOutput(ApplicationNotificationType.ENCRYPT_PRIV_MSG, bundle)
+            }.await() as ByteArray
+        }
         // return encrypted.let { Bipf.mkString(it) }
-        val body_encr = Bipf.encode(Bipf.mkBytes(encrypted))
+        val body_encr = Bipf.encode(Bipf.mkBytes(encrypted!!))
         if (body_encr != null) {
             //act.tinyNode.publish_public_content(body_encr)
             act.sendMessageToForegroundserviceWithoutOutput(ApplicationNotificationType.PUBLISH_PUBLIC_CONTENT, body_encr)
@@ -831,6 +938,7 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
         //val replica = act.tinyRepo.fid2replica(fid)
         val replica = BleForegroundService.getTinyRepo()!!.fid2replica(fid)
         // TODO How should we allow this access on the replica? Technically we should split the concerns.
+        // FIXME put frontend_frontier in foreground?
         Log.d("WebAppInterface", "sendTinyEventToFrontend ${replica.toString()}")
         try {
             if (frontend_frontier.getInt(fid.toHex(), 1) == seq && replica != null) {
@@ -865,9 +973,14 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
         }
         if (bodyList.typ == BIPF_BYTES) { // encrypted
             Log.d("rcvd encrypted log entry", "@" + fid.toBase64() + ".ed25519, seq=" + seq)
-            val clear = BleForegroundService.getTinyIdStore()!!.identity.decryptPrivateMessage(bodyList.getBytes())
+            var clear: ByteArray? = null
+            runBlocking {
+                clear = withContext(Dispatchers.IO) {
+                    act.sendMessageToForegroundserviceWithOutput(ApplicationNotificationType.DECRYPT_PRIV_MSG, bodyList.getBytes())
+                }.await() as ByteArray?
+            }
             if (clear != null) {
-                val bodyList2 = Bipf.decode(clear)
+                val bodyList2 = Bipf.decode(clear!!)
                 if (bodyList2 != null) {
                     val param = Bipf.bipf_list2JSON(bodyList2)
                     var hdr = JSONObject()

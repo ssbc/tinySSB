@@ -45,6 +45,7 @@ import nz.scuttlebutt.tremolavossbol.utils.Constants
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_DIR
 import tremolavossbol.R
 import java.io.File
+import java.io.Serializable
 import java.net.InetAddress
 import java.net.MulticastSocket
 import java.util.concurrent.Executor
@@ -266,6 +267,12 @@ class BleForegroundService: Service() {
         }
         val filterMainActivityReceiver = IntentFilter().apply {
             addAction(ApplicationNotificationType.PUBLISH_PUBLIC_CONTENT.name)
+            addAction(ApplicationNotificationType.DELETE_FEED.name)
+            addAction(ApplicationNotificationType.BEACON.name)
+            addAction(ApplicationNotificationType.STOP_BLUETOOTH.name)
+            addAction(ApplicationNotificationType.RESET_TO_DEFAULT.name)
+            addAction(ApplicationNotificationType.GET_SETTINGS.name)
+            addAction(ApplicationNotificationType.IDENTITY_TO_REF.name)
         }
         registerReceiver(mainActivityReceiver, filterMainActivityReceiver)
         super.onCreate()
@@ -375,7 +382,7 @@ class BleForegroundService: Service() {
         override fun onReceive(context: Context, intent: Intent) {
             val type = intent.action
             try {
-                Log.d("BleForegroundService", "mainActivityReceiver: ${type}")
+                Log.d("BleForegroundService", "mainActivityReceiver: $type")
                 when (type) {
                     ApplicationNotificationType.PUBLISH_PUBLIC_CONTENT.name -> {
                         getTinyNode()!!.publish_public_content(intent.getByteArrayExtra("message")!!)
@@ -387,7 +394,7 @@ class BleForegroundService: Service() {
                         getTinyNode()!!.beacon()
                     }
                     ApplicationNotificationType.STOP_BLUETOOTH.name -> {
-                        getTinyBle()!!.stopBluetooth()
+                        getTinyBle()?.stopBluetooth() // call it safely, as WebApp does not check if it exists
                     }
                     ApplicationNotificationType.RESET_TO_DEFAULT.name -> {
                         getTinySettings()!!.resetToDefault()
@@ -406,6 +413,15 @@ class BleForegroundService: Service() {
                             getTinySettings()!!.set(setting, value)
                         }
                     }
+                    ApplicationNotificationType.GET_SETTINGS.name -> {
+                        sendResultBack(context, intent.getStringExtra("CallbackID"), getTinySettings()!!.getSettings())
+                    }
+                    ApplicationNotificationType.IDENTITY_TO_REF.name -> {
+                        sendResultBack(context, intent.getStringExtra("CallbackID"), getTinyIdStore()!!.identity.toRef())
+                    }
+                    ApplicationNotificationType.IS_GEO_ENABLED.name -> {
+                        sendResultBack(context, intent.getStringExtra("CallbackID"), getTinySettings()!!.isGeoLocationEnabled())
+                    }
                     else -> {
                         Log.d("BleForegroundService", "Unknown message type: $type")
                     }
@@ -414,6 +430,18 @@ class BleForegroundService: Service() {
                 Log.e("BleForegroundService", "Error while handling message: $e")
             }
         }
+    }
+
+    /**
+     *  This method's purpose is to return the result of an intent back to the activity.
+     *  Notice: Not all intents have a result, so this method is only being called when necessary.
+     */
+    private fun sendResultBack(context: Context, callbackId: String?, result: Any?) {
+        val resultIntent = Intent("RESULT_ACTION").apply {
+            putExtra("CallbackID", callbackId)
+            putExtra("result", result as? Serializable)
+        }
+        LocalBroadcastManager.getInstance(context).sendBroadcast(resultIntent)
     }
 
     private fun handleOutgoingMessage(message: ByteArray) {

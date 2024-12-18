@@ -11,6 +11,8 @@ enum class ApplicationNotificationType(val type: String) {
     TO_EXPORT_STRING("TO_EXPORT_STRING"), // -> String?
     SET_NEW_IDENTITY("SET_NEW_IDENTITY"), // ByteArray -> Boolean
     RESET("RESET"),
+    ENCRYPT_PRIV_MSG("ENCRYPT_PRIV_MSG"), // (ByteArray, List<ByteArray>) -> ByteArray
+    DECRYPT_PRIV_MSG("DECRYPT_PRIV_MSG"), // ByteArray -> ByteArray?
     STOP_BLUETOOTH("STOP_BLUETOOTH"),
     IS_BLE_ENABLED("IS_BLE_ENABLED"), // -> Boolean
     RESET_TO_DEFAULT("RESET_TO_DEFAULT"),
