@@ -380,7 +380,7 @@ class MainActivity : Activity() {
         var currentTime = System.currentTimeMillis()
 
         //Add number of hours to the current time
-        currentTime += (hours - 24) * 3600000
+        currentTime += (hours) * 3600000
 
         val formattedTime = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date(currentTime))
 
@@ -421,41 +421,55 @@ class MainActivity : Activity() {
     }
 
     private fun executeThisTask() {
-        // Add your task logic here
         Log.d("MyRealWorker", "Worker is working...")
 
-        // write in a txt file the time at which the worker was executing
+        // Write the current time to output.txt
         val currentTime = System.currentTimeMillis()
-
-        // Format the time into a readable string
         val formattedTime = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date(currentTime))
-
         applicationContext.openFileOutput("output.txt", Context.MODE_APPEND).use {
-            it.write("$formattedTime\n".toByteArray()) // Appending the formatted time with a newline
+            it.write("$formattedTime\n".toByteArray())
         }
 
-        //if json file does not exist, return
-        val jsonFile = File(filesDir, "contacts.json")
-        if (!jsonFile.exists()) {
+        // Check if contacts.json exists. If not, return.
+        val contactsFile = File(applicationContext.filesDir, "contacts.json")
+        if (!contactsFile.exists()) {
+            Log.d("MyRealWorker", "contacts.json does not exist, returning...")
             return
         }
 
-        //prepare kill list file if it doesn't exist
+        // Read existing JSON from contacts.json
+        val jsonString = applicationContext.openFileInput("contacts.json").bufferedReader().use { it.readText() }
+        val json = if (jsonString.isNotEmpty()) JSONObject(jsonString) else JSONObject()
+        Log.d("MyRealWorker", "contacts.json is $json")
+
+        // Prepare killList file in append mode
         val killListFile = applicationContext.openFileOutput("killList.txt", Context.MODE_APPEND)
 
-        //Open JSON file and check all keys (contacts) and their value (time)
-        val jsonFileNew = File(filesDir, "contacts.json").bufferedReader().use { it.readText() }
-        val json = JSONObject(jsonFileNew)
+        // Parse and check all keys, record which to remove
         val keys = json.keys()
-        for (key in keys) {
+        val keysToRemove = mutableListOf<String>()
+        val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+
+        while (keys.hasNext()) {
+            val key = keys.next()
             val value = json.getString(key)
-            //check if the value is older than currentTime, value has following format "yyyy-MM-dd HH:mm:ss"
-            if (SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).parse(value).time < currentTime) {
-                //add key to kill list
-                killListFile.write("$key\n".toByteArray())
-                //remove key from contacts.json
-                removeEntryFromJsonFile(key)
+            // Check if the stored time is older than currentTime
+            val contactTime = dateFormat.parse(value)?.time ?: 0L
+            if (contactTime < currentTime) {
+                keysToRemove.add(key)
             }
+        }
+
+        // Remove old keys and write them into killList
+        keysToRemove.forEach { key ->
+            killListFile.write("$key\n".toByteArray())
+            json.remove(key)
+        }
+        killListFile.close()
+
+        // Write updated JSON back to contacts.json (overwrite, not append)
+        applicationContext.openFileOutput("contacts.json", Context.MODE_PRIVATE).use { out ->
+            out.write(json.toString().toByteArray())
         }
     }
 
@@ -485,6 +499,7 @@ class MainActivity : Activity() {
     override fun onResume() {
         Log.d("onResume", "")
         registerUntrusted()
+        executeThisTask()
         deleteFromKillList()
         super.onResume()
         /*

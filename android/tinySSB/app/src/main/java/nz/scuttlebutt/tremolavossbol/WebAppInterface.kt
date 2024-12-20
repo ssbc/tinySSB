@@ -380,22 +380,27 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
                 Log.d("decodedEntry", decodedEntry.toString())
 
                 //get bytes from the decoded entry
-                val entryBytes = decodedEntry?.let {it.getBytes()}
-                Log.d("entryBytes1", entryBytes.toString())
+                try {
+                    val entryBytes = decodedEntry?.let {it.getBytes()}
+                    Log.d("entryBytes1", entryBytes.toString())
+                    //decrypt the bytes to get the clear text
+                    val clear = entryBytes?.let { act.idStore.identity.decryptPrivateMessage(it) }
+                    Log.d("clear", clear.toString())
 
-                //decrypt the bytes to get the clear text
-                val clear = entryBytes?.let { act.idStore.identity.decryptPrivateMessage(it) }
-                Log.d("clear", clear.toString())
-
-                val entryType = clear?.let { getFromEntry(it, 0) }
-                if (entryType == "TRT") {
-                    if (clear is ByteArray) {
-                        val contactID = getFromEntry(clear, 2)
-                        val trustLevel = getFromEntry(clear, 3)
-                        if (contactID != null && trustLevel != null) {
-                            contactsTrustLevel[contactID.toString()] = trustLevel.toString().toInt()
+                    val entryType = clear?.let { getFromEntry(it, 0) }
+                    if (entryType == "TRT") {
+                        if (clear is ByteArray) {
+                            val contactID = getFromEntry(clear, 2)
+                            val trustLevel = getFromEntry(clear, 3)
+                            if (contactID != null && trustLevel != null) {
+                                contactsTrustLevel[contactID.toString()] = trustLevel.toString().toInt()
+                            }
                         }
                     }
+                } catch (e: Exception) {
+                    Log.d("entryBytes1", "null")
+                    //skip the entry if it is null
+                    continue
                 }
             }
         }
