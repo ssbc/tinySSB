@@ -47,6 +47,9 @@ void cmd_rx(String cmd) {
 
     case '?':
       Serial.println("  ?        help");
+#ifdef HAS_LORA
+      Serial.println("  c        cycle through the LoRA plans");
+#endif
       Serial.println("  d        dump GoSET, DMXT and CHKT");
       Serial.println("  f        list file system");
       Serial.println("  i        pretty print the confIg values");
@@ -56,6 +59,21 @@ void cmd_rx(String cmd) {
       Serial.println("  r        reset this repo to blank");
       Serial.println("  x        reboot");
       break;
+
+#ifdef HAS_LORA
+    case 'c':
+      {
+        the_lora_config++;
+        if (the_lora_config - lora_configs >= lora_configs_cnt)
+          the_lora_config = lora_configs;
+        Serial.printf("LoRA plan now is %s:\r\n", the_lora_config->plan);
+        lora_init();
+        struct bipf_s *v = bipf_mkString(the_lora_config->plan);
+        bipf_dict_set(the_config, bipf_mkString("lora_plan"), v);
+        config_save(the_config);
+      }
+      break;
+#endif
 
     case 'd': // dump
       // goset_dump(theGOset);

@@ -275,7 +275,7 @@ void lora_init()
   Serial.printf("lora setPL rc=%d\r\n", rc);
   rc = radio.setCRC(false);
   Serial.printf("lora setED rc=%d\r\n", rc); // CRC error detection
-  radio.setPacketReceivedAction(newLoraPacket_cb);
+  // radio.setPacketReceivedAction(newLoraPacket_cb);
 #endif
 
 #ifdef USE_LORA_LIB

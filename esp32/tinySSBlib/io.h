@@ -23,6 +23,8 @@ struct face_s {
 };
 
 void io_init();
+void lora_init();
+
 void io_loop(); // check for received packets
 void io_proc(); // process received packets
 

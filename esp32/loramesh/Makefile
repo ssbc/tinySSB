@@ -52,6 +52,7 @@ endif
 MAIN=$(shell ls *.ino)
 
 BAUD=921600
+# BAUD=115200
 FLASH_BIN=firmware-$(BOARD).bin
 
 PLATFORM_TXT_FILE=$(shell find /Users/tschudin/Library/Arduino15/packages/esp32/ -name 'platform.txt' | head -1;)
@@ -126,7 +127,7 @@ else ifeq ($(BOARD),TWrist)
 
 else ifeq ($(BOARD),WLpaper)
   CHIP=esp32s3
-  FQBN=Heltec-esp32:esp32:heltec_wireless_paper
+  FQBN=esp32:esp32:heltec_wireless_paper
   PARTITIONS_CSV=partitions-wlpaper.csv
   MAX_UPLOAD=1572864 # 1.5MB
   FLASH_SIZE=8MB
@@ -167,7 +168,7 @@ EXTRA_CPP_FLAGS=--build-property compiler.cpp.extra_flags="$(FLAGS_PLATFORM) $(F
 
 all:
 	$(info )
-	$(info "usage:  make [BOARD=TBeam|TDeck|heltec] firmware|flash|fullflash")
+	$(info "usage:  make [BOARD=Heltec|Heltec3|T5gray|TBeam|TDeck|TWatch|TWrist|WLpaper] firmware|flash|fullflash")
 	$(info )
 
 monitor:
@@ -189,7 +190,7 @@ firmware:
 		$(EXTRA_CPP_FLAGS) $(MAIN) \
 		&& \
 	$(ESPTOOL) \
-		--chip $(CHIP) merge_bin --flash_mode dio --flash_freq 80m \
+		--chip $(CHIP) merge_bin --flash_mode qio --flash_freq 80m \
 		--flash_size $(FLASH_SIZE) \
 		$(FLASH_OFFS) ./build/$(MAIN).bootloader.bin \
 		0x8000        ./build/$(MAIN).partitions.bin \

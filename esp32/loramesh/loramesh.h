@@ -22,12 +22,13 @@
 # define UTC_COMPILE_TIME __DATE__ " " __TIME__ UTC_OFFSET
 #endif
 
-
 // include files with actual code and data structures:
 #include "src/lib/node.h"
 #if defined(HAS_BT)
 # include "src/lib/kiss.h"
 #endif
+
+// --- global variables
 
 struct bipf_s *the_config;
 
@@ -41,6 +42,8 @@ Repo2Class *theRepo;
 GOsetClass *theGOset;
 PeersClass *thePeers;
 SchedClass *theSched;
+
+// ---------------------------------------------------------------------------
 
 void theGOset_rx(unsigned char *pkt, int len, unsigned char *aux,
                  struct face_s *f)
@@ -161,10 +164,12 @@ void setup()
   sprintf(ssid, "%s-%s", tSSB_WIFI_SSID, to_hex(my_mac+4, 2));
   Serial.printf("** this is node %s\r\n\r\n", ssid);
   // #endif
+  delay(1000);
 
   hw_init();
 
   Serial.println("after hw_init");
+  delay(3500);
 
 #if defined(TINYSSB_BOARD_HELTEC) || defined(TINYSSB_BOARD_HELTEC3)
   theUI    = new UI_Heltec_Class();
@@ -182,10 +187,12 @@ void setup()
   theUI    = new UI_WLpaper_Class();
 #endif
   // theUI->show_node_name(ssid);
-  theUI->spinner(true);
-  theUI->show_boot_msg("mounting file system");
+  // theUI->spinner(true);
+  // theUI->show_boot_msg("mounting file system");
 
-  Serial.println("before mount");
+  delay(500);
+
+  // --- file system
 
   if (!MyFS.begin(true))
     msg = "could not mount file system, partition was reformatted";
@@ -200,20 +207,10 @@ void setup()
   Serial.printf("file system: %d total bytes, %d used\r\n",
                 MyFS.totalBytes(), MyFS.usedBytes());
 
+  // --- tinySSB config
+
   theUI->show_boot_msg("load config");
   the_config = config_load();
-
-#ifdef TINYSSB_BOARD_TDECK
-  struct bipf_s k = { BIPF_STRING, 9, {.str = "lora_plan"} };
-  struct bipf_s *v = bipf_dict_getref(the_config, &k);
-
-  if (v != NULL && v->typ == BIPF_STRING &&
-                                           strncmp("US915.b", v->u.str, v->cnt)) {
-    bipf_dict_set(the_config, bipf_mkString("lora_plan"),
-                  bipf_mkString("US915.b"));
-    config_save(the_config);
-  }
-#endif
 
   // FIXME: we should not print the mgmt signing key to the console ?
   Serial.printf("tinySSB config is %s\r\n",
@@ -226,7 +223,19 @@ void setup()
   lora_log_wr(msg);
   peers_log = MyFS.open(PEERS_DATA_FILENAME, FILE_APPEND);
   peers_log_wr(msg);
+
+  // --- IO init
   
+#ifdef USE_RADIO_LIB
+  int state = radio.begin();
+  if (state == RADIOLIB_ERR_NONE) {
+    Serial.println("RadioLib begin() success!");
+  } else {
+    Serial.print(F("RadioLib begin() failed, code "));
+    Serial.println(state);
+  }
+#endif
+
 #ifdef USE_LORA_LIB
   theUI->show_boot_msg("init LoRa");
   SPI.begin(SCK,MISO,MOSI,SS);

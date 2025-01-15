@@ -171,6 +171,18 @@ extern void hw_init();
 
 #define BOARD_BL_PIN        42
 
+
+#define TOUCH_MODULES_GT911
+#include "TouchLib.h"
+#include "AceButton.h"
+
+#include <driver/i2s.h>
+
+#include <SPI.h>
+#include "TFT_eSPI.h"
+// #include "es7210.h"
+// #include <Audio.h>
+
 #endif
 
 // ---------------------------------------------------------------------------
