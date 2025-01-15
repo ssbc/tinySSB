@@ -17,34 +17,25 @@ class Constants{
         val LOCAL_URL_PREFIX = "http://appassets.androidplatform.net/blobs/"
 
         // tinySSB:
+        val TINYSSB_NETWORK_KEY = ""
         val TINYSSB_PKT_LEN = 120
         val FID_LEN = 32
         val HASH_LEN = 20
         val DMX_LEN = 7
-        val DMX_PFX = "tinyssb-v0".encodeToByteArray()
-        val GOSET_DMX_STR = "tinySSB-0.1 GOset 1"
+        val DMX_PFX = (TINYSSB_NETWORK_KEY + "tinyssb-v0").encodeToByteArray()
+        val GOSET_DMX = (TINYSSB_NETWORK_KEY + "tinySSB-0.1 GOset 1").encodeToByteArray()
         val PKTTYPE_plain48 = 0
         val PKTTYPE_chain20 = 1
 
         //  app name                                              schema
-        val TINYSSB_APP_ALIAS        = Bipf.mkString("ALI") // fid str
-        val TINYSSB_APP_BOX          = Bipf.mkString("BOX") // bytes
-        val TINYSSB_APP_BOX2         = Bipf.mkString("BX2") //
-
-        val TINYSSB_APP_C4_BOARD     = Bipf.mkString("C4B") // new     str str str str
-        val TINYSSB_APP_C4_END       = Bipf.mkString("C4E") // end     str str str
-        val TINYSSB_APP_C4_INVITE    = Bipf.mkString("C4I") // invite  str str
-        val TINYSSB_APP_C4_DECLINE   = Bipf.mkString("C4D") // decline str str
-
         val TINYSSB_APP_DLV          = Bipf.mkString("DLV") // ref - this confirms delivery/arrival of msg w/ ref
         val TINYSSB_APP_ACK          = Bipf.mkString("ACK") // ref - this confirms consumption of msg w/ ref
-        val TINYSSB_APP_GAMETEXT     = Bipf.mkString("GAM") // BATTLESHIP
         val TINYSSB_APP_KANBAN       = Bipf.mkString("KAN") // kanban boards
-        val TINYSSB_APP_KAHOOT       = Bipf.mkString("KAH") // Kahoot quiz
-        val TINYSSB_APP_SCHEDULING   = Bipf.mkString("SCH") // event scheduling
-        val TINYSSB_APP_TEXTANDVOICE = Bipf.mkString("TAV") // lst str bytes int (rcpt)
-        val TINYSSB_APP_TEXT         = Bipf.mkString("TXT") // str int xref
+        val TINYSSB_APP_TEXTANDVOICE = Bipf.mkString("TAV") // tips bytes bytes int (rcpt)
+        val TINYSSB_APP_TICTACTOE    = Bipf.mkString("TTT") //
         val TINYSSB_APP_IAM          = Bipf.mkString("IAM") // str
+        val TINYSSB_APP_NEWTRUSTED   = Bipf.mkString("TRT")
+        val TINYSSB_APP_DELETED      = Bipf.mkString("DEL")
 
         val TINYSSB_BLE_REPL_SERVICE_2022 = UUID.fromString("6e400001-7646-4b5b-9a50-71becce51558")
         val TINYSSB_BLE_RX_CHARACTERISTIC = UUID.fromString("6e400002-7646-4b5b-9a50-71becce51558") // for writing to the remote device

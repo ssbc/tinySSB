@@ -30,12 +30,32 @@ class Repo(val context: MainActivity) {
     private var chnk_offs = 0
     private var numberOfPendingChunks = 0
 
+    fun get_feed_cnt(): Int {
+        return replicas.size
+    }
+    fun get_entry_cnt() : Int {
+        var E = 0
+        for (r in replicas)
+            E += r.state.max_seq
+        return E
+    }
+    fun get_chunk_cnt() : Int {
+        var C = 0
+        for (r in replicas)
+            C += r.state.cnk_cnt
+        return C
+    }
+
     private fun clean(dir: File) {
+        //delete all files in directory
         for (f in dir.listFiles() ?: emptyArray()) {
-            if (f.isDirectory)
+            if (f.isDirectory) {
                 clean(File(dir, f.name))
+            }
             f.delete()
         }
+        //delete directory itself
+        dir.delete()
     }
 
     fun delete_feed(fid: ByteArray) {
@@ -44,7 +64,7 @@ class Repo(val context: MainActivity) {
 
     fun reset() {
         val fdir = File(context.getDir(TINYSSB_DIR, MODE_PRIVATE), FEED_DIR)
-        clean(fdir);
+        clean(fdir)
     }
 
     fun load() {
@@ -60,9 +80,10 @@ class Repo(val context: MainActivity) {
 
     }
 
-    fun add_replica(fid: ByteArray) {
-        if (replicas.any { it.fid.contentEquals(fid) })
+    fun add_replica(fid: ByteArray, trusted: Boolean = false, alias: String = "") {
+        if (replicas.any { it.fid.contentEquals(fid) }) { //what does this do?
             return
+        }
         val new_r = Replica(context, File(context.getDir(TINYSSB_DIR, MODE_PRIVATE), FEED_DIR), fid)
         replicas.add(new_r)
         val seq = new_r.state.max_seq + 1
@@ -78,19 +99,35 @@ class Repo(val context: MainActivity) {
             addNumberOfPendingChunks(p.rem)
         }
 
-
-
         if (context.tinyGoset.keys.size > 1) {
             want_offs = Random.nextInt(0, context.tinyGoset.keys.size - 1)
             chnk_offs = Random.nextInt(0, context.tinyGoset.keys.size - 1)
         }
 
         if(context.frontend_ready) // was: isWaiInitialized()
-            context.wai.eval("b2f_new_contact(\"@${fid.toBase64()}.ed25519\")") // notify frontend
+            if (trusted) {
+                context.wai.eval("b2f_new_contact(\"@${fid.toBase64()}.ed25519\", \"trusted\", \"$alias\")") // notify frontend
+            } else {
+                context.wai.eval("b2f_new_contact(\"@${fid.toBase64()}.ed25519\", \"untrusted\")") // notify frontend
+            }
 
         // want_is_valid = false
         // chnk_is_valid = false
 
+    }
+    fun delete_replica(fid: ByteArray): Boolean {
+        // Find the index of the replica with the matching fid
+        val replicaIndex = replicas.indexOfFirst { it.fid.contentEquals(fid) }
+
+        // Check if the replica was found
+        if (replicaIndex != -1) {
+            replicas.removeAt(replicaIndex)
+            Log.d("repo", "Replica with fid ${fid.toHex()} deleted.")
+            return true
+        } else {
+            Log.d("repo", "Replica with fid ${fid.toHex()} not found.")
+            return false
+        }
     }
 
     fun fid2replica(fid: ByteArray): Replica? {
@@ -157,7 +194,7 @@ class Repo(val context: MainActivity) {
                 continue
             }
             new_want_offs++
-            val (ns, ndmx) = r.get_next_seq()
+            val (ns, _ndmx) = r.get_next_seq()
             encoding_len += Bipf.encodingLength(ns) // Bipf.encode(Bipf.mkInt(ns))!!.size
             lst.add(ns)
             v += (if (v.length == 0) "[" else " ") + "$ndx.$ns"
@@ -266,7 +303,7 @@ class Repo(val context: MainActivity) {
                 continue // frontier, mid and log file are already successfully upgraded
             }
             val old_log = RandomAccessFile(File(feed_dir, "log"), "r")
-            var buffer = ByteArray(TINYSSB_PKT_LEN)
+            val buffer = ByteArray(TINYSSB_PKT_LEN)
             var pos = 0
             val new_log = File(feed_dir, "log.bin.tmp")
 
@@ -347,7 +384,7 @@ class Repo(val context: MainActivity) {
 
     fun addNumberOfPendingChunks(amount: Int) {
         numberOfPendingChunks += amount
-        context.wai.eval("refresh_chunk_progressbar($numberOfPendingChunks)")
+        context.wai.eval("refresh_chunk_progressbar($numberOfPendingChunks, ${context.tinyRepo.get_chunk_cnt()})")
     }
 
     fun getNumberOfPendingCHunks(): Int {

@@ -105,8 +105,8 @@ class BlePeers(val act: MainActivity) {
         startBleScan()
         startServer()
 
-        //inform frontend that ble is enabled
-        act.wai.eval("b2f_ble_enabled()")
+        if (act.frontend_ready) //inform frontend that ble is enabled
+            act.wai.eval("b2f_ble_enabled()")
     }
 
     @SuppressLint("MissingPermission")
@@ -116,7 +116,9 @@ class BlePeers(val act: MainActivity) {
             p.value.close()
         }
         stopServer()
-        act.wai.eval("b2f_ble_disabled()")
+
+        if (act.frontend_ready)
+            act.wai.eval("b2f_ble_disabled()")
     }
 
     @SuppressLint("MissingPermission")
@@ -230,8 +232,17 @@ class BlePeers(val act: MainActivity) {
                             Log.d("BlePeers", "ble discovery - ch ${ch.uuid.toString()} found, enable notif")
                             val chRx = s.getCharacteristic(TINYSSB_BLE_RX_CHARACTERISTIC)
                             if (chRx != null ) {
-                                val read = gatt.readDescriptor(chRx.getDescriptor(TINYSSB_BLE_RX_NAME_DESCRIPTOR))
-                                Log.d("BlePeers", "ble - read: $read")
+                                val desc = chRx.getDescriptor(TINYSSB_BLE_RX_NAME_DESCRIPTOR)
+                                if (desc == null)
+                                    Log.d("BlePeers", "no descriptor!")
+                                else {
+                                    try {
+                                        val read = gatt.readDescriptor(desc)
+                                        Log.d("BlePeers", "ble - read: $read")
+                                    } catch (e: Exception) {
+                                        Log.d("BlePeers", "gatt.readDescriptor() triggered an exception $e")
+                                    }
+                                }
                             }
                             gatt.setCharacteristicNotification(ch, true)
                             val lst =

@@ -26,35 +26,27 @@ import nz.scuttlebutt.tremolavossbol.utils.Bipf
 import nz.scuttlebutt.tremolavossbol.utils.Bipf.Companion.BIPF_BYTES
 import nz.scuttlebutt.tremolavossbol.utils.Bipf.Companion.BIPF_LIST
 
-import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_C4_BOARD
-import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_C4_DECLINE
-import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_C4_END
-import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_C4_INVITE
-
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_IAM
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_TEXTANDVOICE
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_KANBAN
-import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_SCHEDULING
 import nz.scuttlebutt.tremolavossbol.utils.HelperFunctions.Companion.deRef
 import nz.scuttlebutt.tremolavossbol.utils.HelperFunctions.Companion.toBase64
 import nz.scuttlebutt.tremolavossbol.utils.HelperFunctions.Companion.toHex
 import nz.scuttlebutt.tremolavossbol.utils.PlusCodesUtils
-import nz.scuttlebutt.tremolavossbol.games.battleships.BattleshipGame
-import nz.scuttlebutt.tremolavossbol.games.common.GamesHandler
-import nz.scuttlebutt.tremolavossbol.games.battleships.GameStates
 import nz.scuttlebutt.tremolavossbol.utils.Bipf_e
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_ACK
+import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_DELETED
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_DLV
-import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_GAMETEXT
-
+import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_NEWTRUSTED
+import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_TICTACTOE
+import okio.ByteString.Companion.decodeHex
 
 
 // pt 3 in https://betterprogramming.pub/5-android-webview-secrets-you-probably-didnt-know-b23f8a8b5a0c
 
-class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandler: GamesHandler) {
+class WebAppInterface(val act: MainActivity, val webView: WebView) {
 
     val frontend_frontier = act.getSharedPreferences("frontend_frontier", Context.MODE_PRIVATE)
-    var gamesHandler = gameHandler
 
     /**
      * Retrieves the current geolocation of the Android device and returns it as a PlusCode.
@@ -196,9 +188,15 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
                 //act.finishAffinity()
             }
             "add:contact" -> {
-                val id = args[1].substring(1,args[1].length-8)
-                Log.d("ADD", id)
-                act.tinyGoset._add_key(Base64.decode(id, Base64.NO_WRAP))
+                val contactID = args[1].substring(1,args[1].length-8)
+                val alias = Base64.decode(args[2], Base64.NO_WRAP).decodeToString()
+                val isTrusted = args.getOrNull(3) != null
+                Log.d("add:contact", "contactID: $contactID, isTrusted: $isTrusted, alias: $alias")
+
+                val keyHex = act.tinyGoset._add_key(Base64.decode(contactID, Base64.NO_WRAP), true, alias)
+                if (isTrusted) {
+                    trust_contact(keyHex, 2)
+                }
             }
             /* no alias publishing in tinyTremola
             "add:contact" -> { // ID and alias
@@ -214,11 +212,11 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
                     return
             }
             */
-            "conf_dlv" -> { // conf_rcv ref rcpt
+            "conf_dlv" -> { // conf_rcv ref rcpt (for TAV confirmation)
                 confirm_post(args, TINYSSB_APP_DLV)
                 return
             }
-            "conf_ack" -> { // conf_ack ref rcpt
+            "conf_ack" -> { // conf_ack ref rcpt (for TAV confirmation)
                 confirm_post(args, TINYSSB_APP_ACK)
                 return
             }
@@ -301,21 +299,6 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
 
                 kanban(bid, prev , op, argsList)
             }
-            "kahoot" -> {
-                val SendID: String? = if (args[1] != "null") args[1] else null
-                val op: String = args[2]
-                val ignore: String = args[3]
-                val args:String? = args[4]
-                Kahoot(SendID, op, args, ignore)
-            }
-            "scheduling" -> {
-                val bid: String? = if (args[1] != "null") args[1] else null
-                val prev: List<String>? = if (args[2] != "null") Base64.decode(args[2], Base64.NO_WRAP).decodeToString().split(",").map{ Base64.decode(it, Base64.NO_WRAP).decodeToString()} else null
-                val op: String = args[3]
-                val argsList: List<String>? = if(args[4] != "null") Base64.decode(args[4], Base64.NO_WRAP).decodeToString().split(",").map{ Base64.decode(it, Base64.NO_WRAP).decodeToString()} else null
-
-                scheduling(bid, prev , op, argsList)
-            }
             "iam" -> {
                 val new_alias = Base64.decode(args[1], Base64.NO_WRAP).decodeToString()
                 val lst = Bipf.mkList()
@@ -327,113 +310,6 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
                     act.tinyNode.publish_public_content(body)
                 }
             }
-            "games" -> { // Handle battleship communication
-                Log.d("GAM - WebApp", args.toString())
-                //gamesHandler.processGameRequest(s.substring(6))
-                // TODO here you can add restrictions, if a command is not allowed
-                if (args[1] == "BSH") {
-                    when (args[2]) {
-                        "INV" -> {
-                            if (gamesHandler.getInviteCount("BSH") != 0) {
-                                Log.d("BSH-Handler INV", "inviteCounter is not 0")
-                                return
-                            }
-                            gameHandler.incInviteCount("BSH")
-                            gamesHandler.addOwnGame(args[1], args[3], GameStates.INVITED)
-                            val inst = gamesHandler.getInstanceFromFid(args[1], args[3])
-                            (inst!!.game as BattleshipGame).setupGame(true)
-                            val req = "${args[1]} INV ${args[3]} ${inst.startTime}"
-                            public_post_game_request(
-                                Base64.encodeToString(
-                                    req.toByteArray(),
-                                    Base64.NO_WRAP
-                                )
-                            )
-                            return
-                        }
-
-                        "INVACC" -> {
-                            val inst = gamesHandler.getInstanceFromFid("BSH", args[3])
-                            var peerHash: String = ""
-                            if (inst != null) {
-                                (inst.game as BattleshipGame).setupGame(false)
-                                peerHash = (inst.game as BattleshipGame).getShipPosition()
-                            }
-
-                            val invacc =
-                                "BSH INVACC ${args[3]} ${gamesHandler.myId.toRef()} $peerHash" // Appending Peer's Shiphash
-                            Log.d("GAM APP (INVACC)", invacc)
-                            public_post_game_request(
-                                Base64.encodeToString(
-                                    invacc.toByteArray(),
-                                    Base64.NO_WRAP
-                                )
-                            )
-                            return
-                        }
-
-                        "SHOT" -> {
-                            val inst = gamesHandler.getInstanceFromFids("BSH", args[3], args[4])
-                            var isPeer: String = ""
-                            if (gamesHandler.isIdEqualToMine(args[3])) { // I am owner
-                                isPeer = "0"
-                            } else if (gamesHandler.isIdEqualToMine(args[4])) {
-                                isPeer = "1"
-                            } else {
-                                return
-                            }
-                            if (inst != null) {
-                                if (!(inst.game as BattleshipGame).gameState!!.isMyTurn()) {
-                                    return
-                                }
-                                (inst.game as BattleshipGame).gameState!!.turn = false
-                            } else {
-                                return
-                            }
-                            val shot =
-                                "${args[1]} ${args[2]} ${args[3]} ${args[4]} $isPeer ${args[5]}"
-                            Log.d("GAM APP (SHOT)", shot)
-                            public_post_game_request(
-                                Base64.encodeToString(
-                                    shot.toByteArray(),
-                                    Base64.NO_WRAP
-                                )
-                            )
-                        }
-
-                        "DUELQUIT" -> {
-                            val inst = gamesHandler.getInstanceFromFids("BSH", args[3], args[4])
-                            if (inst == null || !inst.state.isActive()) {
-                                return
-                            }
-                            inst.state = GameStates.STOPPED
-                            (inst.game as BattleshipGame).gameState!!.turn = false
-                            var isPeer: String = ""
-                            if (gamesHandler.isIdEqualToMine(args[3])) { // I am owner
-                                isPeer = "0"
-                            } else if (gamesHandler.isIdEqualToMine(args[4])) {
-                                isPeer = "1"
-                            }
-                            val quit = "${args[1]} ${args[2]} ${args[3]} ${args[4]} $isPeer"
-                            Log.d("GAM APP (SHOT)", quit)
-                            public_post_game_request(
-                                Base64.encodeToString(
-                                    quit.toByteArray(),
-                                    Base64.NO_WRAP
-                                )
-                            )
-                        }
-
-                        else -> {
-                            public_post_game_request(
-                                Base64.encodeToString(
-                                    s.substring(6).toByteArray(), Base64.NO_WRAP
-                                )
-                            )
-                        }
-                    }
-                }
-            }
             "settings:set" -> {
                 act.settings!!.set(args[1], args[2])
             }
@@ -441,24 +317,150 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
                 val settings = act.settings!!.getSettings()
                 act.wai.eval("b2f_get_settings('${settings}')")
             }
+            "tictactoe" -> {
+                val lst = Bipf.mkList()
+                Bipf.list_append(lst, TINYSSB_APP_TICTACTOE)
+                for (a in args.slice(1 ..args.size-1))
+                    Bipf.list_append(lst, Bipf.mkString(a))
+                Bipf.encode(lst)?.let {act.tinyNode.publish_public_content(it)}
+            }
+            "contacts:getTrust" -> {
+                getContactTrust(args[1])
+            }
 
-            "connect_four" -> {
-                connect_four(args[1], args[2], args[3], args[4]);
+            "contacts:setTrust" -> {
+                val tips = ArrayList<String>(0)
+                val a = JSONArray(args[3])
+                for (i in 0..a.length()-1) {
+                    val s = a[i].toString() // (a[i] as JSONObject).toString()
+                    tips.add(s)
+                }
+                setContactTrust(args[1], args[2].toInt(), tips);
             }
-            "connect_four_end" -> {
-                connect_four_end(args[1], args[2], args[3]);
+
+            "contacts:delete" -> {
+                Log.d("deleteContact", "Deleting contact with ID: ${args[1]}")
+                deleteContact(args[1])
             }
-            "connect_four_invite" -> {
-                connect_four_invite(args[1], args[2]);
-            }
-            "connect_four_decline_invite" -> {
-                connect_four_decline_invite(args[1],args[2]);
+
+            "contacts:checkDeleted" -> {
+                val deleted = readContactDeleted(args[1])
+                if (deleted == 1) {
+                    eval("forget_contact('${args[1]}')")
+                }
             }
 
             else -> {
                 Log.d("onFrontendRequest", "unknown")
             }
         }
+    }
+
+    fun deleteContact(contactID: String) {
+        act.tinyRepo.delete_feed(contactID.decodeHex().toByteArray())
+        act.tinyGoset.remove_key(contactID.decodeHex().toByteArray())
+        act.tinyRepo.delete_replica(contactID.decodeHex().toByteArray())
+        createContactDeletedEntry(contactID)
+        Log.d("deleteContact", "Contact with ID: $contactID deleted")
+
+        //remove contact from frontend contacts list
+        eval("deleteContact('${contactID}')")
+    }
+
+    fun getContactsTrustLevel(): Map<String, Int> {
+        //use a similar implementation to getContactTrust, traverse through log file and get all contactst here with their trust level
+        val contactsTrustLevel = mutableMapOf<String, Int>()
+        val userFeed = act.tinyRepo.fid2replica(act.idStore.identity.verifyKey)
+        val lastSeq = userFeed?.state?.max_seq
+        if (lastSeq != null) {
+            for (i in lastSeq downTo 1) {
+                var entry = userFeed.read_content(lastSeq)
+                //decode the entry using Bipf decode
+                val decodedEntry = entry?.let { Bipf.decode(it) }
+                Log.d("decodedEntry", decodedEntry.toString())
+
+                //get bytes from the decoded entry
+                try {
+                    val entryBytes = decodedEntry?.let {it.getBytes()}
+                    Log.d("entryBytes1", entryBytes.toString())
+                    //decrypt the bytes to get the clear text
+                    val clear = entryBytes?.let { act.idStore.identity.decryptPrivateMessage(it) }
+                    Log.d("clear", clear.toString())
+
+                    val entryType = clear?.let { getFromEntry(it, 0) }
+                    if (entryType == "TRT") {
+                        if (clear is ByteArray) {
+                            val contactID = getFromEntry(clear, 2)
+                            val trustLevel = getFromEntry(clear, 3)
+                            if (contactID != null && trustLevel != null) {
+                                contactsTrustLevel[contactID.toString()] = trustLevel.toString().toInt()
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.d("entryBytes1", "null")
+                    //skip the entry if it is null
+                    continue
+                }
+            }
+        }
+        return contactsTrustLevel
+    }
+
+    fun setContactTrust(contactID: String, trustLevel: Int, tips: ArrayList<String>) {
+        Log.d("setTrust", "Setting Contact $contactID's trust level to $trustLevel with tips $tips")
+        trust_contact(contactID, trustLevel, tips);
+    }
+
+    fun getContactTrust(fidString: String): Int {
+        val fid = fidString.decodeHex()
+        val userFeed = act.tinyRepo.fid2replica(act.idStore.identity.verifyKey)
+        val lastSeq = userFeed?.state?.max_seq
+        Log.d("trust level: ", "test1")
+        Log.d("trust level: ", "last seq: " + lastSeq)
+        if (lastSeq != null) {
+            Log.d("trust level: ", "test2")
+            for (i in lastSeq downTo 1) {
+                var entry = userFeed.read_content(lastSeq)
+                val entryType = entry?.let { getFromEntry(it, 0) }
+                Log.d("trust level: ", "test3")
+                Log.d("trust level: ", entryType.toString())
+                if (entryType == "TRT") {
+                    Log.d("trust level: ", "test4")
+                    if (entry is ByteArray) {
+                        Log.d("Details for Contact", fidString)
+                        val contactID = getFromEntry(entry, 2)
+                        val trustLevel = getFromEntry(entry, 3)
+                        if (contactID.toString() == fidString) {
+                            Log.d("contactTrustLevel", trustLevel.toString())
+                            if (trustLevel == "Trusted") {
+                                Log.d("contactTrust", "Trusted")
+                                return 1
+                            } else if (trustLevel == "Untrusted") {
+                                Log.d("contactTrust", "Untrusted")
+                                return 0
+                            }
+                        }
+
+                    }
+                }
+            }
+        }
+        Log.d("contactTrust", "Untrusted")
+        return 0
+    }
+
+    fun getFromEntry(entry: ByteArray, index: Int): Any? {
+        if (entry != null) {
+            val entry = Bipf.bipf_loads(entry)
+            if (entry != null) {
+                if (entry.get() is ArrayList<*>) {
+                    val first = (entry.get() as ArrayList<*>).get(index)
+                    return first
+                }
+            }
+        }
+        return null
     }
 
     fun eval(js: String) { // send JS string to webkit frontend for execution
@@ -530,6 +532,161 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
             act.tinyNode.publish_public_content(body)
     }
 
+    fun trust_contact(contactID: String, trustLevel: Int, tips: ArrayList<String> = ArrayList()) {
+        val lst = Bipf.mkList()
+        Bipf.list_append(lst, TINYSSB_APP_NEWTRUSTED)
+        val tip_lst = Bipf.mkList()
+        for (t in tips) {
+            Bipf.list_append(tip_lst, Bipf.mkString(t))
+        }
+        Bipf.list_append(lst, tip_lst)
+        Bipf.list_append(lst, Bipf.mkString(contactID))
+        Bipf.list_append(lst, Bipf.mkInt(trustLevel))
+
+        val tst = Bipf.mkInt((System.currentTimeMillis() / 1000).toInt())
+        Log.d("wai", "private send time is ${tst.getInt()}")
+        Bipf.list_append(lst, tst)
+        Bipf.list_append(lst, Bipf.mkNone()) //placeholder for voice
+
+        //encrypt the entry such that only I can read it
+        val recps = Bipf.mkList()
+        val keys: MutableList<ByteArray> = mutableListOf()
+        val me = act.idStore.identity.toRef()
+        Bipf.list_append(recps, Bipf.mkString(me))
+        keys.add(me.deRef())
+        Bipf.list_append(lst, recps)
+
+        val body_clear = Bipf.encode(lst)
+        val encrypted = body_clear!!.let { act.idStore.identity.encryptPrivateMessage(it, keys) }
+
+        val body_encr = Bipf.encode(Bipf.mkBytes(encrypted))
+
+        //test if entry can be decrypted
+        val clear = encrypted?.let { act.idStore.identity.decryptPrivateMessage(it) }
+        if (clear != null) {
+            val clearList = Bipf.decode(clear)
+            if (clearList != null) {
+                val clearJson = Bipf.bipf_list2JSON(clearList)
+                Log.d("trust_contact", clearJson.toString())
+            }
+        }
+
+        if (body_encr != null)
+            act.tinyNode.publish_public_content(body_encr)
+
+        if (trustLevel != 0) {
+            act.removeEntryFromJsonFile(contactID)
+        } else {
+            act.saveContactToJSONFile(contactID, 24)
+        }
+
+        reloadContactsTrustLevel()
+    }
+
+    fun createContactDeletedEntry(fid: String, value: Int = 1) {
+        if (readContactDeleted(fid) == value) {
+            return
+        }
+        val lst = Bipf.mkList()
+        Bipf.list_append(lst, TINYSSB_APP_DELETED)
+        Bipf.list_append(lst, Bipf.mkString(fid))
+        Bipf.list_append(lst, Bipf.mkInt(value))
+
+        //encrypt the entry such that only I can read it
+        val recps = Bipf.mkList()
+        val keys: MutableList<ByteArray> = mutableListOf()
+        val me = act.idStore.identity.toRef()
+        Bipf.list_append(recps, Bipf.mkString(me))
+        keys.add(me.deRef())
+        Bipf.list_append(lst, recps)
+
+        val body_clear = Bipf.encode(lst)
+        val encrypted = body_clear!!.let { act.idStore.identity.encryptPrivateMessage(it, keys) }
+
+        val body_encr = Bipf.encode(Bipf.mkBytes(encrypted))
+
+        if (body_encr != null)
+            act.tinyNode.publish_public_content(body_encr)
+    }
+
+    fun readContactDeleted(fid: String): Int {
+        val userFeed = act.tinyRepo.fid2replica(act.idStore.identity.verifyKey)
+        val lastSeq = userFeed?.state?.max_seq
+        if (lastSeq != null) {
+            for (i in lastSeq downTo 1) {
+                var entry = userFeed.read_content(i)
+                //decode the entry using Bipf decode
+                val decodedEntry = entry?.let { Bipf.decode(it) }
+
+                //get bytes from the decoded entry
+                val entryBytes = decodedEntry?.let {it.getBytes()}
+
+                //decrypt the bytes to get the clear text
+                val clear = entryBytes?.let { act.idStore.identity.decryptPrivateMessage(it) }
+
+                val entryType = clear?.let { getFromEntry(it, 0) }
+                if (entryType == "DEL") {
+                    if (clear is ByteArray) {
+                        val contactID = getFromEntry(clear, 1)
+                        val deleted = getFromEntry(clear, 2)
+                        Log.d("readContactDeleted", "Contact ID: $contactID, Deleted: $deleted")
+                        if (contactID.toString() == fid) {
+                            return deleted.toString().toInt()
+                        }
+                    }
+                }
+            }
+        }
+        return 0
+    }
+
+    //get the trust level of all contacts and save them in a dictionary, then send them to the frontend
+    private fun reloadContactsTrustLevel() {
+        val contactsTrustLevel = mutableMapOf<String, Int>()
+        for (fid in act.tinyRepo.listFeeds()) {
+            val userFeed = act.tinyRepo.fid2replica(fid)
+            val lastSeq = userFeed?.state?.max_seq
+            if (lastSeq != null) {
+                for (i in lastSeq downTo 1) {
+                    var entry = userFeed.read_content(i)
+                    //decode the entry using Bipf decode
+                    val decodedEntry = entry?.let { Bipf.decode(it) }
+                    Log.d("decodedEntry", decodedEntry.toString())
+
+                    if (decodedEntry != null) {
+                        if (decodedEntry.isBytes()) {
+                            //get bytes from the decoded entry
+                            val entryBytes = decodedEntry?.let {it.getBytes()}
+                            Log.d("entryBytes2", entryBytes.toString())
+
+                            //decrypt the bytes to get the clear text
+                            val clear = entryBytes?.let { act.idStore.identity.decryptPrivateMessage(it) }
+                            Log.d("clear", clear.toString())
+
+                            val entryType = clear?.let { getFromEntry(it, 0) }
+                            if (entryType == "TRT") {
+                                if (clear is ByteArray) {
+                                    val contactID = getFromEntry(clear, 2)
+                                    val trustLevel = getFromEntry(clear, 3)
+                                    if (contactID != null && trustLevel != null) {
+                                        //check if the contact is already in the dictionary
+                                        if (!contactsTrustLevel.containsKey(contactID.toString())) {
+                                            //if the contact is not in the dictionary, add the contact to the dictionary
+                                            contactsTrustLevel[contactID.toString()] = trustLevel.toString().toInt()
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        val contactsTrustLevelJson = JSONObject(contactsTrustLevel as Map<*, *>?)
+        Log.d("contactsTrustLevelJson", contactsTrustLevelJson.toString())
+        eval("reloadContactsTrustLevels('${contactsTrustLevelJson}')")
+    }
+
     fun private_post_with_voice(tips: ArrayList<String>, text: String?, voice: ByteArray?, rcps: List<String>) {
         if (text != null)
             Log.d("wai", "private post_voice t- ${text}/${text.length}")
@@ -567,85 +724,6 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
         val body_encr = Bipf.encode(Bipf.mkBytes(encrypted))
         if (body_encr != null)
             act.tinyNode.publish_public_content(body_encr)
-    }
-
-    /* Kahoot-Function: Encapsulates the data from Kahoot and sends it as public content. */
-    fun Kahoot(SendID:String?, operation:String, args:String?, ignore:String?){
-        val lst = Bipf.mkList()
-        Bipf.list_append(lst, Bipf.mkString("KAH"))
-        if(SendID != null) {
-            Bipf.list_append(lst, Bipf.mkString(SendID))
-        } else {
-            Bipf.list_append(lst, Bipf.mkString("null"))  // TODO: Change to Bipf.mkNone(), but would be incompatible with the old format
-        }
-        Bipf.list_append(lst, Bipf.mkString(operation))
-        if(ignore != null) {
-            Bipf.list_append(lst, Bipf.mkString(ignore))
-        } else {
-            Bipf.list_append(lst, Bipf.mkString("null"))  // TODO: Change to Bipf.mkNone(), but would be incompatible with the old format
-        }
-        if (args != null) {
-            Bipf.list_append(lst, Bipf.mkString(args))
-        } else { // arg is not a b64 string
-            Log.d("KAHOOT-INFO", "null-value")
-            Bipf.list_append(lst, Bipf.mkString("null"))
-        }
-        val body = Bipf.encode(lst)
-        if (body != null) {
-            Log.d("Kahoot", "published bytes: " + Bipf.decode(body))
-            act.tinyNode.publish_public_content(body)
-        }
-    }
-
-    // BATTLESHIP
-    fun public_post_game_request(text: String?) {
-        val lst = Bipf.mkList()
-        Bipf.list_append(lst, TINYSSB_APP_GAMETEXT)
-        Bipf.list_append(lst, if (text == null) Bipf.mkNone() else Bipf.mkString(text))
-        val tst = Bipf.mkInt((System.currentTimeMillis() / 1000).toInt())
-        // Log.d("wai", "send time is ${tst.getInt()}")
-        Bipf.list_append(lst, tst)
-        val body = Bipf.encode(lst)
-        if (body != null)
-            act.tinyNode.publish_public_content(body)
-    }
-
-    fun scheduling(bid: String?, prev: List<String>?, operation: String, args: List<String>?) {
-        val lst = Bipf.mkList()
-        Bipf.list_append(lst, TINYSSB_APP_SCHEDULING)
-        if (bid != null)
-            Bipf.list_append(lst, Bipf.mkBytes(Base64.decode(bid, Base64.NO_WRAP)))
-        else
-            Bipf.list_append(lst, Bipf.mkNone())
-
-        if(prev != null) {
-            val prevList = Bipf.mkList()
-            for(p in prev) {
-                Bipf.list_append(prevList, Bipf.mkBytes(Base64.decode(p, Base64.NO_WRAP)))
-            }
-            Bipf.list_append(lst, prevList)
-        } else {
-            Bipf.list_append(lst, Bipf.mkString("null"))
-        }
-
-        Bipf.list_append(lst, Bipf.mkString(operation))
-
-        if(args != null) {
-            for(arg in args) {
-                if (Regex("^([A-Za-z0-9+/]{4})*([A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==)?\$").matches(arg)) {
-                    Bipf.list_append(lst, Bipf.mkBytes(Base64.decode(arg, Base64.NO_WRAP)))
-                } else { // arg is not a b64 string
-                    Bipf.list_append(lst, Bipf.mkString(arg))
-                }
-            }
-        }
-
-        val body = Bipf.encode(lst)
-
-        if (body != null) {
-            Log.d("scheduling", "published bytes: " + Bipf.decode(body))
-            act.tinyNode.publish_public_content(body)
-        }
     }
 
     fun kanban(bid: String?, prev: List<String>?, operation: String, args: List<String>?) {
@@ -687,66 +765,8 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
         //val body = Bipf.encode(lst)
         //Log.d("KANBAN BIPF ENCODE", Bipf.bipf_list2JSON(Bipf.decode(body!!)!!).toString())
         //if (body != null)
-            //act.tinyNode.publish_public_content(body)
+        //act.tinyNode.publish_public_content(body)
 
-    }
-
-    fun connect_four(gameId: String, currentPlayer: String, members: String, stonePos: String) {
-        val lst = Bipf.mkList()
-        Bipf.list_append(lst, TINYSSB_APP_C4_BOARD)
-        Bipf.list_append(lst, Bipf.mkString(gameId))
-        Bipf.list_append(lst, Bipf.mkString(currentPlayer))
-        Bipf.list_append(lst, Bipf.mkString(members))
-        Bipf.list_append(lst, Bipf.mkString(stonePos))
-
-        val body = Bipf.encode(lst)
-
-        if (body != null) {
-            Log.d("connect_four", "published bytes: " + Bipf.decode(body))
-            act.tinyNode.publish_public_content(body)
-        }
-    }
-
-    fun connect_four_invite(inviter: String, invitee: String) {
-        val lst = Bipf.mkList()
-        Bipf.list_append(lst, TINYSSB_APP_C4_INVITE)
-        Bipf.list_append(lst, Bipf.mkString(inviter))
-        Bipf.list_append(lst, Bipf.mkString(invitee))
-
-        val body = Bipf.encode(lst)
-
-        if (body != null) {
-            Log.d("connect_four_invite", "published bytes: " + Bipf.decode(body))
-            act.tinyNode.publish_public_content(body)
-        }
-    }
-
-    fun connect_four_decline_invite(inviter: String, invitee: String) {
-        val lst = Bipf.mkList()
-        Bipf.list_append(lst, TINYSSB_APP_C4_DECLINE)
-        Bipf.list_append(lst, Bipf.mkString(inviter))
-        Bipf.list_append(lst, Bipf.mkString(invitee))
-
-        val body = Bipf.encode(lst)
-
-        if (body != null) {
-            Log.d("connect_four_decline_invite", "published bytes: " + Bipf.decode(body))
-            act.tinyNode.publish_public_content(body)
-        }
-    }
-
-    fun connect_four_end(gameId: String, loser: String, stonePos: String) {
-        val lst = Bipf.mkList()
-        Bipf.list_append(lst, TINYSSB_APP_C4_END)
-        Bipf.list_append(lst, Bipf.mkString(gameId))
-        Bipf.list_append(lst, Bipf.mkString(loser))
-        Bipf.list_append(lst, Bipf. mkString(stonePos))
-
-        val body = Bipf.encode(lst)
-        if (body != null) {
-            Log.d("connect_four", "published bytes: " + Bipf.decode(body))
-            act.tinyNode.publish_public_content(body)
-        }
     }
 
     fun return_voice(voice: ByteArray) {
@@ -765,8 +785,11 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
     fun sendTinyEventToFrontend(fid: ByteArray, seq: Int, mid:ByteArray, body: ByteArray) {
         // Log.d("wai","sendTinyEvent ${body.toHex()}")
         var e = toFrontendObject(fid, seq, mid, body)
-        if (e != null)
+        if (e != null) {
+            val trust = getContactTrust(fid.toHex())
+            Log.d("ContactTrust: ", trust.toString())
             eval("b2f_new_event($e)")
+        }
 
         // in-order api
         val replica = act.tinyRepo.fid2replica(fid)
@@ -808,6 +831,8 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
                     hdr.put("fid", "@" + fid.toBase64() + ".ed25519")
                     hdr.put("ref", mid.toBase64())
                     hdr.put("seq", seq)
+                    Log.d("decrypted log entry", hdr.toString())
+                    Log.d("decrypted log entry", param.toString())
                     return "{header:${hdr.toString()}, confid:${param.toString()}}"
                 }
             }

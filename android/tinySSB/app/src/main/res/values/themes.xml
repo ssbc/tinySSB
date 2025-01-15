@@ -1,10 +1,5 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme. -->
-    <style name="Launcher" parent="AppTheme"> <!-- parent="Theme.Design.NoActionBar" -->
+    <style name="Launcher" parent="AppTheme">
         <item name="android:windowBackground">@drawable/launch_screen</item>
-       <!-- parent="Theme.MaterialComponents.DayNight.DarkActionBar" -->
-      <!-- item name="android:windowBackground">@drawable/launch_screen</item -->
-      <!-- Optional, on Android 5+ you can modify the colorPrimaryDark color to match the windowBackground color for further branding -->
-      <!-- <item name="colorPrimaryDark">@android:color/white</item> -->
     </style>
 </resources>

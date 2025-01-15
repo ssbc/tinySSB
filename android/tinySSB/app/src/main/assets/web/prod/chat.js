@@ -9,7 +9,7 @@ var curr_img_candidate = null;
 // --- menu callbacks
 
 function menu_new_conversation() {
-    fill_members();
+    fill_members(false);
     prev_scenario = 'chats';
     setScenario("members");
     document.getElementById("div:textarea").style.display = 'none';
@@ -393,29 +393,65 @@ function load_chat_list() {
                 load_chat_item(nm)
 }
 
-function load_chat_item(nm) { // appends a button for conversation with name nm to the conv list
-    var cl, mem, item, bg, row, badge, badgeId, cnt;
-    cl = document.getElementById('lst:chats');
-    // console.log(nm)
-    if (nm == "ALL")
-        mem = "ALL";
-    else
-        mem = "🔒 " + recps2display(tremola.chats[nm].members);
-    item = document.createElement('div');
-    // item.style = "padding: 0px 5px 10px 5px; margin: 3px 3px 6px 3px;";
-    item.setAttribute('class', 'chat_item_div'); // old JS (SDK 23)
-    if (tremola.chats[nm].forgotten) bg = ' gray'; else bg = ' light';
-    row = "<button class='chat_item_button w100" + bg + "' onclick='load_chat(\"" + nm + "\");' style='overflow: hidden; position: relative;'>";
-    row += "<div style='white-space: nowrap;'><div style='text-overflow: ellipsis; overflow: hidden;'>" + tremola.chats[nm].alias + "</div>";
-    row += "<div style='text-overflow: clip; overflow: ellipsis;'><font size=-2>" + escapeHTML(mem) + "</font></div></div>";
-    badgeId = nm + "-badge"
-    badge = "<div id='" + badgeId + "' style='display: none; position: absolute; right: 0.5em; bottom: 0.9em; text-align: center; border-radius: 1em; height: 2em; width: 2em; background: var(--red); color: white; font-size: small; line-height:2em;'>&gt;9</div>";
+function load_chat_item(nm) {
+    var cl = document.getElementById('lst:chats');
+    var item = document.createElement('div');
+    item.setAttribute('class', 'chat_item_div');
+
+    var mem = (nm == "ALL") ? "ALL" : "🔒 " + recps2display(tremola.chats[nm].members);
+    var bg = (tremola.chats[nm].forgotten) ? ' gray' : ' light';
+
+    // Get the current trust level
+    let trustLevel = getChatTrustLevel(nm);
+    let trustCircle = "🔴";
+    if (trustLevel == 1) {
+        trustCircle = "🟠";
+    } else if (trustLevel == 2) {
+        trustCircle = "🟢";
+    }
+
+    var row = "<button class='chat_item_button w100" + bg + "' onclick='load_chat(\"" + nm + "\");' style='overflow: hidden; position: relative;'>";
+    row += "<div style='white-space: nowrap;'><div style='text-overflow: ellipsis; overflow: hidden;'>";
+    row += tremola.chats[nm].alias + " ";
+    // Insert the trust circle with a unique ID
+    row += "<span id='trustCircle_" + nm + "'>" + trustCircle + "</span>";
+    row += "</div><div style='text-overflow: clip; overflow: ellipsis;'><font size=-2>" + escapeHTML(mem) + "</font></div></div>";
+
+    var badgeId = nm + "-badge";
+    var badge = "<div id='" + badgeId + "' style='display: none; position: absolute; right: 0.5em; bottom: 0.9em; text-align: center; border-radius: 1em; height: 2em; width: 2em; background: var(--red); color: white; font-size: small; line-height:2em;'>&gt;9</div>";
     row += badge + "</button>";
-    row += ""
     item.innerHTML = row;
     cl.appendChild(item);
-    set_chats_badge(nm)
+
+    set_chats_badge(nm);
 }
+
+function reloadChatTrustLevels() {
+    if (!tremola || !tremola.chats) {
+        console.error("tremola.chats not found.");
+        return;
+    }
+
+    for (var nm in tremola.chats) {
+        if (!tremola.chats.hasOwnProperty(nm)) continue;
+
+        var trustLevel = getChatTrustLevel(nm); // assume this returns 0,1,2
+        var trustCircle = "🔴"; // default
+        if (trustLevel == 1) {
+            trustCircle = "🟠";
+        } else if (trustLevel == 2) {
+            trustCircle = "🟢";
+        }
+
+        // Update the DOM element directly
+        var elem = document.getElementById("trustCircle_" + nm);
+        if (elem) {
+            elem.textContent = trustCircle;
+        }
+    }
+}
+
+
 
 function new_conversation() {
     // { "alias":"local notes (for my eyes only)", "posts":{}, "members":[myId], "touched": millis }

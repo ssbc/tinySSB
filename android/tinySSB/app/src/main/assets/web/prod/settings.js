@@ -5,6 +5,7 @@
 // These default settings are only used for browser-only testing
 // Normally, these settings below WILL BE IGNORED and loaded via the provided backend.
 const BrowserOnlySettings = {
+    'dark_mode': false,
     'show_chat_preview': false,
     'show_background_map': true,
     'websocket_enabled': false,
@@ -17,6 +18,22 @@ const BrowserOnlySettings = {
     'websocket_url': "ws://meet.dmi.unibas.ch:8989",
     'geo_location': true
 }
+
+var advancedSettings = [
+    'confirmed_delivery_enabled',
+    'geo_location_enabled',
+    'show_shortnames',
+    'hide_forgotten_conv',
+    'hide_forgotten_contacts',
+    'hide_forgotten_kanbans',
+    // backend settings
+    'ble_enabled',
+    'udp_multicast_enabled',
+    'websocket_enabled',
+    'danger_restream', 'danger_reset', 'danger_delete',
+    'danger_import', 'danger_export',
+];
+
 
 // button/toggle handler for boolean settings; settingID is determined by the id of the html object that emitted the event (e.id)
 function toggle_changed(e) {
@@ -36,10 +53,14 @@ function getSetting(settingID) {
 
 // frontend handler when settings have changed
 function applySetting(nm, val) {
-    if (nm == 'show_background_map') {
+    if (nm == 'dark_mode')
+        apply_background();
+    else if (nm == 'simple_mode')
+        apply_simple_mode();
+    else if (nm == 'show_background_map') {
         if (val)
-            document.body.style.backgroundImage = "url('img/splash-as-background.jpg')";
-        else
+            apply_background();
+         else
             document.body.style.backgroundImage = null;
     } else if (nm == 'hide_forgotten_conv') {
         load_chat_list();
@@ -53,12 +74,33 @@ function applySetting(nm, val) {
     }
 }
 
+function apply_background() {
+    var fn;
+    if ('dark_mode' in tremola.settings && tremola.settings['dark_mode']) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        fn = 'img/splash-as-background-inverted.jpg';
+    } else {
+        document.documentElement.setAttribute('data-theme', 'light');
+        fn = 'img/splash-as-background.jpg';
+    }
+    document.body.style.backgroundImage = `url(${fn})`;
+}
+
+function apply_simple_mode() {
+    var v = 'simple_mode' in tremola.settings && tremola.settings['simple_mode'];
+    for (var m in advancedSettings) {
+        // console.log("apply_simple " + advancedSettings[m])
+        document.getElementById(advancedSettings[m]).parentNode.parentNode.parentNode.style.display = v ? 'none' : null;
+    }
+    document.getElementById('btn:syncStat').style.display = v ? 'none' : null;
+}
+
 // setter, this will also save the given settingID and its value in the backend
 function setSetting(nm, val) {
-    console.log("setting", nm, val)
+    // console.log("setting", nm, val);
     if (nm == "websocket_url") {
-      document.getElementById("settings_urlInput").value = val
-      return
+      document.getElementById("settings_urlInput").value = val;
+      return;
     }
     applySetting(nm, val);
     document.getElementById(nm).checked = val;

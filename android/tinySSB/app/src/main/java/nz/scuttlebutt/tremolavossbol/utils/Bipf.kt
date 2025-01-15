@@ -80,6 +80,10 @@ class Bipf_e(t: Int) {
             }
         }
     }
+
+    fun isBytes(): Boolean {
+        return typ == BIPF_BYTES
+    }
 }
 
 class Bipf {

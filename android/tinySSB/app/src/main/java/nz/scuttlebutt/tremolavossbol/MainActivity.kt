@@ -4,6 +4,7 @@ package nz.scuttlebutt.tremolavossbol
 
 // import nz.scuttlebutt.tremolavossbol.tssb.ble.BlePeers
 
+import MyWorker
 import android.app.Activity
 import android.bluetooth.BluetoothAdapter
 import android.content.BroadcastReceiver
@@ -11,7 +12,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.ActivityInfo
-import android.net.*
+import android.net.NetworkInfo
+import android.net.Uri
 import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.Bundle
@@ -19,17 +21,40 @@ import android.os.Handler
 import android.util.Log
 import android.view.View
 import android.view.Window
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import androidx.annotation.RequiresApi
+import androidx.appcompat.app.AppCompatDelegate
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import androidx.webkit.WebViewAssetLoader
+import androidx.webkit.WebViewAssetLoader.AssetsPathHandler
+import androidx.webkit.WebViewClientCompat
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
 import com.google.zxing.integration.android.IntentIntegrator
 import nz.scuttlebutt.tremolavossbol.crypto.IdStore
+import nz.scuttlebutt.tremolavossbol.tssb.Demux
+import nz.scuttlebutt.tremolavossbol.tssb.GOset
+import nz.scuttlebutt.tremolavossbol.tssb.IO
+import nz.scuttlebutt.tremolavossbol.tssb.Node
+import nz.scuttlebutt.tremolavossbol.tssb.Repo
+import nz.scuttlebutt.tremolavossbol.tssb.WebsocketIO
 import nz.scuttlebutt.tremolavossbol.tssb.ble.BlePeers
-import nz.scuttlebutt.tremolavossbol.tssb.*
 import nz.scuttlebutt.tremolavossbol.tssb.ble.BluetoothEventListener
 import nz.scuttlebutt.tremolavossbol.utils.Constants
-import nz.scuttlebutt.tremolavossbol.games.common.GamesHandler
+import org.json.JSONObject
 import tremolavossbol.R
-import java.net.*
+import java.io.File
+import java.net.InetAddress
+import java.net.MulticastSocket
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.thread
 
@@ -41,7 +66,6 @@ class MainActivity : Activity() {
     // lateinit var tremolaState: TremolaState
     lateinit var idStore: IdStore
     lateinit var wai: WebAppInterface
-    lateinit var gamesHandler: GamesHandler
     lateinit var tinyIO: IO
     var frontend_ready = false
     val tinyNode = Node(this)
@@ -76,13 +100,21 @@ class MainActivity : Activity() {
 
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
-        settings = Settings(this)
         super.onCreate(savedInstanceState)
 
-        setRequestedOrientation (ActivityInfo.SCREEN_ORIENTATION_PORTRAIT)
+        AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
         requestWindowFeature(Window.FEATURE_NO_TITLE)
+        setRequestedOrientation (ActivityInfo.SCREEN_ORIENTATION_PORTRAIT)
+
         setContentView(R.layout.activity_main)
-        // tremolaState = TremolaState(this)
+
+        val windowInsetsController =
+            WindowCompat.getInsetsController(window, window.decorView)
+        windowInsetsController!!.systemBarsBehavior =
+            WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        windowInsetsController.hide(WindowInsetsCompat.Type.navigationBars())
+
+        settings = Settings(this)
         idStore = IdStore(this)
 
         // wifiManager = applicationContext.getSystemService(WIFI_SERVICE) as WifiManager
@@ -93,16 +125,30 @@ class MainActivity : Activity() {
         Log.d("IDENTITY", "is ${idStore.identity.toRef()} (${idStore.identity.verifyKey})")
 
         val webView = findViewById<WebView>(R.id.webView)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+        val assetLoader = WebViewAssetLoader.Builder()
+            .addPathHandler("/assets/", AssetsPathHandler(this))
+            .build()
+        webView.webViewClient = object : WebViewClientCompat() {
+            override fun shouldInterceptRequest(
+                view: WebView,
+                request: WebResourceRequest
+            ): WebResourceResponse? {
+                return assetLoader.shouldInterceptRequest(request.url)
+            }
+            @Suppress("deprecation") // for API < 21
+            override fun shouldInterceptRequest(view: WebView, url: String): WebResourceResponse? {
+                return assetLoader.shouldInterceptRequest(Uri.parse(url))
+            }
+        }
+
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
             webView.setLayerType(
                 View.LAYER_TYPE_SOFTWARE,
                 null
             ) // disable acceleration, needed for older WebViews
         }
-        gamesHandler = GamesHandler(idStore.identity)
-        webView.addJavascriptInterface(gamesHandler, "GameHandler")
 
-        wai = WebAppInterface(this, webView, gamesHandler)
+        wai = WebAppInterface(this, webView)
         // upgrades repo filesystem if necessary
         tinyRepo.upgrade_repo()
         tinyIO = IO(this, wai)
@@ -114,50 +160,12 @@ class MainActivity : Activity() {
         tinyDemux.arm_dmx(tinyDemux.chnk_dmx!!, { buf:ByteArray, aux:ByteArray?, _ -> tinyNode.incoming_chunk_request(buf,aux)})
 
         webView.clearCache(true)
-        /* no image support in tinyTremola
-        webView.webViewClient = object : WebViewClient() {
-            override fun shouldInterceptRequest(
-                view: WebView,
-                request: WebResourceRequest
-            ): WebResourceResponse? {
-                Log.d("load", "request for URI ${request.url}")
-                val bName = request.url.toString().substring(LOCAL_URL_PREFIX.length)
-                try {
-                    val inputStream = tremolaState.blobStore.fetch(bName)
-                    val x = WebResourceResponse(
-                        "image/jpeg", null,
-                        inputStream
-                    )
-                    return x
-                } catch (e: Exception) {
-                    Log.d("fetch error", "${e}")
-                }
-                return null
-            }
-        }
-        */
-        // val webStorage = WebStorage.getInstance()
         webView.addJavascriptInterface(wai, "Android")
-        webView.addJavascriptInterface(gamesHandler, "GamesHandler")
 
         webView.settings.javaScriptEnabled = true
         webView.settings.domStorageEnabled = true
 
-        webView.loadUrl("file:///android_asset/web/tremola.html")
-        // webSettings?.javaScriptCanOpenWindowsAutomatically = true
-
-        // prepare for connectivity changes:
-        /*
-        if (networkCallback == null) {
-            networkCallback = object : ConnectivityManager.NetworkCallback() {
-                override fun onLinkPropertiesChanged(nw: Network, prop: LinkProperties) {
-                    // Log.d("onLinkPropertiesChanged", "${nw} ${prop}")
-                    super.onLinkPropertiesChanged(nw, prop)
-                    // mkSockets()
-                }
-            }
-        }
-        */
+        webView.loadUrl("https://appassets.androidplatform.net/assets/web/tremola.html")
 
         broadcastReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
@@ -261,6 +269,44 @@ class MainActivity : Activity() {
         t5.priority = 8
         t6.priority = 8
 
+        scheduleWorker(this)
+
+    }
+
+    fun scheduleWorker(context: Context) {
+        val workRequest = PeriodicWorkRequestBuilder<MyWorker>(15, TimeUnit.MINUTES)
+            .build()
+
+        WorkManager.getInstance(context).enqueueUniquePeriodicWork(
+            "NewRealWorker", // Unique name for the worker to prevent duplicates
+            androidx.work.ExistingPeriodicWorkPolicy.KEEP, // Keep the existing worker if already scheduled
+            workRequest
+        )
+    }
+
+    fun removeEntryFromJsonFile(keyHex: String) {
+        //get the json file with name "untrusted.json", create one if it doesn't exist
+        val jsonFile = File(filesDir, "contacts.json")
+        if (!jsonFile.exists()) {
+            jsonFile.createNewFile()
+        }
+
+        //if the json file is empty, return
+        if (jsonFile.length() == 0L) {
+            return
+        }
+        //read the json file
+        val json = jsonFile.readText()
+        //parse the json string to a json object
+        val jsonObject = JSONObject(json)
+
+        //if hex key is in the json object, remove it
+        if (jsonObject.has(keyHex)) {
+            jsonObject.remove(keyHex)
+        }
+
+        //write the json object to the json file
+        jsonFile.writeText(jsonObject.toString())
     }
 
     override fun onBackPressed() {
@@ -323,8 +369,138 @@ class MainActivity : Activity() {
         super.onActivityResult(requestCode, resultCode, data)
     }
 
+    fun saveContactToJSONFile(keyHex: String, hours: Int) {
+        //get the json file with name "contacts.json", create one if it doesn't exist
+        val jsonFile = File(filesDir, "contacts.json")
+        if (!jsonFile.exists()) {
+            jsonFile.createNewFile()
+        }
+
+        //get current time
+        var currentTime = System.currentTimeMillis()
+
+        //Add number of hours to the current time
+        currentTime += (hours) * 3600000
+
+        val formattedTime = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date(currentTime))
+
+        //if the json file is empty, add the first entry
+        if (jsonFile.length() == 0L) {
+            val jsonObject = JSONObject()
+            jsonObject.put(keyHex, formattedTime)
+            jsonFile.writeText(jsonObject.toString())
+            return
+        }
+        //read the json file
+        val json = jsonFile.readText()
+        //parse the json string to a json object
+        val jsonObject = JSONObject(json)
+
+        //if hex key is not already in the json object, add it
+        if (!jsonObject.has(keyHex)) {
+            jsonObject.put(keyHex, formattedTime)
+        }
+
+        //write the json object to the json file
+        jsonFile.writeText(jsonObject.toString())
+    }
+
+    // Function to put all untrusted contacts in the JSON file
+    fun registerUntrusted() {
+        val contactsTrustLevel = wai.getContactsTrustLevel();
+        //contactsTrustLevel is a map<string,int>
+        Log.d("contactsTrustLevel", contactsTrustLevel.toString())
+        for (contact in contactsTrustLevel) {
+            if (contact.value == 0) {
+                saveContactToJSONFile(contact.key, 24)
+            } else {
+                removeEntryFromJsonFile(contact.key)
+            }
+        }
+
+    }
+
+    private fun executeThisTask() {
+        Log.d("MyRealWorker", "Worker is working...")
+
+        // Write the current time to output.txt
+        val currentTime = System.currentTimeMillis()
+        val formattedTime = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date(currentTime))
+        applicationContext.openFileOutput("output.txt", Context.MODE_APPEND).use {
+            it.write("$formattedTime\n".toByteArray())
+        }
+
+        // Check if contacts.json exists. If not, return.
+        val contactsFile = File(applicationContext.filesDir, "contacts.json")
+        if (!contactsFile.exists()) {
+            Log.d("MyRealWorker", "contacts.json does not exist, returning...")
+            return
+        }
+
+        // Read existing JSON from contacts.json
+        val jsonString = applicationContext.openFileInput("contacts.json").bufferedReader().use { it.readText() }
+        val json = if (jsonString.isNotEmpty()) JSONObject(jsonString) else JSONObject()
+        Log.d("MyRealWorker", "contacts.json is $json")
+
+        // Prepare killList file in append mode
+        val killListFile = applicationContext.openFileOutput("killList.txt", Context.MODE_APPEND)
+
+        // Parse and check all keys, record which to remove
+        val keys = json.keys()
+        val keysToRemove = mutableListOf<String>()
+        val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+
+        while (keys.hasNext()) {
+            val key = keys.next()
+            val value = json.getString(key)
+            // Check if the stored time is older than currentTime
+            val contactTime = dateFormat.parse(value)?.time ?: 0L
+            if (contactTime < currentTime) {
+                keysToRemove.add(key)
+            }
+        }
+
+        // Remove old keys and write them into killList
+        keysToRemove.forEach { key ->
+            killListFile.write("$key\n".toByteArray())
+            json.remove(key)
+        }
+        killListFile.close()
+
+        // Write updated JSON back to contacts.json (overwrite, not append)
+        applicationContext.openFileOutput("contacts.json", Context.MODE_PRIVATE).use { out ->
+            out.write(json.toString().toByteArray())
+        }
+    }
+
+    // Function to delete all contacts in the kill list
+    fun deleteFromKillList() {
+        val killListFile = File(filesDir, "killList.txt")
+        Log.d("deleteFromKillList", "Deleting contacts")
+        if (!killListFile.exists()) {
+            killListFile.createNewFile()
+        }
+        val killList = killListFile.readLines()
+        Log.d("deleteFromKillList", "Kill list is $killList")
+        for (contact in killList) {
+            Log.d("deleteFromKillList", "Looking at " + contact)
+            //if trust level is 0, delete the contact
+            val contactTrustLevel = wai.getContactTrust(contact)
+            if (contactTrustLevel == 0) {
+                Log.d("deleteFromKillList", "Deleting contact $contact with trust level 0")
+                removeEntryFromJsonFile(contact)
+                wai.deleteContact(contact)
+                //remove the contact from the kill list
+                killListFile.writeText(killList.filter { it != contact }.joinToString("\n"))
+            }
+        }
+    }
+
     override fun onResume() {
         Log.d("onResume", "")
+        registerUntrusted()
+        executeThisTask()
+        deleteFromKillList()
         super.onResume()
         /*
         try {

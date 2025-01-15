@@ -22,7 +22,7 @@ function menu_redraw() {
 
     load_chat_list()
 
-    document.getElementById("lst:contacts").innerHTML = '';
+    //document.getElementById("lst:contacts").innerHTML = '';
     load_contact_list();
 
     if (curr_scenario == "posts")
@@ -69,14 +69,17 @@ function edit_confirmed() {
         load_chat(curr_chat)
         // menu_redraw();
     } else if (edit_target == 'new_contact_alias' || edit_target == 'trust_wifi_peer') {
+        backend("add:contact " + new_contact_id + " " + btoa(val) + " T");
         document.getElementById('contact_id').value = '';
         if (val == '')
             val = id2b32(new_contact_id);
+        console.log("new contact alias: " + val)
         tremola.contacts[new_contact_id] = {
             "alias": val, "initial": val.substring(0, 1).toUpperCase(),
             "color": colors[Math.floor(colors.length * Math.random())],
             "iam": "", "forgotten": false
         };
+        console.log("new contact: " + JSON.stringify(tremola.contacts[new_contact_id]))
         var recps = [myId, new_contact_id];
         var nm = recps2nm(recps);
         tremola.chats[nm] = {
@@ -84,7 +87,6 @@ function edit_confirmed() {
             "touched": Date.now(), "lastRead": 0, "timeline": new Timeline()
         };
         persist();
-        backend("add:contact " + new_contact_id + " " + btoa(val))
         menu_redraw();
     } else if (edit_target == 'new_invite_target') {
         backend("invite:redeem " + val)
@@ -158,8 +160,8 @@ function members_confirmed() {
         new_conversation()
     } else if (prev_scenario == 'kanban') {
         menu_new_board_name()
-    } else if (prev_scenario == 'scheduling') {
-        dpi_menu_new_event_name()
+    } else if (prev_scenario == 'tictactoe-list') {
+        ttt_new_game_confirmed()
     }
 }
 
@@ -168,11 +170,13 @@ function menu_dump() {
     closeOverlay();
 }
 
-function fill_members() {
+function fill_members(single) {
     var choices = '';
     for (var m in tremola.contacts) {
-        choices += '<div style="margin-bottom: 10px;"><label><input type="checkbox" id="' + m;
-        choices += '" style="vertical-align: middle;"><div class="contact_item_button light" style="white-space: nowrap; width: calc(100% - 40px); padding: 5px; vertical-align: middle;">';
+        var cb = single ? ` onclick="fill_members_onlyone('${m}')"` : ''
+        choices += '<div style="margin-bottom: 10px;">'
+        choices += `<label ${cb}><input type="checkbox" id="${m}" style="vertical-align: middle;">`
+        choices += '<div class="contact_item_button light" style="white-space: nowrap; width: calc(100% - 40px); padding: 5px; vertical-align: middle;">';
         choices += '<div style="text-overflow: ellipis; overflow: hidden;">' + escapeHTML(fid2display(m)) + '</div>';
         choices += '<div style="text-overflow: ellipis; overflow: hidden;"><font size=-2>' + m + '</font></div>';
         choices += '</div></label></div>\n';
@@ -185,6 +189,18 @@ function fill_members() {
     */
     document.getElementById(myId).checked = true;
     document.getElementById(myId).disabled = true;
+}
+
+function fill_members_onlyone(m) {
+    console.log("only one " + m)
+    if (document.getElementById(m).checked) {
+        // uncheck all other contacts except myId
+        for (var nm in tremola.contacts) {
+            if (nm == myId || nm == m)
+                continue;
+            document.getElementById(nm).checked = false;
+        }
+    }
 }
 
 // --- util
@@ -263,7 +279,7 @@ function fid2display(fid) {
     if (fid in tremola.contacts)
         a = tremola.contacts[fid].alias;
     if (a == '')
-        a = fid.substring(0, 9);
+        a = id2b32(fid) // fid.substring(0, 9);
     return a;
 }
 
@@ -354,7 +370,6 @@ function resetTremola() { // wipes browser-side content
         "id": myId,
         "settings": {},
         "board": {},
-        "kahoot": {}
     }
 
     var n = recps2nm([myId])
@@ -369,7 +384,7 @@ function resetTremola() { // wipes browser-side content
         "members": ["ALL"], "touched": Date.now(), "lastRead": 0,
         "timeline": new Timeline()
     };
-    tremola.contacts[myId] = {"alias": "me", "initial": "M", "color": "#bd7578", "iam": "", "forgotten": false};
+    tremola.contacts[myId] = {"alias": "me", "initial": "M", "color": "#bd7578", "iam": "", "forgotten": false, "trusted": 2};
     persist();
 }
 
@@ -393,8 +408,11 @@ function b2f_ble_disabled() {
     //ble_status = "disabled"
 }
 
-function b2f_update_progress(min_entries, old_min_entries, old_want_entries, curr_want_entries, max_entries) {
-    refresh_connection_progressbar(min_entries, old_min_entries, old_want_entries, curr_want_entries, max_entries)
+function b2f_update_progress(min_entries, old_min_entries, old_want_entries,
+                             curr_want_entries, max_entries, f_cnt, e_cnt, c_cnt, r_cnt) {
+    refresh_connection_progressbar(min_entries, old_min_entries, old_want_entries,
+                                   curr_want_entries, max_entries,
+                                   f_cnt, e_cnt, c_cnt, r_cnt)
 }
 
 function b2f_local_peer(type, identifier, displayname, status) {
@@ -464,26 +482,6 @@ function b2f_new_in_order_event(e) {
             console.log("New kanban event")
             kanban_new_event(e)
             break
-        case "C4B":
-            connect4_game_new_event(e);
-            break
-        case "C4E":
-            connect4_game_end_event(e);
-            break
-        case "C4I":
-            connect4_recv_invite(e);
-            break
-        case "C4D":
-            connect4_invite_declined(e);
-            break
-        case "KAH":
-            console.log("New kahoot event")
-            Kahoot_new_event(e)
-            break
-        case "SCH":
-            console.log("New scheduling event")
-            dpi_scheduling_new_event(e)
-            break
         default:
             return
     }
@@ -538,9 +536,9 @@ function b2f_new_event(e) { // incoming SSB log event: we get map with three ent
                             // console.log('hdr', JSON.stringify(e.header))
     console.log("New Frontend Event: " + JSON.stringify(e.header))
     if (e.public)
-        console.log('pub', JSON.stringify(e.public))
+        console.log('pub ' + JSON.stringify(e.public))
     if (e.confid)
-        console.log('cfd', JSON.stringify(e.confid))
+        console.log('cfd ' + JSON.stringify(e.confid))
 
     //add
     if (!(e.header.fid in tremola.contacts)) {
@@ -563,6 +561,7 @@ function b2f_new_event(e) { // incoming SSB log event: we get map with three ent
                     "members": ["ALL"], "touched": Date.now(), "lastRead": 0,
                     "timeline": new Timeline()
                 };
+                ch.timeline.add(e.header.ref, e.public[1])
                 load_chat_list()
             }
             // console.log("new post 1")
@@ -607,7 +606,6 @@ function b2f_new_event(e) { // incoming SSB log event: we get map with three ent
                 contact.initial = contact.alias.substring(0, 1).toUpperCase()
                 load_contact_list()
                 load_kanban_list()
-                dpi_load_event_list(tremola)
 
                 // update names in connected devices menu
                 for (var l in localPeers) {
@@ -617,31 +615,47 @@ function b2f_new_event(e) { // incoming SSB log event: we get map with three ent
                     }
                 }
             }
-        } else if (e.public[0] == "GAM") {
-            // TODO autoretransmit answer if necessary
-              if (window.GamesHandler && typeof window.GamesHandler.onGameBackendEvent === 'function') {
-                  var response = window.GamesHandler.onGameBackendEvent(e.public[1]);
-                  var responseList = response.split("!CERBERUS!")
-                  if (responseList.length >= 1 && responseList[0].startsWith("games")) {
-                      // TODO anpassen von GUI
-                      backend(responseList[0]);
-                  }
-                  if (responseList.length == 2) {
-                      update_game_gui(responseList[1])
-                  } else {
-                      update_game_gui(responseList[0])
-                  }
-              } else {
-                  console.error("GamesHandler.onGameBackendEvent is not a function");
-              }
-              //Android.onGameBackendEvent(e.public);
-        }
+        } else if (e.public[0] == "TTT")
+            ttt_on_rx(e.header.ref, e.header.fid, e.public.slice(1))
+
         persist();
         must_redraw = true;
     }
     if (e.confid) {
         var a = e.confid;
         var rcpts = null;
+        if (e.confid[0] == 'TRT') {
+            ch = tremola.chats[recps2nm([myId])];
+
+            load_chat_list();
+            if (!(ch.timeline instanceof Timeline))
+                ch.timeline = Timeline.fromJSON(ch.timeline)
+
+            // console.log("new post 1 ", ch)
+            if (!(e.header.ref in ch.posts)) { // new post
+                var a = e.confid;
+
+                //get alias from fid
+                var alias = tremola.contacts[encodeScuttlebuttId(a[2])].alias;
+                var p = {
+                    "key": e.header.ref, "from": e.header.fid, "body": "Set contact: " + alias + "'s trust level to " + a[3],
+                    "when": a[4] * 1000, "prev": a[1]
+                };
+                // console.log("new post 2 ", JSON.stringify(p))
+                // console.log("time: ", a[3])
+                ch["posts"][e.header.ref] = p;
+                // console.log(`chat add tips ${a[1]}`)
+                ch.timeline.add(e.header.ref, a[1])
+                if (curr_scenario == "posts" && curr_chat == conv_name) {
+                    load_chat(conv_name); // reload all messages (not very efficient ...)
+                }
+                set_chats_badge(conv_name)
+            } else {
+                console.log(`post ${e.header.ref} known already?`)
+            }
+            // if (curr_scenario == "chats") // the updated conversation could bubble up
+            load_chat_list();
+        }
         if (a[0] == 'TAV')
             rcpts = a[5];
         else if (a[0] == 'DLV' || a[0] == 'ACK')
@@ -660,6 +674,8 @@ function b2f_new_event(e) { // incoming SSB log event: we get map with three ent
             }
             // console.log("new priv post 0")
             let ch = tremola.chats[conv_name];
+
+            console.log(a[0]);
 
             if (a[0] == 'DLV' || a[0] == 'ACK') { // remote delivery notification
                 if (e.header.fid != myId && ch.members.length == 2 && a[1] in ch.posts) { // only for person-to-person
@@ -719,16 +735,23 @@ function b2f_get_settings(settings) {
     tremola.settings = settings
 }
 
-function b2f_new_contact(fid) {
-    if (typeof tremola == 'undefined' || fid in tremola.contacts) // do not overwrite existing entry
-        return;
-    var id = id2b32(fid);
+function b2f_new_contact(fid, trustLevel="untrusted", alias="") {
+    console.log(trustLevel);
+    let trusted = 0;
+    if (trustLevel == "trusted") {
+        trusted = 2;
+    }
+    if (alias == "") {
+        alias = id2b32(fid);
+    }
     tremola.contacts[fid] = {
-        "alias": id, "initial": id.substring(0, 1).toUpperCase(),
+        "alias": alias, "initial": alias.substring(0, 1).toUpperCase(),
         "color": colors[Math.floor(colors.length * Math.random())],
-        "iam": "", "forgotten": false
+        "iam": "", "forgotten": false, "trusted": trusted
     };
-    persist()
+    backend("contacts:checkDeleted " + decodeScuttlebuttId(fid));
+    console.log(tremola.contacts[fid]);
+    persist();
     load_contact_list();
 }
 
@@ -779,21 +802,18 @@ function b2f_initialize(id, settings) {
     var nm, ref;
     for (nm in tremola.settings)
         setSetting(nm, tremola.settings[nm])
+    apply_background()
+
     load_chat_list()
     load_prod_list()
     load_game_list()
     load_contact_list()
     loadShortIds()
-    // load_kanban_list()
-    // dpi_load_event_list() // problem with access to tremola object
-    if (tremola.kahoot == undefined) {
-      tremola.kahoot = {};
-      persist();
-    }
 
     closeOverlay();
     setScenario('chats');
     // load_chat("ALL");
+    refresh_connection_progressbar(1,0,0,1,1,0,0,0,0)
 }
 
 

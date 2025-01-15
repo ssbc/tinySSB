@@ -1,0 +1,37 @@
+/* ttt.css */
+
+.ttt_list_button {
+  border: none;
+  text-align: left;
+  vertical-align: top;
+  height: 3em;
+  font-size: medium;
+  border-radius: 4pt;
+  box-shadow: 0 0 5px rgba(0,0,0,0.7);
+  margin: 4pt;
+  background-color: #ebf4fa;
+}
+
+.ttt_table {
+  position: relative;
+  left: 5%;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);  width: 90%;
+  height: 90vw;
+  background-color: #ebf4fa;
+  border-radius: 16pt;
+  padding: 2vw;
+}
+
+.ttt_cell {
+  margin: 2vw;
+  display: flex;
+  height: calc((90vw - 16vw)/3);
+  align-items: center;
+  justify-content: center;
+  background: #98FB98;
+  overflow: hidden;
+  border-radius: 8pt;
+}
+
+/* eof */

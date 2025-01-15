@@ -8,11 +8,8 @@ var display_or_not = [
     'div:qr', 'div:back', 'core', 'plus',
     'lst:chats', 'lst:prod', 'lst:games', 'lst:contacts', 'lst:members',
     'div:posts', 'lst:kanban', 'div:board',
-    'lst:duels', 'div:battleships', // battleship
-    'lst:connect4-game', 'lst:connect4-players', 'the:connect4-game-session', // connect4
-    'lst:kahoot',
-    'lst:scheduling', 'div:event',
-    'div:footer', 'div:textarea', 'div:confirm-members', 'div:settings'
+    'div:footer', 'div:textarea', 'div:confirm-members', 'div:settings',
+    'div:tictactoe_list', 'div:tictactoe_board'
 ];
 
 var prev_scenario = 'chats';
@@ -26,17 +23,11 @@ var scenarioDisplay = {
     'games': ['div:back', 'core', 'lst:games', 'div:footer'],
     'members': ['div:back', 'core', 'lst:members', 'div:confirm-members'],
     'productivity': ['div:back', 'core', 'lst:prod', 'div:footer'],
-    'settings': ['div:back', 'div:settings', 'core'],
-    'kanban': ['div:back', 'core', 'lst:kanban', 'div:footer', 'plus'], // KANBAN
+    'settings': ['div:back', 'core', 'div:settings'],
+    'kanban': ['div:back', 'core', 'lst:kanban', 'plus'], // KANBAN
     'board': ['div:back', 'core', 'div:board'], // KANBAN
-    'kahoot': ['div:back', 'core', 'lst:kahoot'],
-    'duels': ['div:back', 'core', 'lst:duels', 'plus'], // BATTLESHIP
-    'battleships': ['div:back', 'core', 'div:battleships'], // BATTLESHIP
-    'connect4-game': ['div:back', 'core', 'lst:connect4-game', 'div:footer', 'plus'],
-    'connect4-game-players': ['div:back', 'core', 'lst:connect4-players', 'div:connect4-confirm-player'],
-    'connect4-game-session': ['div:back', 'core', 'the:connect4-game-session'],
-    'scheduling': ['div:back', 'core', 'lst:scheduling', 'div:footer', 'plus'],
-    'event': ['div:back', 'core', 'div:event']
+    'tictactoe-list': ['div:back', 'core', 'div:tictactoe_list', 'plus'],
+    'tictactoe-board': ['div:back', 'core', 'div:tictactoe_board'],
 }
 
 var scenarioMenu = {
@@ -81,24 +72,12 @@ var scenarioMenu = {
         ['(un)Forget', 'board_toggle_forget'],
         ['Debug', 'ui_debug']],
 
-    'duels': [], // BATTLESHIP
-    'battleships': [['Quit Game', 'quit_bsh']], // BATTLESHIP
-
-    'connect4-game': [// ['New Game'], //, 'connect4_menu_game_players'],
-            ['Settings', 'menu_settings'],
-            ['About', 'menu_about']],
-
-    'scheduling': [
-        // ['New Event', 'dpi_menu_new_event'],
-        ['Invitations', 'dpi_menu_event_invitations'],
+    'tictactoe-list': [
         ['Settings', 'menu_settings'],
         ['About', 'menu_about']],
-
-    'event': [
-        ['Add appointment', 'dpi_menu_new_appointment'],
-        ['Invite Users', 'dpi_menu_invite'],
-        ['Reload', 'dpi_reload_curr_event'],
-        ['Debug', 'dpi_ui_debug']]
+    'tictactoe-board': [
+        ['Settings', 'menu_settings'],
+        ['About', 'menu_about']],
 }
 
 const QR_SCAN_TARGET = {
@@ -107,6 +86,7 @@ const QR_SCAN_TARGET = {
 }
 
 var curr_qr_scan_target = QR_SCAN_TARGET.ADD_CONTACT
+var FEED_CNT, ENTRY_CNT, CHUNK_CNT, NOCHUNK_CNT;
 
 function onBackPressed() {
     if (overlayIsActive) {
@@ -123,27 +103,21 @@ function onBackPressed() {
     // console.log('back ' + curr_scenario);
     if (curr_scenario == 'chats')
         backend("onBackPressed");
+    else if (curr_scenario == 'members')
+        setScenario(prev_scenario)
     else if (['productivity', 'games', 'contacts'].indexOf(curr_scenario) >= 0)
         setScenario('chats')
-    else if (['duels','connect4-game'].indexOf(curr_scenario) >= 0) {
-        setScenario('games')
-        prev_scenario = 'chats'
-    } else if (['kanban','scheduling'].indexOf(curr_scenario) >= 0) {
+    else if (['kanban'].indexOf(curr_scenario) >= 0) {
         setScenario('productivity')
         prev_scenario = 'chats'
     } else if (curr_scenario == 'posts')
         setScenario('chats')
     else if (curr_scenario == 'board')
         setScenario('kanban')
-    else if (curr_scenario == 'event')
-        setScenario('scheduling')
-    else if (curr_scenario == 'battleships') { // BATTLESHIP // TODO prev_scenario für duels unc posts und nicht in chat
-        reset_battleship_mode()
-        show_duels()
-    } else if (curr_scenario == 'connect4-game-session') {
-        connect4_load_games_list();
-        setScenario('connect4-game')
-    }
+    else if (curr_scenario == 'tictactoe-list')
+        setScenario('games')
+    else if (curr_scenario == 'tictactoe-board')
+        setScenario('tictactoe-list')
 }
 
 function setScenario(s) {
@@ -172,13 +146,10 @@ function setScenario(s) {
             document.getElementById('tremolaTitle').style.position = null;
         }
 
-        if (s == "posts" || s == "settings" || s == "board" || s == "event" ||
-            s == 'battleships') {
+        if (s == "posts" || s == "settings" || s == "board") {
             document.getElementById('tremolaTitle').style.display = 'none';
             document.getElementById('conversationTitle').style.display = null;
             document.getElementById('plus').style.display = 'none';
-        } else if (s == "duels") {
-            document.getElementById('tremolaTitle').style.display = 'none';
         } else {
             document.getElementById('tremolaTitle').style.display = null;
             document.getElementById('conversationTitle').style.display = 'none';
@@ -205,19 +176,22 @@ function setScenario(s) {
             */
         }
 
-        if (s == 'contacts') {
+        if (['productivity', 'games', 'contacts'].indexOf(s) >= 0) {
             document.getElementById("tremolaTitle").style.display = 'none';
             var c = document.getElementById("conversationTitle");
             c.style.display = null;
-            c.innerHTML = "<font size=+2><strong>Contacts</strong></font>";
+            var t = s.slice(0,1).toUpperCase() + s.slice(1);
+            c.innerHTML = `<font size=+2><strong>${t}</strong></font>`;
         }
 
-        if (s == 'board') // a specific Kanban board: use all space (beyond the footer)
-            document.getElementById('core').style.height = 'calc(100% - 60px)';
+        if (['board','kanban'].indexOf(s) >= 0) // a specific Kanban board: use all space (beyond the footer)
+            document.getElementById('core').style.height = 'calc(100% - 45pt)';
         else
-            document.getElementById('core').style.height = 'calc(100% - 118px)';
+            document.getElementById('core').style.height = 'calc(100% - 110pt)';
 
         if (s == 'kanban') {
+            load_kanban_list();
+
             document.getElementById("tremolaTitle").style.display = 'none';
             var c = document.getElementById("conversationTitle");
             c.style.display = null;
@@ -236,17 +210,6 @@ function setScenario(s) {
             }
         }
 
-        if (s == 'kahoot') {
-            console.log('Kahoot scenario activated');
-            // Any additional initialization logic for Kahoot can go here
-            //document.getElementById('lst:kahoot').style.display = 'block';
-            document.getElementById('quiz-master-title').style.display = 'block';
-            document.getElementById('kahoot-buttons').style.display = 'block';
-            //document.getElementById('user-scores').style.display = 'block';
-            //document.getElementById('enter-quiz-button-list-container').style.display = 'block';
-            //document.getElementById('fill-quiz-button-list-container').style.display = 'block';
-        }
-
         if (s == 'posts') {
           setTimeout(function () { // let image rendering (fetching size) take place before we scroll
               let c = document.getElementById('core');
@@ -256,35 +219,20 @@ function setScenario(s) {
               }, 100);
         }
 
-        if (s == 'connect4-game') {
+        if (s == 'tictactoe-list') {
             document.getElementById("tremolaTitle").style.display = 'none';
             var c = document.getElementById("conversationTitle");
             c.style.display = null;
-            c.innerHTML = "<font size=+1><strong>Connect4 Sessions</strong></font><br>Pick or create a session";
-            connect4_load_games_list();
-        } else if (s == 'connect4-game-session') {
-           document.getElementById("tremolaTitle").style.display = 'none';
-           var c = document.getElementById("conversationTitle");
-           c.style.display = null;
-           c.innerHTML = "<font size=+2><strong>Connect4</strong></font>";
+            c.innerHTML = "<font size=+1><strong>Tic Tac Toe</strong></font><br>Pick or create a new game";
+            ttt_load_list();
         }
-
-        if (s == 'scheduling') {
+        if (s == 'tictactoe-board') {
             document.getElementById("tremolaTitle").style.display = 'none';
             var c = document.getElementById("conversationTitle");
             c.style.display = null;
-            c.innerHTML = "<font size=+1><strong>List of Events</strong></font><br>Pick or create an event";
-        /*
-             var personalEventAlreadyExists = false
-             if(tremola && tremola.event && tremola.event.length > 0){
-             launch_snackbar("COUNT EVENTS" + tremola.event.length)
-             console.log(tremola.event)
-
-             } else {
-              dpi_menu_create_personal_event();
-        */
+            let fed = tremola.tictactoe.active[tremola.tictactoe.current].peer
+            c.innerHTML = `<font size=+1><strong>TTT with ${fid2display(fed)}</strong></font>`;
         }
-
     }
 }
 
@@ -361,6 +309,7 @@ function closeOverlay() {
     document.getElementById('div:modal_img').style.display = 'none';
     document.getElementById('connection-overlay').style.display = 'none';
     document.getElementById('import-id-overlay').style.display = 'none';
+    document.getElementById('toast-overlay').style.display = 'none';
 
     // kanban overlays
     document.getElementById('div:menu_history').style.display = 'none';
@@ -373,11 +322,6 @@ function closeOverlay() {
     document.getElementById('btn:item_menu_description_cancel').style.display = 'none'
     document.getElementById('div:debug').style.display = 'none'
     document.getElementById("div:invite_menu").style.display = 'none'
-
-    // scheduling overlays
-    document.getElementById('scheduling-create-personal-event-overlay').style.display = 'none';
-    document.getElementById('add-appointment-overlay').style.display='none';
-    document.getElementById('scheduling-invitations-overlay').style.display='none';
 
     overlayIsActive = false;
 
@@ -419,12 +363,8 @@ function plus_button() {
         menu_new_contact();
     } else if (curr_scenario == 'kanban') {
         menu_new_board();
-    } else if (curr_scenario == 'duels') {
-        inviteForDuel('BSH');
-    } else if (curr_scenario == 'connect4-game' ) {
-        connect4_menu_game_players();
-    } else if (curr_scenario == 'scheduling') {
-        dpi_menu_new_event();
+    } else if (curr_scenario == 'tictactoe-list') {
+        ttt_new_game();
     }
 }
 
@@ -435,6 +375,20 @@ function launch_snackbar(txt) {
     setTimeout(function () {
         sb.className = sb.className.replace("show", "");
     }, 3000);
+}
+
+function launch_toast(title, description, function_yes, function_no) {
+    closeOverlay();
+    var ts = document.getElementById("toast-overlay");
+    //set the title
+    document.getElementById("toast-title").innerHTML = title;
+    //set the description
+    document.getElementById("toast-text").innerHTML = description;
+    //set the functions
+    document.getElementById("toast-button-yes").onclick = function_yes;
+    document.getElementById("toast-button-no").onclick = function_no;
+    //show the toast
+    ts.style.display = 'inline';
 }
 
 function chat_open_attachments_menu() {
@@ -500,7 +454,22 @@ function qr_scan_success(s) {
             new_contact_id = s;
             // console.log("tremola:", tremola)
             if (new_contact_id in tremola.contacts) {
-                launch_snackbar("This contact already exists");
+                //check if existing contact has trust level lower than 2
+                if (tremola.contacts[new_contact_id].trusted < 2) {
+                    //do this in the backend as well
+                    let ch = tremola.chats[recps2nm([myId])];
+                    let tips = JSON.stringify([])
+                    if (typeof ch.timeline.get_tips === 'function') {
+                        tips = JSON.stringify(ch.timeline.get_tips())
+                    }
+                    backend("contacts:setTrust " + decodeScuttlebuttId(new_contact_id) + " 2" + " " + tips);
+                } else if (tremola.contacts[new_contact_id].trusted == 2) {
+                    if (tremola.contacts[new_contact_id].forgotten) {
+                        launch_toast("Unforget Contact", "This contact is in your forgotten list, do you also want to unforget it?", function() { unforget_contact(new_contact_id); }, closeOverlay);
+                    } else {
+                        launch_snackbar("This contact already exists and is verified");
+                    }
+                }
                 return;
             }
             // FIXME: do sanity tests
@@ -526,10 +495,7 @@ function qr_scan_confirmed() {
     var s = document.getElementById('alias_id').innerHTML;
     // c = {alias: a, id: s};
     var i = (a + "?").substring(0, 1).toUpperCase()
-    var c = {"alias": a, "initial": i, "color": colors[Math.floor(colors.length * Math.random())], "iam": "", "forgotten": false};
-    tremola.contacts[s] = c;
-    persist();
-    backend("add:contact " + s + " " + btoa(a))
+    var c = {"alias": a, "initial": i, "color": colors[Math.floor(colors.length * Math.random())], "iam": "", "forgotten": false, "trusted": 2};
     load_contact_item([s, c]);
     closeOverlay();
 }
@@ -567,6 +533,8 @@ function menu_connection() {
 }
 
 function refresh_connection_entry(id) {
+    if (tremola.settings['simple_mode'])
+        return;
     var content = document.getElementById('connection-overlay-content')
 
     // only update existing entry
@@ -608,7 +576,9 @@ function refresh_connection_entry(id) {
 }
 
 function refresh_goset_progressbar(curr, max) {
-    console.log("refresh_goset_progressbar", curr, max)
+    if (tremola.settings['simple_mode'])
+        return;
+    // console.log("refresh_goset_progressbar", curr, max)
     var delta = max - curr
 
     document.getElementById('connection-overlay-progressbar-goset').value = (curr / max) * 100
@@ -633,13 +603,15 @@ function refresh_goset_progressbar(curr, max) {
 }
 
 var max_chnks = 0
-function refresh_chunk_progressbar(remaining) {
+function refresh_chunk_progressbar(remaining, arrived) {
+    if (tremola.settings['simple_mode'])
+        return;
     if (remaining != 0) {
         max_chnks = Math.max(max_chnks, remaining)
     } else {
         max_chnks = 0 // reset
     }
-    console.log(`refresh_chunk_progressbar - remaining:${remaining} max_chnks:${max_chnks}`)
+    // console.log(`refresh_chunk_progressbar - remaining:${remaining} max_chnks:${max_chnks}`)
 
     if (remaining > 0) {
         var percentage = Math.round( (1 - ((remaining - 0) / (max_chnks - 0))) * 100 )
@@ -653,11 +625,22 @@ function refresh_chunk_progressbar(remaining) {
         document.getElementById('connection-overlay-progressbar-chnk').value = 100;
         document.getElementById('connection-overlay-progressbar-label-chnk').textContent = "Chunks — Synchronized"
     }
+
+    CHUNK_CNT = arrived;
+    NOCHUNK_CNT = remaining;
+    show_stats();
 }
 
-function refresh_connection_progressbar(min_entries, old_min_entries, old_want_entries, curr_want_entries, max_entries) {
+function refresh_connection_progressbar(min_entries, old_min_entries, old_want_entries,
+                                        curr_want_entries, max_entries,
+                                        f_cnt, e_cnt, c_cnt, r_cnt) {
+    if (tremola.settings['simple_mode'])
+        return;
+    /*
     console.log(`refresh_connection_progressbar - min:${min_entries} old_min:${old_min_entries} ` +
-                `old_curr:${old_want_entries} curr:${curr_want_entries} max:${max_entries}`)
+                `old_curr:${old_want_entries} curr:${curr_want_entries} max:${max_entries} ` +
+                `F:${f_cnt} E:${e_cnt} C:{c_cnt} R:{r_cnt}`)
+    */
     if(curr_want_entries == 0)
       return
 
@@ -685,11 +668,19 @@ function refresh_connection_progressbar(min_entries, old_min_entries, old_want_e
         document.getElementById('connection-overlay-progressbar-gift').value = newPosOff
         document.getElementById('connection-overlay-progressbar-label-gift').textContent = "Ahead - " + (curr_want_entries - min_entries) + " entries left"
     }
+
+    FEED_CNT  = f_cnt;
+    ENTRY_CNT = e_cnt;
+    CHUNK_CNT = c_cnt;
+    NOCHUNK_CNT = r_cnt;
+    show_stats();
+}
+
+function show_stats(){
+    document.getElementById('connection-overlay-stats').innerHTML = `F=${FEED_CNT} E=${ENTRY_CNT} C=${CHUNK_CNT}/${CHUNK_CNT+NOCHUNK_CNT}`
 }
 
 function show_geo_location(locPlus) {
-//    var win = window.open("https://maps.app.goo.gl/Z7WWLG8UTAnfyJpb7", '_blank');
-
     var win = window.open("https://plus.codes/" + locPlus, '_blank');
     win.focus();
 }

@@ -5,7 +5,7 @@ import nz.scuttlebutt.tremolavossbol.MainActivity
 import nz.scuttlebutt.tremolavossbol.crypto.SodiumAPI.Companion.sha256
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.DMX_LEN
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.FID_LEN
-import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.GOSET_DMX_STR
+import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.GOSET_DMX
 import nz.scuttlebutt.tremolavossbol.utils.HelperFunctions.Companion.byteArrayCmp
 import nz.scuttlebutt.tremolavossbol.utils.HelperFunctions.Companion.fromEncodedUByte
 import nz.scuttlebutt.tremolavossbol.utils.HelperFunctions.Companion.toEncodedUByte
@@ -48,7 +48,7 @@ class GOset(val context: MainActivity) {
     val HELP_PER_ROUND  =      2
     val ZAP_ROUND_LEN   =   4500
 
-    val goset_dmx = GOSET_DMX_STR.encodeToByteArray().sha256().sliceArray(0..DMX_LEN-1)
+    val goset_dmx = GOSET_DMX.sha256().sliceArray(0..DMX_LEN-1)
 
     // unsigned short version; ??
     // const char* fname;
@@ -232,10 +232,11 @@ class GOset(val context: MainActivity) {
         return true
     }
 
-    fun _add_key(key: ByteArray) {
+    fun _add_key(key: ByteArray, trusted: Boolean = false, alias: String =""): String {
         if (!_include_key(key)) // adds key if necessary
-            return
-        context.tinyRepo.add_replica(key)
+            return ""
+        //Set trusted
+        context.tinyRepo.add_replica(key, trusted, alias)
 
         keys.sortWith({a:ByteArray,b:ByteArray -> byteArrayCmp(a,b)})
         if (keys.size >= largest_claim_span) { // only rebroadcast if we are up to date
@@ -246,7 +247,23 @@ class GOset(val context: MainActivity) {
                 pending_novelty.add(n)
         }
         context.ble?.refreshShortNameForKey(key) // refresh shortname in devices overview
+        //Set
         Log.d("goset", "added key ${key.toHex()}, |keys|=${keys.size}")
+        if (!trusted) {
+            //add entry to json file with the hex
+            context.saveContactToJSONFile(key.toHex(), 24)
+        }
+        return key.toHex()
+    }
+
+    fun remove_key(key: ByteArray) {
+        for (k in keys) {
+            if (k.contentEquals(key)) {
+                keys.remove(k)
+                Log.d("goset", "removed key ${key.toHex()}, |keys|=${keys.size}")
+                break
+            }
+        }
     }
 
     fun _add_pending_claim(cl: Claim) {
