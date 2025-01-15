@@ -6,6 +6,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.util.Base64
 import android.util.Log
 import android.webkit.JavascriptInterface
@@ -309,6 +310,11 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
                 if (body != null) {
                     act.tinyNode.publish_public_content(body)
                 }
+            }
+            "pluscode" -> {
+                val i = Intent(Intent.ACTION_VIEW);
+                i.setData(Uri.parse("https://plus.codes/" + args[1]))
+                act.startActivity(i);
             }
             "settings:set" -> {
                 act.settings!!.set(args[1], args[2])

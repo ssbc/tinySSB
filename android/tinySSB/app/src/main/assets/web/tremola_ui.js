@@ -681,8 +681,7 @@ function show_stats(){
 }
 
 function show_geo_location(locPlus) {
-    var win = window.open("https://plus.codes/" + locPlus, '_blank');
-    win.focus();
+    backend("pluscode " + locPlus);
 }
 
 function copyToClipboard(text) {
@@ -698,13 +697,13 @@ function showGeoMenu(plusCode) {
     var latLongString = Android.getCoordinatesForPlusCode(plusCode);
     var latLong = JSON.parse(latLongString);
     var LatitudeLongitude = latLong.latitude + " " + latLong.longitude;
-    var m = '';
+    var m = 'Copy location to clipboard:<br><hr>';
     m += "<button class=menu_item_button ";
-    m += "onclick='copyToClipboard(\"" + plusCode + "\");'>" + plusCode + "</button><br> ";
+    m += "onclick='copyToClipboard(\"" + LatitudeLongitude + "\");'>- Lat: " + latLong.latitude + ",<br>&nbsp;&nbsp;Long: " + latLong.longitude + "</button><br>";
     m += "<button class=menu_item_button ";
-    m += "onclick='copyToClipboard(\"" + LatitudeLongitude + "\");'>Lat: " + latLong.latitude + " Long: " + latLong.longitude + "</button><br>";
-    m += "<button class=menu_item_button ";
-    m += "onclick='show_geo_location(\"" + plusCode + "\");'>Show Location</button>";
+    m += "onclick='copyToClipboard(\"" + plusCode + "\");'>- Plus Code: " + plusCode + "</button><br><br>";
+    m += "<button class=menu_item_button style='background-color: #d0d0d0; text-align: center;'";
+    m += " onclick='show_geo_location(\"" + plusCode + "\");'>Show location in browser</button>";
     document.getElementById("geo-menu").innerHTML = m;
     document.getElementById("geo-menu").style.display = 'initial';
     document.getElementById("overlay-trans").style.display = 'initial';
@@ -715,15 +714,15 @@ function showGeoVoiceMenu(plusCode, chat, key) {
     var latLongString = Android.getCoordinatesForPlusCode(plusCode);
     var latLong = JSON.parse(latLongString);
     var LatitudeLongitude = latLong.latitude + " " + latLong.longitude;
-    var m = '';
+    var m = 'Copy location to clipboard:<br><hr>';
     m += "<button class=menu_item_button ";
-    m += "onclick='copyToClipboard(\"" + plusCode + "\");'>" + plusCode + "</button><br>";
+    m += "onclick='copyToClipboard(\"" + LatitudeLongitude + "\");'>- Lat: " + latLong.latitude + ",<br>&nbsp;&nbsp;Long: " + latLong.longitude + "</button><br>";
     m += "<button class=menu_item_button ";
-    m += "onclick='copyToClipboard(\"" + LatitudeLongitude + "\");'>Lat: " + latLong.latitude + " Long: " + latLong.longitude + "</button><br>";
-    m += "<button class=menu_item_button ";
-    m += "onclick='show_geo_location(\"" + plusCode + "\");'>Show Location</button><br>";
-    m += "<button class=menu_item_button ";
-    m += "onclick='play_voice(\"" + chat + "\", \"" + key + "\");'>Play Voice Message</button>";
+    m += "onclick='copyToClipboard(\"" + plusCode + "\");'>- Plus Code: " + plusCode + "</button><br><br>";
+    m += "<button class=menu_item_button style='background-color: #d0d0d0; text-align: center;'";
+    m += " onclick='show_geo_location(\"" + plusCode + "\");'>Show location in browser</button><br><br>";
+    m += "<button class=menu_item_button style='background-color: #d0d0d0; text-align: center;'";
+    m += " onclick='play_voice(\"" + chat + "\", \"" + key + "\");'>Play voice message</button>";
     document.getElementById("geo-menu").innerHTML = m;
     document.getElementById("geo-menu").style.display = 'initial';
     document.getElementById("overlay-trans").style.display = 'initial';
