@@ -32,7 +32,10 @@ ARDUINO_CLI=$(shell which arduino-cli;)
 # since arduino-cli 1.0:
 ARDUINO_DATA=$(shell arduino-cli config get directories |awk '/data/ {print $$2}';)
 ARDUINO_ESP_DIR=$(ARDUINO_DATA)/packages/esp32
-# $(info ARDUINO_ESP_DIR    is   $(ARDUINO_DATA)/packages/esp32)
+# $(info ARDUINO_ESP_DIR    is   $(ARDUINO_ESP_DIR))
+
+PLATFORM_TXT_FILE=$(shell find $(ARDUINO_ESP_DIR)/hardware/esp32 -name 'platform.txt' | head -1;)
+# $(info PLATFORM_TXT_FILE  is   $(PLATFORM_TXT_FILE))
 
 # ---------------------------------------------------------------------------
 
@@ -51,11 +54,11 @@ endif
 
 MAIN=$(shell ls *.ino)
 
-BAUD=921600
+# BAUD=921600
 # BAUD=115200
+BAUD=230400
 FLASH_BIN=firmware-$(BOARD).bin
 
-PLATFORM_TXT_FILE=$(shell find /Users/tschudin/Library/Arduino15/packages/esp32/ -name 'platform.txt' | head -1;)
 FLAGS_PLATFORM=$(shell cat $(PLATFORM_TXT_FILE) | awk -F = '/^compiler.cpp.extra_flags/ {print $$2}';)
 
 FLAGS_ALL=-DUTC_OFFSET=\"$(shell date +%z)\" -DUTC_COMPILE_TIME=\"$(shell date -u +'%b_%d_%Y_%H:%M:%S_UTC')\"
@@ -65,7 +68,7 @@ ifeq ($(BOARD),Heltec)
   FQBN=esp32:esp32:heltec_wifi_lora_32_V2
   PARTITIONS_CSV=partitions-heltec.csv
   MAX_UPLOAD=1572864 # 1.5MB
-  FLASH_SIZE=8MB
+  FLASH_SIZE=4MB
   FLASH_OFFS=0x1000
   FLAGS_BOARD=-DTINYSSB_BOARD_HELTEC
 
@@ -192,6 +195,7 @@ firmware:
 	$(ESPTOOL) \
 		--chip $(CHIP) merge_bin --flash_mode qio --flash_freq 80m \
 		--flash_size $(FLASH_SIZE) \
+		--fill-flash-size $(FLASH_SIZE) \
 		$(FLASH_OFFS) ./build/$(MAIN).bootloader.bin \
 		0x8000        ./build/$(MAIN).partitions.bin \
 		0xe000        $(BOOTAPP0PATH) \
