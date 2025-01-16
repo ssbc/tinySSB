@@ -194,7 +194,6 @@ firmware:
 	$(ESPTOOL) \
 		--chip $(CHIP) merge_bin --flash_mode qio --flash_freq 80m \
 		--flash_size $(FLASH_SIZE) \
-		--fill-flash-size $(FLASH_SIZE) \
 		$(FLASH_OFFS) ./build/$(MAIN).bootloader.bin \
 		0x8000        ./build/$(MAIN).partitions.bin \
 		0xe000        $(BOOTAPP0PATH) \

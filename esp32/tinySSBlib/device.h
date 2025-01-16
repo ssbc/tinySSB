@@ -94,7 +94,7 @@ public:
   int setCRC(int v)             _method1(setCRC,v);
   void setPacketReceivedAction(void (*v)(void)) _method1(setPacketReceivedAction,v);
   void standby()                _method0V(standby);
-  void startReceive()           _method0V(startReceive);
+  int startReceive()            _method0I(startReceive);
   int getPacketLength()         _method0I(getPacketLength);
   int getRSSI()                 _method0I(getRSSI);
   int getSNR()                  _method0I(getSNR);
@@ -104,14 +104,13 @@ public:
   int transmit(unsigned char *buf, int len, int a) {
     return is_62 ? radio_sx1262.transmit(buf,len,a) : radio_sx1276.transmit(buf,len,a);
   };
-  /*
-    return is_62 ? radio_sx1262.setPacketReceivedAction(v) :
-                   radio_sx1276.setPacketReceivedAction(v);
-                   };*/
+  int begin(void) {
+    return is_62 ? radio_sx1262.begin() : radio_sx1276.begin();
+  };
 } fused_radio;
 
 # define radio fused_radio
- 
+
 #endif // TINYSSB_BOARD_TBEAM
 
 // ---------------------------------------------------------------------------
