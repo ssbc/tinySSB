@@ -71,6 +71,7 @@ void cmd_rx(String cmd) {
         struct bipf_s *v = bipf_mkString(the_lora_config->plan);
         bipf_dict_set(the_config, bipf_mkString("lora_plan"), v);
         config_save(the_config);
+        theUI->refresh();
       }
       break;
 #endif

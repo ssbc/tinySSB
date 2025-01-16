@@ -232,8 +232,12 @@ int lora_rcvd_pkts = 0; // absolute counter
   volatile bool lora_transmitting = false;
   volatile bool new_lora_pkt = false;
 
+#if defined(ESP8266) || defined(ESP32)
+  ICACHE_RAM_ATTR
+#endif
 void newLoraPacket_cb(void) // notification
-  {
+{
+    // Serial.println("   lora notif");
     /*
     if (lora_transmitting) {
       radio.finishTransmit();
@@ -275,7 +279,9 @@ void lora_init()
   Serial.printf("lora setPL rc=%d\r\n", rc);
   rc = radio.setCRC(false);
   Serial.printf("lora setED rc=%d\r\n", rc); // CRC error detection
-  // radio.setPacketReceivedAction(newLoraPacket_cb);
+  radio.setPacketReceivedAction(newLoraPacket_cb);
+  rc = radio.startReceive();
+  // Serial.printf("lora startReceive() rc=%d\r\n", rc);
 #endif
 
 #ifdef USE_LORA_LIB
@@ -324,7 +330,8 @@ void lora_send(unsigned char *buf, short len, const char *origin)
   lora_sent_pkts++;
 
   lora_transmitting = false;
-  radio.startReceive();
+  rc = radio.startReceive();
+  // Serial.printf("   lora startReceive() rc=%d\r\n", rc);
 #endif
 #ifdef USE_LORA_LIB
   if (LoRa.beginPacket()) {

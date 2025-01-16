@@ -23,7 +23,8 @@ struct lora_config_s lora_configs[] = {
   // {"AU915.c", 917500000, 500000, 7, 5, LORA_tSSB_SYNC, LORA_TX_POWER},
   {"EU868.a", 868300000, 125000, 7, 5, LORA_tSSB_SYNC, LORA_TX_POWER},
   {"EU868.b", 868300000, 250000, 7, 5, LORA_tSSB_SYNC, LORA_TX_POWER},
-  // {"EU868.c", 868300000, 500000, 7, 5, LORA_tSSB_SYNC, LORA_TX_POWER},
+  {"EU868.c", 868300000, 500000, 7, 5, LORA_tSSB_SYNC, LORA_TX_POWER},
+  {"EU433.a", 433300000, 125000, 7, 5, LORA_tSSB_SYNC, LORA_TX_POWER},
 };
 
 short lora_configs_cnt = sizeof(lora_configs) / sizeof(struct lora_config_s);

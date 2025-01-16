@@ -163,6 +163,7 @@ public:
 
 # define USE_RADIO_LIB
 # define USING_SX1262
+# define radio sx1262_radio
 
 //# define USE_LORA_LIB
 
