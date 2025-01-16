@@ -54,9 +54,7 @@ endif
 
 MAIN=$(shell ls *.ino)
 
-# BAUD=921600
-# BAUD=115200
-BAUD=230400
+BAUD=921600
 FLASH_BIN=firmware-$(BOARD).bin
 
 FLAGS_PLATFORM=$(shell cat $(PLATFORM_TXT_FILE) | awk -F = '/^compiler.cpp.extra_flags/ {print $$2}';)
@@ -92,6 +90,7 @@ else ifeq ($(BOARD),T5gray)
   FLAGS_BOARD=-DTINYSSB_BOARD_T5GRAY -DESP32 -DCORE_DEBUG_LEVEL=0 -DARDUINO_RUNNING_CORE=1 -DARDUINO_EVENT_RUNNING_CORE=1 -DARDUINO_USB_CDC_ON_BOOT=0
 
 else ifeq ($(BOARD),TBeam)
+  BAUD=460800
   CHIP=esp32
   FQBN=esp32:esp32:t-beam
   PARTITIONS_CSV=partitions-tbeam.csv
