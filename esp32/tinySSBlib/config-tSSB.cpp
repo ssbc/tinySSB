@@ -9,7 +9,7 @@
 
 #ifdef HAS_LORA
 
-#define LORA_TX_POWER  10 // 20 
+#define LORA_TX_POWER  20 
 #define LORA_tSSB_SYNC 0x58  // for "SB, Scuttlebutt". or 0x5484?
 // see https://forum.lora-developers.semtech.com/t/sx1272-and-sx1262-lora-sync-word-compatibility/988
 
@@ -25,6 +25,8 @@ struct lora_config_s lora_configs[] = {
   {"EU868.b", 868300000, 250000, 7, 5, LORA_tSSB_SYNC, LORA_TX_POWER},
   {"EU868.c", 868300000, 500000, 7, 5, LORA_tSSB_SYNC, LORA_TX_POWER},
   {"EU433.a", 433300000, 125000, 7, 5, LORA_tSSB_SYNC, LORA_TX_POWER},
+  {"E22-868", 868200000, 125000, 9, 7, 0x12, LORA_TX_POWER},
+  
 };
 
 short lora_configs_cnt = sizeof(lora_configs) / sizeof(struct lora_config_s);
