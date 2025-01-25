@@ -189,6 +189,7 @@ firmware:
 		--fqbn $(FQBN) \
 		--build-property build.partitions=assets/$(PARTITIONS_CSV) \
 		--build-property upload.maximum_size=$(MAX_UPLOAD) \
+		--libraries ./lib/$(BOARD) \
 		$(EXTRA_CPP_FLAGS) $(MAIN) \
 		&& \
 	$(ESPTOOL) \
