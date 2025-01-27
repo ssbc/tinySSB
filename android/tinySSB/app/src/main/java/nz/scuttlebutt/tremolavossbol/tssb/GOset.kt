@@ -253,7 +253,7 @@ class GOset(val service: BleForegroundService) {
             else if (pending_novelty.size < MAX_PENDING)
                 pending_novelty.add(n)
         }
-        service.ble?.refreshShortNameForKey(key) // refresh shortname in devices overview
+        BleForegroundService.getTinyBle()!!.refreshShortNameForKey(key) // refresh shortname in devices overview
         Log.d("goset", "added key ${key.toHex()}, |keys|=${keys.size}")
     }
 

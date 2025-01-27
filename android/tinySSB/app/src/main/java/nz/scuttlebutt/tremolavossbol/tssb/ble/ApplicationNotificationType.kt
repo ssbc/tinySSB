@@ -2,12 +2,10 @@ package nz.scuttlebutt.tremolavossbol.tssb.ble
 
 enum class ApplicationNotificationType(val type: String) {
     PUBLISH_PUBLIC_CONTENT("PUBLISH_PUBLIC_CONTENT"), // ByteArray
-    REPO_GET_REPLICA("REPO_GET_REPLICA"), // ByteArray -> Replica?
     ADD_NUMBER_OF_PENDING_CHUNKS("ADD_NUMBER_OF_PENDING_CHUNKS"), // Int
     BEACON("BEACON"),
     IDENTITY_TO_REF("IDENTITY_TO_REF"), // -> ByteArray
     DELETE_FEED("DELETE_FEED"), // ByteArray
-    VERIFY_KEY("VERIFY_KEY"), // -> ByteArray
     TO_EXPORT_STRING("TO_EXPORT_STRING"), // -> String?
     SET_NEW_IDENTITY("SET_NEW_IDENTITY"), // ByteArray -> Boolean
     RESET("RESET"),
@@ -20,5 +18,8 @@ enum class ApplicationNotificationType(val type: String) {
     LIST_FEEDS("LIST_FEEDS"), // -> List<ByteArray>
     IS_GEO_ENABLED("IS_GEO_ENABLED"), // -> Boolean
     SET_SETTINGS("SET_SETTINGS"), // String -> ByteArray
+    RESTREAM("RESTREAM"),
+    FRONTEND_UP("FRONTEND_UP"),
+    WIPE_OTHERS("WIPE_OTHERS"),
     ADD_KEY("ADD_KEY") // ByteArray
 }

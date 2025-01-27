@@ -58,6 +58,7 @@ import kotlinx.coroutines.*
 class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandler: GamesHandler?) {
 
     private val coroutineScope = CoroutineScope(Dispatchers.Main + Job())
+    // frontend_frontier cannot be moved to foreground service due to memory leaks. Might be other solution to this.
     val frontend_frontier = act.getSharedPreferences("frontend_frontier", Context.MODE_PRIVATE)
     var gamesHandler: GamesHandler? = gameHandler
 
@@ -136,7 +137,7 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
                             val settings = withContext(Dispatchers.IO) {
                                 act.sendMessageToForegroundserviceWithOutput(ApplicationNotificationType.GET_SETTINGS, null)
                             }.await() as String?
-                            eval("b2f_initialize('$ref}', '$settings')")
+                            eval("b2f_initialize('$ref', '$settings')")
                             act.frontend_ready = true // maybe add flag inside foreground service
                             act.sendMessageToForegroundserviceWithoutOutput(ApplicationNotificationType.ADD_NUMBER_OF_PENDING_CHUNKS,  0)
                             act.sendMessageToForegroundserviceWithoutOutput(ApplicationNotificationType.BEACON,  null)
@@ -171,7 +172,8 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
                 eval("restream = true")
                 // TODO discuss how we can fix this issue
                 // We somehow need the replica, but we wanted to split WebApp from FGS
-                for (fid in BleForegroundService.getTinyRepo()?.listFeeds()!!) {
+                act.sendMessageToForegroundserviceWithoutOutput(ApplicationNotificationType.RESTREAM, null)
+                /*for (fid in BleForegroundService.getTinyRepo()?.listFeeds()!!) {
                     Log.d("wai", "restreaming ${fid.toHex()}")
                     var i = 1
                     while (true) {
@@ -186,28 +188,11 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
                         sendTinyEventToFrontend(fid, i, mid, payload)
                         i++
                     }
-                }
+                }*/
                 eval("restream = false")
             }
             "wipe:others" -> {
-                try {
-                    coroutineScope.launch {
-                        val verifyKey = withContext(Dispatchers.IO) {
-                            act.sendMessageToForegroundserviceWithOutput(ApplicationNotificationType.VERIFY_KEY, null)
-                        }.await() as ByteArray
-                        for (fid in BleForegroundService.getTinyRepo()?.listFeeds()!!) {
-                            if (fid.contentEquals(verifyKey))
-                                continue
-                            //if (fid.contentEquals(act.idStore.identity.verifyKey))
-                            //    continue
-                            //act.tinyRepo.delete_feed(fid)
-                            //BleForegroundService.getTinyRepo()?.delete_feed(fid)
-                            act.sendMessageToForegroundserviceWithoutOutput(ApplicationNotificationType.DELETE_FEED, fid)
-                        }
-                    }
-                } catch (e: Exception) {
-                    Log.e("WebAppInterface", "Error in wipe: ${e.message}")
-                }
+                act.sendMessageToForegroundserviceWithoutOutput(ApplicationNotificationType.WIPE_OTHERS, null)
             }
             "qrscan.init" -> {
                 val intentIntegrator = IntentIntegrator(act)
@@ -318,19 +303,21 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
                 }
             }
             "priv:post" -> { // priv:post tips atob(text) atob(voice) rcp1 rcp2 ...
-                val a = JSONArray(args[1])
-                val tips = ArrayList<String>(0)
-                for (i in 0..a.length()-1) {
-                    val s = a[i].toString() // (a[i] as JSONObject).toString()
-                    tips.add(s)
+                coroutineScope.launch {
+                    val a = JSONArray(args[1])
+                    val tips = ArrayList<String>(0)
+                    for (i in 0..a.length()-1) {
+                        val s = a[i].toString() // (a[i] as JSONObject).toString()
+                        tips.add(s)
+                    }
+                    var t: String? = null
+                    if (args[2] != "null")
+                        t = Base64.decode(args[2], Base64.NO_WRAP).decodeToString()
+                    var v: ByteArray? = null
+                    if (args.size > 3 && args[3] != "null")
+                        v = Base64.decode(args[3], Base64.NO_WRAP)
+                    private_post_with_voice(tips, t, v, args.slice(4..args.lastIndex))
                 }
-                var t: String? = null
-                if (args[2] != "null")
-                    t = Base64.decode(args[2], Base64.NO_WRAP).decodeToString()
-                var v: ByteArray? = null
-                if (args.size > 3 && args[3] != "null")
-                    v = Base64.decode(args[3], Base64.NO_WRAP)
-                private_post_with_voice(tips, t, v, args.slice(4..args.lastIndex))
                 return
             }
             "get:media" -> {
@@ -625,7 +612,7 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
                 val settings = withContext(Dispatchers.IO) {
                     act.sendMessageToForegroundserviceWithOutput(ApplicationNotificationType.GET_SETTINGS, null)
                 }.await() as String?
-                eval("b2f_initialize('$ref}', '$settings')")
+                eval("b2f_initialize('$ref', '$settings')")
             }
         } catch (e: Exception) {
             Log.e("WebAppInterface", "Error in confirm_post: ${e.message}")
@@ -662,7 +649,7 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
         }
     }
 
-    fun private_post_with_voice(tips: ArrayList<String>, text: String?, voice: ByteArray?, rcps: List<String>) {
+    suspend fun private_post_with_voice(tips: ArrayList<String>, text: String?, voice: ByteArray?, rcps: List<String>) {
         if (text != null)
             Log.d("wai", "private post_voice t- ${text}/${text.length}")
         if (voice != null)
@@ -683,11 +670,9 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
         val recps = Bipf.mkList()
         val keys: MutableList<ByteArray> = mutableListOf()
         var me = ""
-        runBlocking { // coroutines should not work here i believe
-            me = withContext(Dispatchers.IO) {
-                act.sendMessageToForegroundserviceWithOutput(ApplicationNotificationType.IDENTITY_TO_REF, null)
-            }.await() as String
-        }
+        Log.d("WebAppInterface", "private_post_with_voice before IDENTITY runBlocking")
+        me = getIdentityFromRef()
+        Log.d("WebAppInterface", "private_post_with_voice after IDENTITY runBlocking $me")
         for (r in rcps) {
             if (r != me) {
                 Bipf.list_append(recps, Bipf.mkString(r))
@@ -700,14 +685,9 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
 
         val body_clear = Bipf.encode(lst)
         var encrypted: ByteArray? = null
-        runBlocking {
-            val bundle = Bundle()
-            bundle.putByteArray("body_clear", body_clear)
-            bundle.putSerializable("keys", keys as java.io.Serializable)
-            encrypted = withContext(Dispatchers.IO) {
-                act.sendMessageToForegroundserviceWithOutput(ApplicationNotificationType.ENCRYPT_PRIV_MSG, bundle)
-            }.await() as ByteArray
-        }
+        Log.d("WebAppInterface", "private_post_with_voice before ENCRYPT runBlocking")
+        encrypted = getEncryptedPrivateMessage(body_clear, keys)
+        Log.d("WebAppInterface", "private_post_with_voice after ENCRYPT runBlocking $encrypted")
         // return encrypted.let { Bipf.mkString(it) }
         val body_encr = Bipf.encode(Bipf.mkBytes(encrypted!!))
         if (body_encr != null) {
@@ -910,19 +890,19 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
         eval(cmd)
     }
 
-    fun sendIncompleteEntryToFrontend(fid: ByteArray, seq: Int, mid:ByteArray, body: ByteArray) {
-        val e = toFrontendObject(fid, seq, mid, body)
+    suspend fun sendIncompleteEntryToFrontend(fid: ByteArray, seq: Int, mid:ByteArray, body: ByteArray) {
+        var e: String? = null
+        e = toFrontendObject(fid, seq, mid, body)
         Log.d("WebAppInterface", "sendIncompleteEntryToFrontend ${e.toString()}")
         if (e != null)
             eval("b2f_new_incomplete_event($e)")
 
     }
 
-    fun sendTinyEventToFrontend(fid: ByteArray, seq: Int, mid:ByteArray, body: ByteArray) {
+    suspend fun sendTinyEventToFrontend(fid: ByteArray, seq: Int, mid:ByteArray, body: ByteArray) {
         // Log.d("wai","sendTinyEvent ${body.toHex()}")
-        var e: String?
+        var e: String? = null
         try {
-            Log.d("WebAppInterface", "sendTinyEventToFrontend")
             e = toFrontendObject(fid, seq, mid, body)
             Log.d("WebAppInterface", "sendTinyEventToFrontend ${e.toString()}")
         } catch (ex: Exception) {
@@ -930,7 +910,6 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
             e = ""
         }
 
-        Log.d("WebAppInterface", "sendTinyEventToFrontend ${e.toString()}")
         if (e != null)
             eval("b2f_new_event($e)")
 
@@ -938,7 +917,7 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
         //val replica = act.tinyRepo.fid2replica(fid)
         val replica = BleForegroundService.getTinyRepo()!!.fid2replica(fid)
         // TODO How should we allow this access on the replica? Technically we should split the concerns.
-        // FIXME put frontend_frontier in foreground?
+        // FIXME split this up into foreground and webapp parts, communication is needed between both parties
         Log.d("WebAppInterface", "sendTinyEventToFrontend ${replica.toString()}")
         try {
             if (frontend_frontier.getInt(fid.toHex(), 1) == seq && replica != null) {
@@ -959,7 +938,8 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
         }
     }
 
-    fun toFrontendObject(fid: ByteArray, seq: Int, mid: ByteArray, payload: ByteArray): String? {
+    suspend fun toFrontendObject(fid: ByteArray, seq: Int, mid: ByteArray, payload: ByteArray): String? {
+        Log.d("WebAppInterface", "toFrontendObject")
         val bodyList = Bipf.decode(payload)
         if (bodyList == null)
             return null
@@ -974,11 +954,13 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
         if (bodyList.typ == BIPF_BYTES) { // encrypted
             Log.d("rcvd encrypted log entry", "@" + fid.toBase64() + ".ed25519, seq=" + seq)
             var clear: ByteArray? = null
-            runBlocking {
-                clear = withContext(Dispatchers.IO) {
-                    act.sendMessageToForegroundserviceWithOutput(ApplicationNotificationType.DECRYPT_PRIV_MSG, bodyList.getBytes())
-                }.await() as ByteArray?
+            try {
+                Log.d("WebAppInterface", "Before decrypting ${bodyList.getBytes()}")
+                clear = getDecryptedPrivateMessage(bodyList.getBytes())
+            } catch (e: Exception) {
+                Log.e("WebAppInterface", "Error in toFrontendObject: ${e.message}")
             }
+            Log.d("WebAppInterface", "After decrypting $clear")
             if (clear != null) {
                 val bodyList2 = Bipf.decode(clear!!)
                 if (bodyList2 != null) {
@@ -991,9 +973,29 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
                 }
             }
         }
-        Log.d("toFrontendObject", "could not decode or decrypt")
+        Log.d("WebAppInterface", "could not decode or decrypt")
         return null
     }
 
+    suspend fun getDecryptedPrivateMessage(body: ByteArray): ByteArray? {
+        return withContext(Dispatchers.IO) {
+            act.sendMessageToForegroundserviceWithOutput(ApplicationNotificationType.DECRYPT_PRIV_MSG, body).await() as ByteArray?
+        }
+    }
 
+    suspend fun getEncryptedPrivateMessage(body_clear: ByteArray?, keys: List<ByteArray>): ByteArray? {
+        val bundle = Bundle()
+        bundle.putByteArray("body_clear", body_clear)
+        bundle.putStringArrayList("keys", keys.map { it.toBase64() } as ArrayList<String>)
+        val encrypted = withContext(Dispatchers.IO) {
+            act.sendMessageToForegroundserviceWithOutput(ApplicationNotificationType.ENCRYPT_PRIV_MSG, bundle)
+        }.await() as ByteArray?
+        return encrypted
+    }
+
+    suspend fun getIdentityFromRef(): String {
+        return withContext(Dispatchers.IO) {
+            act.sendMessageToForegroundserviceWithOutput(ApplicationNotificationType.IDENTITY_TO_REF, null)
+        }.await() as String
+    }
 }

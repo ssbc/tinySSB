@@ -35,6 +35,11 @@ import androidx.core.content.ContextCompat
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.google.zxing.integration.android.IntentIntegrator
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import nz.scuttlebutt.tremolavossbol.crypto.IdStore
 import nz.scuttlebutt.tremolavossbol.tssb.ble.BlePeers
 import nz.scuttlebutt.tremolavossbol.tssb.*
@@ -48,6 +53,7 @@ import nz.scuttlebutt.tremolavossbol.tssb.ble.ForegroundNotificationType
 import nz.scuttlebutt.tremolavossbol.utils.HelperFunctions.Companion.toHex
 import tremolavossbol.R
 import java.net.*
+import java.util.Base64
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.thread
 
@@ -58,7 +64,7 @@ import kotlin.concurrent.thread
 class MainActivity : Activity() {
     // lateinit var tremolaState: TremolaState
     lateinit var wai: WebAppInterface
-    var frontend_ready = false
+    var frontend_ready = true
     @Volatile var mc_group: InetAddress? = null
     @Volatile var mc_socket: MulticastSocket? = null
     var websocket: WebsocketIO? =null
@@ -70,25 +76,7 @@ class MainActivity : Activity() {
     // used for messaging
     private var serviceConnection: ServiceConnection? = null
     private var serviceMessenger: Messenger? = null
-
-
-    /**
-     * This is used for the communication between the MainActivity and the ForegroundService.
-     */
-    companion object {
-        private val pendingCallbacks = mutableMapOf<String, CompletableDeferred<Any?>>()
-
-        fun completeCallback(callbackId: String, result: Any?) {
-            pendingCallbacks[callbackId]?.complete(result)
-            pendingCallbacks.remove(callbackId)
-        }
-
-        fun registerCallback(callbackId: String): CompletableDeferred<Any?> {
-            val deferred = CompletableDeferred<Any?>()
-            pendingCallbacks[callbackId] = deferred
-            return deferred
-        }
-    }
+    private val coroutineScope = CoroutineScope(Dispatchers.Main + Job())
 
     private fun bindToService() {
         val intent = Intent(this, BleForegroundService::class.java)
@@ -112,7 +100,7 @@ class MainActivity : Activity() {
     private val foregroundServiceReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             //handleIncomingMessage(message) // TODO unsure about this
-            Log.d("MainActivity", "[${intent.action}]")
+            Log.d("MainActivity", "Received Notification from Foreground [${intent.action}]")
             when (intent.action) {
                 ForegroundNotificationType.EVALUATION.value -> {
                     val message = intent.getStringExtra("message")
@@ -126,7 +114,9 @@ class MainActivity : Activity() {
                     val hash = intent.getByteArrayExtra("hash")
                     val body = intent.getByteArrayExtra("body")
                     if (fid != null && hash != null && body != null) {
-                        wai.sendTinyEventToFrontend(fid, seq, hash, body)
+                        coroutineScope.launch {
+                            wai.sendTinyEventToFrontend(fid, seq, hash, body)
+                        }
                     }
                 }
                 ForegroundNotificationType.INCOMPLETE_EVENT.value -> {
@@ -135,7 +125,9 @@ class MainActivity : Activity() {
                     val hash = intent.getByteArrayExtra("hash")
                     val body = intent.getByteArrayExtra("body")
                     if (fid != null && hash != null && body != null) {
-                        wai.sendIncompleteEntryToFrontend(fid, seq, hash, body)
+                        coroutineScope.launch {
+                            wai.sendIncompleteEntryToFrontend(fid, seq, hash, body)
+                        }
                     }
                 }
                 /**
@@ -157,23 +149,20 @@ class MainActivity : Activity() {
         get() = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) ==
                 PackageManager.PERMISSION_GRANTED
 
-    /**
-     * Handles incoming messages from the ForegroundService and forwards them to the WebAppInterface.
-     */
-    private fun handleIncomingMessage(message: String) {
-        Log.d("MainActivity", "Received message: $message")
-        // TODO add here possibly log entries and stuff (everything except BLE)
-        //wai.eval("b2f_new_message('${message.toHex()}')")
-        wai.eval(message) // maybe just this one, as the one before is stricly for messages
-    }
-
     fun sendMessageToForegroundserviceWithoutOutput(type: ApplicationNotificationType, message: Any?) {
+        if (!isForegroundServiceRunning()) {
+            Log.d("MainActivity", "Service is not running, message will not be sent.")
+            return
+        }
         Log.d("MainActivity", "Sending message to Foregroundservice: ${type.name}")
         val intent = Intent(type.type)
         when (type) { // Only special treatment for types which need parameters
             ApplicationNotificationType.ADD_NUMBER_OF_PENDING_CHUNKS -> {
                 val chunks = message as Int
                 intent.putExtra("chunk", chunks)
+            }
+            ApplicationNotificationType.FRONTEND_UP -> {
+                intent.putExtra("frontend_up", message as Boolean)
             }
             ApplicationNotificationType.DELETE_FEED -> {
                 val feed = message as ByteArray
@@ -184,6 +173,9 @@ class MainActivity : Activity() {
                     val identity = message as ByteArray
                     intent.putExtra("identity", identity)
                 }
+            }
+            ApplicationNotificationType.WIPE_OTHERS -> {
+                // Just a function call
             }
             ApplicationNotificationType.ADD_KEY -> {
                 val key = message as ByteArray
@@ -232,9 +224,27 @@ class MainActivity : Activity() {
         override fun onReceive(context: Context, intent: Intent) {
             try {
                 val callbackId = intent.getStringExtra("CallbackID")
-                val result = intent.getSerializableExtra("result")
-                Log.d("MainActivity", "Received result for callbackId: $callbackId, result: $result")
-                CallbackRegistry.completeCallback(callbackId!!, result)
+                val type = intent.getStringExtra("type")
+                val result = intent.getStringExtra("result")
+                when (type) {
+                    "ByteArray" -> {
+                        val decodedResult = result?.let { Base64.getDecoder().decode(it) }
+                        Log.d("MainActivity", "Received bytearray result for callbackId: $callbackId, result: ${decodedResult?.size} bytes")
+                        CallbackRegistry.completeCallback(callbackId!!, decodedResult)
+                    }
+                    "String" -> {
+                        Log.d("MainActivity", "Received string result for callbackId: $callbackId, result: $result")
+                        CallbackRegistry.completeCallback(callbackId!!, result)
+                    }
+                    "Boolean" -> {
+                        val decodedResult = intent.getBooleanExtra("result", false)
+                        Log.d("MainActivity", "Received boolean result for callbackId: $callbackId, result: $decodedResult")
+                        CallbackRegistry.completeCallback(callbackId!!, decodedResult)
+                    }
+                    else -> {
+                        Log.e("MainActivity", "Unknown result type received for callbackId: $callbackId")
+                    }
+                }
             } catch (e: Exception) {
                 Log.e("MainActivity", "Error receiving result from ForegroundService", e)
             }
@@ -242,14 +252,18 @@ class MainActivity : Activity() {
     }
 
     fun sendMessageToForegroundserviceWithOutput(type: ApplicationNotificationType, message: Any?): CompletableDeferred<Any?> {
-        Log.d("MainActivity", "Sending message to Foregroundservice: ${type.name}")
+        if (!isForegroundServiceRunning()) {
+            Log.d("MainActivity", "Service is not running, message will not be sent.")
+            return CompletableDeferred(null)
+        }
+        Log.d("MainActivity", "Sending message to Foregroundservice: ${type.type}")
         val intent = Intent(type.type)
         val callbackId = System.currentTimeMillis().toString()
         Log.d("MainActivity", "CallbackID: $callbackId")
         intent.putExtra("CallbackID", callbackId)
         when (type) { // Only special treatment for types which need parameters
             ApplicationNotificationType.SET_NEW_IDENTITY -> { // There are cases where return value is needed
-                // TODO
+                // TODO as this does not make sense for now
                 val identity = intent.getByteArrayExtra("identity")
                 intent.putExtra("identity", identity)
             }
@@ -262,14 +276,28 @@ class MainActivity : Activity() {
             ApplicationNotificationType.LIST_FEEDS -> { // Returns List<ByteArray>
                 // TODO
             }
-            ApplicationNotificationType.VERIFY_KEY -> { // Returns ByteArray
-                // TODO
-            }
             ApplicationNotificationType.IDENTITY_TO_REF -> { // Returns String
                 // TODO, this is just a function call (No further logic needed probably)
             }
             ApplicationNotificationType.IS_GEO_ENABLED -> { // Returns Boolean
                 // TODO
+            }
+            ApplicationNotificationType.ENCRYPT_PRIV_MSG -> { // Returns ByteArray
+                // TODO
+                val bundle = message as Bundle
+                val keys = bundle.getStringArrayList("keys")
+                val bodyclear = bundle.getByteArray("body_clear")
+                intent.putStringArrayListExtra("keys", keys)
+                intent.putExtra("body_clear", bodyclear)
+            }
+            ApplicationNotificationType.DECRYPT_PRIV_MSG -> { // Returns ByteArray
+                try {
+                    val bodylist = message as ByteArray
+                    intent.putExtra("bodyList", bodylist)
+                    Log.d("MainActivity", "Adding bodylist to intent (${intent.action}) $bodylist")
+                } catch (e: Exception) {
+                    Log.e("MainActivity", "Error sending message to ForegroundService", e)
+                }
             }
         }
         Log.d("MainActivity", "Sending broadcast")
@@ -309,7 +337,7 @@ class MainActivity : Activity() {
         }
         LocalBroadcastManager.getInstance(this).registerReceiver(foregroundServiceReceiver, filter)
 
-        // Register the result receiver
+        // Register the result receiver (ForegroundService -> MainActivity) which returns us values
         LocalBroadcastManager.getInstance(this).registerReceiver(resultReceiver, IntentFilter("RESULT_ACTION"))
 
         if (!isForegroundServiceRunning()) {
@@ -472,10 +500,12 @@ class MainActivity : Activity() {
 
         //val filter = IntentFilter("MESSAGE_FROM_SERVICE")
         //LocalBroadcastManager.getInstance(this).registerReceiver(foregroundserviceReceiver, filter)
-        if (isForegroundServiceRunning()) { return }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !isLocationPermissionGranted) {
             ActivityCompat.requestPermissions(this, arrayOf(
                 Manifest.permission.ACCESS_FINE_LOCATION), 555)
+        }
+        if (isForegroundServiceRunning()) {
+            sendMessageToForegroundserviceWithoutOutput(ApplicationNotificationType.FRONTEND_UP, true)
             return
         }
         val intent = Intent(this, BleForegroundService::class.java)
@@ -491,6 +521,7 @@ class MainActivity : Activity() {
     override fun onPause() {
         Log.d("onPause", "")
         super.onPause()
+        sendMessageToForegroundserviceWithoutOutput(ApplicationNotificationType.FRONTEND_UP, false)
         //ble?.stopBluetooth() // This happens in the ForegroundService
 
         if (websocket != null)
@@ -507,9 +538,11 @@ class MainActivity : Activity() {
     override fun onStop() {
         Log.d("onStop", "")
         super.onStop()
+        sendMessageToForegroundserviceWithoutOutput(ApplicationNotificationType.FRONTEND_UP, false)
     }
     override fun onDestroy() {
         Log.d("onDestroy", "")
+        sendMessageToForegroundserviceWithoutOutput(ApplicationNotificationType.FRONTEND_UP, false)
         /*
         try { broadcast_socket?.close() } catch (e: Exception) {}
         broadcast_socket = null

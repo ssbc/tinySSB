@@ -110,7 +110,7 @@ class Repo(val service: BleForegroundService) {
         }
 
         Log.d("Repo", "About to enter if for frontend_ready")
-        if(service.frontend_ready) { // was: isWaiInitialized()
+        if(BleForegroundService.getFrontendReady()) { // was: isWaiInitialized()
             //context.wai.eval("b2f_new_contact(\"@${fid.toBase64()}.ed25519\")") // notify frontend
             try {
                 val intent = Intent(ForegroundNotificationType.EVALUATION.value)

@@ -97,7 +97,7 @@ class IdStore(val service: BleForegroundService) {
             }
         } catch (e: java.lang.Exception) {
             // e.message?.let { Log.d("IdStore", it) }
-            Log.d("IdStore", "no secret found")
+            Log.e("IdStore", "no secret found")
         }
         return null
     }

@@ -6,6 +6,7 @@ import android.util.Log
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import nz.scuttlebutt.tremolavossbol.MainActivity
 import nz.scuttlebutt.tremolavossbol.tssb.ble.BleForegroundService
+import nz.scuttlebutt.tremolavossbol.tssb.ble.ForegroundNotificationType
 import nz.scuttlebutt.tremolavossbol.utils.Bipf
 import nz.scuttlebutt.tremolavossbol.utils.Bipf.Companion.BIPF_INT
 import nz.scuttlebutt.tremolavossbol.utils.Bipf.Companion.BIPF_LIST
@@ -206,8 +207,14 @@ class Node(val service: BleForegroundService) {
     // calculates current replication progress and sends update to frontend
     fun update_progress(want_vector: List<Int>, from: String) {
 
-        if (!service.frontend_ready)
+        if (!BleForegroundService.getFrontendReady()) {
+            Log.d("Node", "frontend not ready")
             return
+        } else {
+            Log.d("Node", "Updating in Progress")
+        }
+
+
 
         var wantsChanged = false // if want vectors did change
 
@@ -273,9 +280,8 @@ class Node(val service: BleForegroundService) {
 
                 //context.wai.eval("b2f_update_progress($min_want_entries, $old_min_entries, $old_want_entries, $curr_want_entries, $max_want_entries)")
                 try {
-                    val intent = Intent("MESSAGE_FROM_SERVICE")
-                    intent.putExtra("message", "b2f_update_progress($min_want_entries, $old_min_entries, $old_want_entries, $curr_want_entries, $max_want_entries)")
-                    LocalBroadcastManager.getInstance(service).sendBroadcast(intent)
+                    Log.d("Node", "send broadcast")
+                    service.sendMessageToActivity(ForegroundNotificationType.EVALUATION, "b2f_update_progress($min_want_entries, $old_min_entries, $old_want_entries, $curr_want_entries, $max_want_entries)")
                 } catch (e: Exception) {
                     Log.d("Node", "error sending broadcast: $e")
                 }
