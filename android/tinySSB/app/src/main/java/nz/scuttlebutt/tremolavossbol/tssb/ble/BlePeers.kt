@@ -127,8 +127,9 @@ class BlePeers(val foregroundService: BleForegroundService) { // Replace MainAct
 
     @SuppressLint("MissingPermission")
     fun write(buf: ByteArray) {
+        Log.d("BlePeers", "${peers.size} Peers")
         for (p in peers) {
-            // Log.d("BlePeers", "ble_rx sending (rx charact.) ${buf.size} bytes")
+            Log.d("BlePeers", "ble_rx sending (rx charact.) ${buf.size} bytes")
             val service = p.value.getService(TINYSSB_BLE_REPL_SERVICE_2022)
             if(service == null) {
                 Log.d("BlePeers", "reply service not available")
@@ -212,6 +213,7 @@ class BlePeers(val foregroundService: BleForegroundService) { // Replace MainAct
                 notifyFrontend(gatt.device, "offline")
                 peers.remove(gatt.device)
                 pending.remove(gatt.device)
+                gatt.close()
             }
         }
 
@@ -237,8 +239,7 @@ class BlePeers(val foregroundService: BleForegroundService) { // Replace MainAct
                                 Log.d("BlePeers", "ble - read: $read")
                             }
                             gatt.setCharacteristicNotification(ch, true)
-                            val lst =
-                                ch.getDescriptors(); //find the descriptors on the characteristic
+                            val lst = ch.descriptors; //find the descriptors on the characteristic
                             // val ndx = lst.indexOfFirst { it.uuid == device.address == result.device.address }
                             // if (indexQuery != -1) { // A scan result already exists with the same address
                             // for (d in lst)
@@ -340,6 +341,7 @@ class BlePeers(val foregroundService: BleForegroundService) { // Replace MainAct
 
                 }
                  */
+                Log.d("BlePeers", "ble scan callback - Found BLE tinySSB device! adding address: ${result.device.address}")
                 //val g = result.device.connectGatt(act, false, gattCallback, BluetoothDevice.TRANSPORT_LE) // TODO changed from this
                 val g = result.device.connectGatt(foregroundService, false, gattCallback, BluetoothDevice.TRANSPORT_LE)
                 pending[result.device] = g
@@ -424,16 +426,16 @@ class BlePeers(val foregroundService: BleForegroundService) { // Replace MainAct
         override fun onConnectionStateChange(device: BluetoothDevice?, status: Int, newState: Int) {
             // Log.d("BlePeers", "ble GATT server Connection changed")
             super.onConnectionStateChange(device, status, newState)
-                if( status == GATT_SUCCESS && newState == STATE_CONNECTED && device != null) {
-                    Log.d("BlePeers", "ble GATT server - Device connected: $device")
-                    connectedDevices.add(device)
-                    notifyFrontend(device, "online")
-                } else if (newState == STATE_DISCONNECTED) {
-                    connectedDevices.remove(device)
-                    if (device != null)
-                        notifyFrontend(device, "offline")
-                    Log.d("BlePeers", "ble GATT server - Device disconnected: $device")
-                }
+            if( status == GATT_SUCCESS && newState == STATE_CONNECTED && device != null) {
+                Log.d("BlePeers", "ble GATT server - Device connected: $device")
+                connectedDevices.add(device)
+                notifyFrontend(device, "online")
+            } else if (newState == STATE_DISCONNECTED) {
+                connectedDevices.remove(device)
+                if (device != null)
+                    notifyFrontend(device, "offline")
+                Log.d("BlePeers", "ble GATT server - Device disconnected: $device")
+            }
         }
 
         override fun onDescriptorReadRequest(

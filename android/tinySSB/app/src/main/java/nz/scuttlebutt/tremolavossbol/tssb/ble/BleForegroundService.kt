@@ -1,6 +1,5 @@
 package nz.scuttlebutt.tremolavossbol.tssb.ble
 
-import android.Manifest
 import android.annotation.SuppressLint
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -20,19 +19,12 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
-import android.os.Message
-import android.os.Messenger
 import android.util.Log
-import android.view.View
-import android.webkit.WebView
 import android.widget.Toast
 import androidx.annotation.RequiresApi
-import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
-import nz.scuttlebutt.tremolavossbol.MainActivity
 import nz.scuttlebutt.tremolavossbol.Settings
-import nz.scuttlebutt.tremolavossbol.WebAppInterface
 import nz.scuttlebutt.tremolavossbol.crypto.IdStore
 import nz.scuttlebutt.tremolavossbol.games.common.GamesHandler
 import nz.scuttlebutt.tremolavossbol.tssb.Demux
@@ -42,15 +34,12 @@ import nz.scuttlebutt.tremolavossbol.tssb.Node
 import nz.scuttlebutt.tremolavossbol.tssb.Repo
 import nz.scuttlebutt.tremolavossbol.tssb.WebsocketIO
 import nz.scuttlebutt.tremolavossbol.utils.Constants
-import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_DIR
 import nz.scuttlebutt.tremolavossbol.utils.HelperFunctions.Companion.toHex
 import tremolavossbol.R
-import java.io.File
 import java.io.Serializable
 import java.net.InetAddress
 import java.net.MulticastSocket
 import java.util.Base64
-import java.util.concurrent.Executor
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.Future
@@ -239,7 +228,6 @@ class BleForegroundService: Service() {
     private val CHANNEL_ID = "BLE_FOREGROUND_SERVICE_CHANNEL"
     @Volatile var mc_group: InetAddress? = null
     @Volatile var mc_socket: MulticastSocket? = null
-    var ble: BlePeers? = null
     var websocket: WebsocketIO? =null
     val ioLock = ReentrantLock()
     var wifiBroadcastReceiver: BroadcastReceiver? = null
@@ -576,6 +564,8 @@ class BleForegroundService: Service() {
         Log.d("BleForegroundService", "Service started")
 
         // Initialize Bluetooth Adapter and Scanner
+        websocket = WebsocketIO(this, getTinySettings()!!.getWebsocketUrl())
+        websocket!!.start()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
@@ -610,16 +600,14 @@ class BleForegroundService: Service() {
     }
 
     override fun onDestroy() {
-        shutdownOperations()
         super.onDestroy()
+        shutdownOperations()
         Log.d("MyForegroundService", "Service destroyed")
         unregisterReceiver(mainActivityReceiver)
         unregisterReceiver(bluetoothEventListener)
-        /*unregisterReceiver(broadcastReceiver)
-        unregisterReceiver(ble_event_listener)
 
         websocket?.stop()
-        websocket = null*/
+        websocket = null
     }
 
     /**
@@ -636,7 +624,7 @@ class BleForegroundService: Service() {
          * Notice: applicationContext as MainApplication cannot be used from Service, as it seems to cause trouble
          */
         isRunning = true
-        /*if (testThreadFuture == null || testThreadFuture?.isDone == true || testThreadFuture?.isCancelled == true) {
+        if (testThreadFuture == null || testThreadFuture?.isDone == true || testThreadFuture?.isCancelled == true) {
             testThreadFuture = executor.submit {
                 Log.d("BleForegroundService", "Attempting to start test thread.")
                 try {
@@ -669,7 +657,7 @@ class BleForegroundService: Service() {
                     Thread.currentThread().interrupt()
                 }
             }
-        }*/
+        }
 
         // Sender-Loop
         if (senderloopThreadFuture == null || senderloopThreadFuture?.isCancelled == true || senderloopThreadFuture?.isDone == true) {
@@ -727,8 +715,8 @@ class BleForegroundService: Service() {
             bleThreadFuture = executor.submit {
                 Log.d("BleForegroundService", "Attempting to start BLE thread.")
                 try {
-                    ble = BlePeers(this)
-                    ble!!.startBluetooth()
+                    tinyBle = BlePeers(this)
+                    tinyBle!!.startBluetooth()
                 } catch (e: Exception) {
                     Log.d("BleForegroundService", "BLE thread died $e")
                     Thread.currentThread().interrupt()
@@ -746,8 +734,11 @@ class BleForegroundService: Service() {
         isRunning = false
         testThreadFuture?.cancel(true)
         bleThreadFuture?.cancel(true)
+        nodeLoopThreadFuture?.cancel(true)
+        gosetLoopThreadFuture?.cancel(true)
         // TODO: Optionally we could shutdown threads here.
         //  But we would have some overhead of continuously having to recreate new pool
+
     }
 
     /**
@@ -785,12 +776,12 @@ class BleForegroundService: Service() {
             val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
             val bluetoothAdapter = bluetoothManager.adapter
             if (bluetoothManager == null) {
-                Log.d("BleForegroundService", "Bluetooth Manager is not null")
+                Log.d("BleForegroundService", "Bluetooth Manager is null")
                 return false
             }
             val context = applicationContext
             if (context == null) {
-                Log.d("BleForegroundService", "Context is not null")
+                Log.d("BleForegroundService", "Context is null")
                 return false
             }
             val pm: PackageManager = getPackageManager()

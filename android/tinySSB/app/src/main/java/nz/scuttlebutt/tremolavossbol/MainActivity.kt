@@ -18,6 +18,7 @@ import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.net.*
 import android.net.wifi.WifiManager
+import android.os.BatteryManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -72,6 +73,7 @@ class MainActivity : Activity() {
     var broadcastReceiver: BroadcastReceiver? = null
     var isWifiConnected = false
     var ble_event_listener: BluetoothEventListener? = null
+    var batterySave: Boolean = false
 
     // used for messaging
     private var serviceConnection: ServiceConnection? = null
@@ -149,6 +151,9 @@ class MainActivity : Activity() {
         get() = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) ==
                 PackageManager.PERMISSION_GRANTED
 
+    /**
+     * This function is used to send messages to the ForegroundService without expecting a return value.
+     */
     fun sendMessageToForegroundserviceWithoutOutput(type: ApplicationNotificationType, message: Any?) {
         if (!isForegroundServiceRunning()) {
             Log.d("MainActivity", "Service is not running, message will not be sent.")
@@ -215,6 +220,15 @@ class MainActivity : Activity() {
         }
     }
 
+    fun setBatteryMode() {
+        batterySave = !batterySave
+        if (batterySave) {
+            Toast.makeText(this, "Battery save mode enabled", Toast.LENGTH_SHORT).show()
+        } else {
+            Toast.makeText(this, "Battery save mode disabled.", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     /**
      *  This BroadcastReceiver is used to receive results from the ForegroundService.
      *  The callbackId is used to identify the callback and the result is used to store the result.
@@ -251,6 +265,10 @@ class MainActivity : Activity() {
         }
     }
 
+    /**
+     * This function is used to send messages to the ForegroundService and expect a return value.
+     * Notice that not all types require a message to be sent, which is why I left most of them to be empty.
+     */
     fun sendMessageToForegroundserviceWithOutput(type: ApplicationNotificationType, message: Any?): CompletableDeferred<Any?> {
         if (!isForegroundServiceRunning()) {
             Log.d("MainActivity", "Service is not running, message will not be sent.")
@@ -263,7 +281,6 @@ class MainActivity : Activity() {
         intent.putExtra("CallbackID", callbackId)
         when (type) { // Only special treatment for types which need parameters
             ApplicationNotificationType.SET_NEW_IDENTITY -> { // There are cases where return value is needed
-                // TODO as this does not make sense for now
                 val identity = intent.getByteArrayExtra("identity")
                 intent.putExtra("identity", identity)
             }
@@ -271,19 +288,18 @@ class MainActivity : Activity() {
                 // This is just a normal function call, nothing needs to be done here
             }
             ApplicationNotificationType.TO_EXPORT_STRING -> { // Returns String
-                // TODO
+                // Nothing goes here, just a function call
             }
             ApplicationNotificationType.LIST_FEEDS -> { // Returns List<ByteArray>
-                // TODO
+                // Nothing goes here, just a function call
             }
             ApplicationNotificationType.IDENTITY_TO_REF -> { // Returns String
-                // TODO, this is just a function call (No further logic needed probably)
+                // Nothing goes here, just a function call
             }
             ApplicationNotificationType.IS_GEO_ENABLED -> { // Returns Boolean
-                // TODO
+                // Nothing goes here, just a function call
             }
             ApplicationNotificationType.ENCRYPT_PRIV_MSG -> { // Returns ByteArray
-                // TODO
                 val bundle = message as Bundle
                 val keys = bundle.getStringArrayList("keys")
                 val bodyclear = bundle.getByteArray("body_clear")
@@ -551,6 +567,13 @@ class MainActivity : Activity() {
         */
         super.onDestroy()
         //ble?.stopBluetooth()
+
+        val batteryManager = getSystemService(Context.BATTERY_SERVICE) as BatteryManager
+        val batteryLevel = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
+        if (batterySave && batteryLevel <= 20) {
+            val intent = Intent(this, BleForegroundService::class.java)
+            stopService(intent)
+        }
 
         if (websocket != null) {
             websocket!!.stop()

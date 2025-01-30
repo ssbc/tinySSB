@@ -26,7 +26,7 @@ import java.io.RandomAccessFile
 import java.util.concurrent.locks.ReentrantLock
 
 class Node(val service: BleForegroundService) {
-    val NODE_ROUND_LEN = 5000L
+    val NODE_ROUND_LEN = 1000L // 5000L
     var log_offs = 0
     var chunk_offs = 0
     val WANT_LIM = 5

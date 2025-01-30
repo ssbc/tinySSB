@@ -95,12 +95,12 @@ class IO(val service: BleForegroundService) {
                 }
                 try { // BLE, no CRC added
                     if (BleForegroundService.getTinyBle() != null && BleForegroundService.getTinyBle()!!.peers.isNotEmpty()) { // && context.ble!!.peers.size > 0 //TODO removed Context
-                        // Log.d("tinyIO", "send ${buf.size} bytes via BLE")
+                        Log.d("IO", "send ${buf.size} bytes via BLE")
                         BleForegroundService.getTinyBle()!!.write(buf)
                         //context.ble!!.advertise(buf)
                     }
                 } catch (e: Exception) {
-                    Log.e("IO", "Sender exception: ${e.toString()}")
+                    Log.e("IO", "Sender exception: ${e.message}")
                 }
                 // websocket
                 if (service.websocket != null) { //TODO removed Context

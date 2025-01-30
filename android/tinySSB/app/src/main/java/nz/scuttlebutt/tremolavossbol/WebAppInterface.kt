@@ -57,6 +57,7 @@ import kotlinx.coroutines.*
 
 class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandler: GamesHandler?) {
 
+    // CoroutineScope for handling async tasks (Calls to the Backend)
     private val coroutineScope = CoroutineScope(Dispatchers.Main + Job())
     // frontend_frontier cannot be moved to foreground service due to memory leaks. Might be other solution to this.
     val frontend_frontier = act.getSharedPreferences("frontend_frontier", Context.MODE_PRIVATE)
@@ -100,8 +101,7 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
 
     @JavascriptInterface
     fun isGeoLocationEnabled(): String {
-        // TODO moving 'setting' variables inside mainapplication for better access, as this might be causing heavy load
-        // FIXME this is a workaround, as we cannot directly return values from coroutines, which is why i throw an exception triggering a false
+        // We have added IS_GEO_LOCATION_ENABLED to the ApplicationNotificationType enum in BleForegroundService
         try {
             coroutineScope.launch {
                 val settings = withContext(Dispatchers.IO) {
@@ -125,6 +125,9 @@ class WebAppInterface(val act: MainActivity, val webView: WebView, val gameHandl
         when (args[0]) {
             "onBackPressed" -> {
                 (act as MainActivity)._onBackPressed()
+            }
+            "battery" -> {
+                act.setBatteryMode()
             }
             "ready" -> {
                 Log.d("WebAppInterface", "Calling b2f_initialize: ${BleForegroundService.getTinyIdStore()!!.identity.toRef()}")

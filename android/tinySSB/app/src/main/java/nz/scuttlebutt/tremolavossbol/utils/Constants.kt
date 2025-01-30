@@ -11,6 +11,7 @@ class Constants{
         val SSB_VOSSBOL_MC_PORT = 1558
         val SSB_NETWORKIDENTIFIER = "d4a1cb88a66f02f8db635ce26441cc5dac1b08420ceaac230839b755845a9ffb".decodeHex()
         val UDP_BROADCAST_INTERVAL = 3000L     // millisec
+        val BLE_BROADCAST_INTERVAL = 1000L     // millisec
         val WIFI_DISCOVERY_INTERVAL = 5L       // check every X sec
         val EBT_FORCE_FRONTIER_INTERVAL = 30L  // send frontier every X sec
         val frontierWindow = 86400000

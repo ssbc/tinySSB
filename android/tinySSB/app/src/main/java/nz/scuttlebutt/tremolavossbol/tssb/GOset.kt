@@ -45,7 +45,7 @@ class GOset(val service: BleForegroundService) {
 
     val GOSET_KEY_LEN   = FID_LEN
     val GOSET_MAX_KEYS  =    100 //   MAX_FEEDS
-    val GOSET_ROUND_LEN = 10000L // in millis
+    val GOSET_ROUND_LEN = 3000L // in millis (Old: 10000L)
     val MAX_PENDING     =     20 // log2(maxSetSize) + density (#neighbors)
     val NOVELTY_PER_ROUND =    1
     val ASK_PER_ROUND   =      1

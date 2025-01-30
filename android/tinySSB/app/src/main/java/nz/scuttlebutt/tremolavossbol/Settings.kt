@@ -100,8 +100,8 @@ class Settings(val service: BleForegroundService) {
 
     fun handleBleEnabled(value: Boolean) {
         if(!value)
-            service.ble?.stopBluetooth()
-        service.ble?.startBluetooth()
+            BleForegroundService.getTinyBle()?.stopBluetooth()
+        BleForegroundService.getTinyBle()?.startBluetooth()
     }
 
     fun handleUdpMulticastEnabled(value: Boolean) {

@@ -107,6 +107,12 @@ function settings_restream_posts() {
     backend("restream");
 }
 
+function settings_disable_foreground() {
+    closeOverlay();
+    setScenario('chats')
+    backend("battery");
+}
+
 function settings_reset_ui() {
     closeOverlay();
     resetTremola();
