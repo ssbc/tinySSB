@@ -28,6 +28,7 @@
 #include "const.h"
 
 // files which have a corresponding *.cpp:
+#include "ed25519.h"
 #include "util.h"
 #include "bipf.h"
 #include "config-tSSB.h"
@@ -47,7 +48,8 @@ extern SchedClass *theSched;
 #include "peers.h"
 extern PeersClass *thePeers;
 
-// #include "app_tva.h"
+#include "app/tav.h"
+extern App_TAV_Class *theTAV;
 
 
 // ---------------------------------------------------------------------------

@@ -32,6 +32,9 @@ public:
 
   // peers screen:
   virtual void heard_peer(char *id, int rssi, float snr) {};
+
+  // apps:
+  virtual void add_new_post(char *txt, int t, int pos) {};
   
   char *node_name;
   char *time;

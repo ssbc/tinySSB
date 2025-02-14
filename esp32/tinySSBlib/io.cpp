@@ -112,6 +112,7 @@ BLECharacteristic *TXChar = nullptr; // transmit (notify)
 BLECharacteristic *STChar = nullptr; // statistics
 volatile int bleDeviceConnected = 0;
 char txString[128] = {0};
+bool ble_is_active = true;
 
 class UARTServerCallbacks: public BLEServerCallbacks {
     void onConnect(BLEServer* pServer) {
@@ -144,6 +145,10 @@ class RXCallbacks: public BLECharacteristicCallbacks {
 };
 
 
+static BLEServer *BLE_UARTServer;
+static BLEService *BLE_UARTService;
+
+
 void ble_init()
 {
   Serial.println("# BLE init");
@@ -151,49 +156,77 @@ void ble_init()
   // Create the BLE Device
   BLEDevice::init(ssid); // "tinySSB virtual LoRa pub");
   BLEDevice::setMTU(128);
+
+  /*
+  esp_err_t local_mtu_ret = esp_ble_gatt_set_local_mtu(128); // 23);
+  if (local_mtu_ret) {
+    Serial.println("set local MTU failed, error code = " + String(local_mtu_ret));
+  }
+  */
+
   // Create the BLE Server
-  BLEServer *UARTServer = BLEDevice::createServer();
+  BLE_UARTServer = BLEDevice::createServer();
   // UARTServer->setMTU(128);
-  UARTServer->setCallbacks(new UARTServerCallbacks());
+  BLE_UARTServer->setCallbacks(new UARTServerCallbacks());
   // Create the BLE Service
-  BLEService *UARTService = UARTServer->createService(BLE_SERVICE_UUID);
+  BLE_UARTService = BLE_UARTServer->createService(BLE_SERVICE_UUID);
 
   // Create our BLE Characteristics
-  TXChar = UARTService->createCharacteristic(BLE_CHARACTERISTIC_UUID_TX, BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY);
+  TXChar = BLE_UARTService->createCharacteristic(BLE_CHARACTERISTIC_UUID_TX,
+        BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY);
   TXChar->addDescriptor(new BLE2902());
   TXChar->setNotifyProperty(true);
   TXChar->setReadProperty(true);
 
-  STChar = UARTService->createCharacteristic(BLE_CHARACTERISTIC_UUID_ST, BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY);
+  STChar = BLE_UARTService->createCharacteristic(BLE_CHARACTERISTIC_UUID_ST,
+        BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY);
   STChar->addDescriptor(new BLE2902());
   STChar->setNotifyProperty(true);
   STChar->setReadProperty(true);
 
-  RXChar = UARTService->createCharacteristic(BLE_CHARACTERISTIC_UUID_RX, BLECharacteristic::PROPERTY_WRITE);
+  RXChar = BLE_UARTService->createCharacteristic(BLE_CHARACTERISTIC_UUID_RX,
+        BLECharacteristic::PROPERTY_WRITE);
   RXChar->setCallbacks(new RXCallbacks());
 
   // Start the service
-  UARTService->start();
+  BLE_UARTService->start();
   // Start advertising
-  UARTServer->getAdvertising()->start();
+  BLE_UARTServer->getAdvertising()->start();
   esp_err_t local_mtu_ret = esp_ble_gatt_set_local_mtu(128); // 23);
   if (local_mtu_ret) {
     Serial.println("set local MTU failed, error code = " + String(local_mtu_ret));
   }
 
   BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
-    pAdvertising->addServiceUUID(BLE_SERVICE_UUID);
-    pAdvertising->setScanResponse(true);
-    pAdvertising->setMinPreferred(0x06);  // functions that help with iPhone connections issue
-    pAdvertising->setMinPreferred(0x12);
-    BLEDevice::startAdvertising();
+  pAdvertising->addServiceUUID(BLE_SERVICE_UUID);
+  pAdvertising->setScanResponse(true);
+  pAdvertising->setMinPreferred(0x06);  // functions that help with iPhone connections issue
+  pAdvertising->setMinPreferred(0x12);
+  BLEDevice::startAdvertising();
+  
+  // ble_start();
 }
 
+void ble_start() // Start the service, start advertizing
+{
+  BLE_UARTService->start();
+  BLE_UARTServer->getAdvertising()->start();
+  BLEDevice::startAdvertising();
+  ble_is_active = true;
+}
+
+void ble_stop()
+{
+  BLEDevice::stopAdvertising();
+  BLE_UARTServer->getAdvertising()->stop();
+  BLE_UARTService->stop();
+  ble_is_active = false;
+}
 
 void ble_send(unsigned char *buf, short len, const char *origin)
 {
   // Serial.printf("BLE send %p %d\r\n", buf, len);
-  if (bleDeviceConnected == 0)
+  if (bleDeviceConnected == 0 || !ble_is_active)
     return;
   // no CRC added, we rely on BLE's CRC
   TXChar->setValue(buf, len);
@@ -205,7 +238,7 @@ void ble_send(unsigned char *buf, short len, const char *origin)
 
 void ble_send_stats(unsigned char *str, short len)
 {
-  if (bleDeviceConnected == 0) return;
+  if (bleDeviceConnected == 0 || !ble_is_active) return;
   // no CRC added, we rely on BLE's CRC
   STChar->setValue(str, len);
   STChar->notify();

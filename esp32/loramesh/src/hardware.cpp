@@ -438,7 +438,7 @@ static bool gpsProbe()
 
 void hw_init()
 {
-  setCpuFrequencyMhz(160); // 240
+  setCpuFrequencyMhz(240); // 160
 
   pinMode(BOARD_TOUCH_INT, INPUT);
 
@@ -563,6 +563,15 @@ void hw_init()
         sensor_rtc.disableCLK();   //Disable clock output ， Conserve Backup Battery Current Consumption
         sensor_rtc.hwClockRead();  //Synchronize RTC clock to system clock
         // devices_probe |= WATCH_RTC_ONLINE;
+
+        // store UTC in the rtc, then use setenv("TZ", "PST8") and tzset()
+        uint16_t year  = 2025;
+        uint8_t month  = 2;
+        uint8_t day    = 14;
+        uint8_t hour   = 9;
+        uint8_t minute = 58;
+        uint8_t second = 0;
+        // sensor_rtc.setDateTime(year, month, day, hour, minute, second);
     }
 
     // ------------------------------------------------------------

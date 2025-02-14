@@ -7,6 +7,11 @@
 
 // ----------------------------------------------------------------------
 
+Repo2Class::Repo2Class(is_complete_fct completed)
+{
+  this->cb_completed = completed;
+}
+
 void Repo2Class::clean(char *path)
 {
   File fdir = MyFS.open(path);
@@ -89,7 +94,7 @@ void Repo2Class::loop()
 
 void Repo2Class::add_replica(unsigned char *fid)
 {
-  ReplicaClass *r = new ReplicaClass(FEED_DIR, fid);
+  ReplicaClass *r = new ReplicaClass(FEED_DIR, fid, cb_completed);
   replicas[rplca_cnt++] = r;
   // int ndx = theGOset->_key_index(fid);
 
@@ -153,6 +158,7 @@ void Repo2Class::mk_want_vect()
 
   int new_want_offs = want_offs + 1;
   for (int i = 0; i < theGOset->goset_len; i++) {
+    // Serial.println("xx");
     unsigned int ndx = (want_offs + i) % theGOset->goset_len;
     unsigned char *fid = theGOset->get_key(ndx);
     ReplicaClass *r = theRepo->fid2replica(fid);
@@ -171,7 +177,10 @@ void Repo2Class::mk_want_vect()
   }
   want_offs = new_want_offs % theGOset->goset_len;
 
-  free(want_vect);
+  if (want_vect) {
+    free(want_vect);
+    want_vect = NULL;
+  }
   if (lptr->cnt > 1) {
     want_len = bipf_encodingLength(lptr);
     want_vect = (unsigned char*) malloc(want_len);
@@ -181,6 +190,7 @@ void Repo2Class::mk_want_vect()
     want_len = 0;
 
   bipf_free(lptr);
+  // Serial.println("yy");
   // want_is_valid = 1;
 }
 
@@ -230,8 +240,10 @@ void Repo2Class::mk_chnk_vect()
           break;
       }
     } while (encoding_len <= 100 && old_ndx != ndx);
-    free(chnk_vect);
-    chnk_vect = NULL;
+    if (chnk_vect) {
+      free(chnk_vect);
+      chnk_vect = NULL;
+    }
     if (lptr->cnt > 0) {
       chnk_len = bipf_encodingLength(lptr);
       chnk_vect = (unsigned char*) malloc(chnk_len);

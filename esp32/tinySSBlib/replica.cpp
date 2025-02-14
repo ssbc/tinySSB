@@ -50,7 +50,7 @@ void compute_dmx(unsigned char *dst,
   memcpy(nam + PFX_LEN + FID_LEN + 4, prev, HASH_LEN);
   unsigned char h[crypto_hash_sha256_BYTES];
   crypto_hash_sha256(h, nam, sizeof(nam) - TINYSSB_PKT_LEN);
-  memcpy(dst, h, 7);
+  memcpy(dst, h, DMX_LEN);
 }
 
 
@@ -69,9 +69,11 @@ static uint32_t _read_uint32(File f)
 }
 
 
-ReplicaClass::ReplicaClass(char *datapath, unsigned char *fID)
+ReplicaClass::ReplicaClass(char *datapath, unsigned char *fID,
+                           is_complete_fct completed)
 {
   memcpy(this->fid, fID, FID_LEN);
+  this->cb_completed = completed;
 
   fname = (char*) malloc(strlen(datapath) + 1 + 64 + 1 + 7 + 1); // "/log.bin"
   sprintf(fname, "%s/%s", FEED_DIR, to_hex(fid, FID_LEN, 0));
@@ -97,6 +99,7 @@ ReplicaClass::ReplicaClass(char *datapath, unsigned char *fID)
     _write_uint32(f, 0);// pendscc
     _write_uint32(f, 0);// seq
     f.close();
+    Serial.printf("# new log %s, seq=%d\r\n", fname, seq);
   } else {
     File f = MyFS.open(fname, "r+", false);
     int sz = f.size();
@@ -110,7 +113,7 @@ ReplicaClass::ReplicaClass(char *datapath, unsigned char *fID)
       f.read(mid, HASH_LEN);
     }
     f.close();
-    Serial.printf("opened log %s, %dB, seq=%d\r\n", fname, sz, seq);
+    Serial.printf("# opened log %s, %dB, seq=%d\r\n", fname, sz, seq);
   }
 }
 
@@ -168,21 +171,43 @@ int ReplicaClass::_get_content_len(unsigned char *pkt,int seq_nr,int *valid_len)
       *valid_len = 48;
     return 48;
   }
-  int sz = 5;
-  int len = bipf_varint_decode(pkt, DMX_LEN+1, &sz);
-  if (valid_len) {
-    *valid_len = (48-20-sz); // no chunks implemented so far
-    /*    *valid_len = len;
-    if (len > 48-20-sz) {
-      // _load_state();
-      struct bipf_s i = { BIPF_INT, {}, {.i = seq} };
-      struct bipf_s *p = bipf_dict_getref(pending_ref, &i);
-      if (p != NULL)
-        *valid_len = (48-20-sz) + 100 * p->u.list[0]->u.i;
+  if (pkt[DMX_LEN] == PKTTYPE_chain20) {
+    int sz = 5;
+    int len = bipf_varint_decode(pkt, DMX_LEN+1, &sz);
+    if (valid_len) {
+      if (len <= 48-20-sz)
+        *valid_len = len;
+      else {
+        *valid_len = 48-20-sz;
+        uint32_t endAddr;
+        File f = _open_at_start(seq_nr, &endAddr);
+        if (f) {
+          uint32_t startAddr = f.position();
+          // verify that we have a side chain
+          if ((endAddr - startAddr) > (TINYSSB_PKT_LEN+HASH_LEN+sizeof(uint32_t))) {
+            // verify whether side chain is complete
+            f.seek(endAddr - sizeof(uint32_t) - HASH_LEN - HASH_LEN, SeekSet);
+            unsigned char tmp[HASH_LEN];
+            f.read(tmp, HASH_LEN);
+            bool is_empty = true;
+            for (int i = 0; i < HASH_LEN; i++)
+              if (tmp[i] != 0) { is_empty = false; break; }
+            if (is_empty) // great, side chain is complete
+              *valid_len = len;
+            else {
+              f.seek(endAddr - sizeof(uint32_t) - HASH_LEN -            \
+                                                3*sizeof(uint32_t), SeekSet);
+              int delta = _read_uint32(f);
+              *valid_len += 100*delta;
+            }
+          }
+          f.close();
+        }
+      }
     }
-    */
+    return len;
   }
-  return len;
+  return -1;
 }
 
 
@@ -221,6 +246,7 @@ char ReplicaClass::ingest_entry_pkt(unsigned char *pkt) // True/False
   // _load_state();  
   unsigned char dmx_val[DMX_LEN];
   compute_dmx(dmx_val, fid, seq + 1, mid);
+  // Serial.printf("# ingest_pkt: dmx is %s\r\n", to_hex(dmx_val, 7));
   if (memcmp(dmx_val, pkt, DMX_LEN)) { // wrong dmx field
     Serial.println("   DMX mismatch");
     return 0;
@@ -231,7 +257,7 @@ char ReplicaClass::ingest_entry_pkt(unsigned char *pkt) // True/False
   memcpy(nam + strlen(DMX_PFX) + FID_LEN + 4 + HASH_LEN, pkt, TINYSSB_PKT_LEN);
   int b = crypto_sign_ed25519_verify_detached(pkt + 56, nam, PFX_LEN + FID_LEN + 4 + HASH_LEN + 56, fid);
   if (b) {
-    Serial.println("   ed25519 signature verification failed");
+    Serial.println("#   ed25519 signature verification failed");
     return 0;
   }
   unsigned char h256[crypto_hash_sha256_BYTES];
@@ -253,7 +279,7 @@ char ReplicaClass::ingest_entry_pkt(unsigned char *pkt) // True/False
     content_len -= 48 - HASH_LEN - sz;
     // ptr = pkt[36:56] --> hash of first chunk
     ch_cnt = (content_len + 99) / 100;
-    // Serial.printf("  content_len=%d, cc=%d\r\n", content_len, ch_cnt);
+    // Serial.printf("  remaining content_len=%d, cc=%d\r\n", content_len, ch_cnt);
   }
   if (ch_cnt > 0) {
     unsigned char empty[TINYSSB_PKT_LEN];
@@ -276,6 +302,10 @@ char ReplicaClass::ingest_entry_pkt(unsigned char *pkt) // True/False
   _write_uint32(f, ++seq);
   f.close();
 
+  if ((pkt[DMX_LEN] == PKTTYPE_plain48 || ch_cnt == 0) &&
+      this->cb_completed)
+    (*(this->cb_completed))(this->fid, seq);
+
   io_loop();
   // Serial.printf("end of ingest_entry_pkt\r\n");
   return 1;
@@ -294,7 +324,7 @@ char ReplicaClass::ingest_chunk_pkt(unsigned char *pkt, int snr, int *cnr) // Tr
     return 0;
   uint32_t startAddr = f.position();
   if ((endAddr - startAddr) <= (TINYSSB_PKT_LEN+HASH_LEN+sizeof(uint32_t))) {
-    // that's bad: packet has no sidechain
+    // Serial.println("  that's bad: packet has no sidechain");
     f.close();
     return 0;
   }
@@ -306,7 +336,7 @@ char ReplicaClass::ingest_chunk_pkt(unsigned char *pkt, int snr, int *cnr) // Tr
   for (int i = 0; i < HASH_LEN; i++)
     if (tmp[i] != 0) { is_empty = false; break; }
   if (is_empty) {
-    // that's bad: sidechain already complete
+    // Serial.println("  that's bad: sidechain already complete");
     f.close();
     return 0;
   }
@@ -318,8 +348,9 @@ char ReplicaClass::ingest_chunk_pkt(unsigned char *pkt, int snr, int *cnr) // Tr
   f.seek(startAddr + (1+have) * TINYSSB_PKT_LEN, SeekSet);
   f.write(pkt, TINYSSB_PKT_LEN);
   if (left == 1) { // this was the last chunk, trim the pending chain
-    Serial.printf("   chain %d.%d.%d complete\r\n",
-                  theGOset->_key_index(fid), snr, *cnr);
+    if (theGOset)
+      Serial.printf("#    chain %d.%d.%d complete (left=%d)\r\n",
+                    theGOset->_key_index(fid), snr, *cnr, left);
     if (pendscc == endAddr) {
       pendscc = pscc;
       f.seek(f.size() - 2*sizeof(uint32_t));
@@ -350,6 +381,9 @@ char ReplicaClass::ingest_chunk_pkt(unsigned char *pkt, int snr, int *cnr) // Tr
   }
   f.close();
   chunk_cnt++;
+
+  if (left == 1 && this->cb_completed)
+    (*(this->cb_completed))(this->fid, snr);
   return 1;
 }
 
@@ -594,7 +628,31 @@ unsigned char* ReplicaClass::read(int seq_nr, int *valid_len)
     f.close();
     return NULL;
   }
-  return NULL;
+  int sz = 5;
+  int len = bipf_varint_decode(pkt, DMX_LEN+1, &sz);
+  unsigned char* buf = (unsigned char*) malloc(len);
+  if (buf) {
+    if (len <= 48-sz)
+      memcpy(buf, pkt+DMX_LEN+1 + sz, len);
+    else {
+      int offs = 48 - HASH_LEN - sz;
+      memcpy(buf, pkt+DMX_LEN+1 + sz, offs);
+      len -= offs;
+      while (len > 0) {
+        sz = min(TINYSSB_PKT_LEN - HASH_LEN, len);
+        if (f.read(buf + offs, sz) != sz) {
+          free(buf);
+          f.close();
+          return NULL;
+        }
+        f.read(pkt, HASH_LEN); // we discard the hash value
+        offs += sz;
+        len -= sz;
+      }
+    }
+  }
+  f.close();
+  return buf;
   /*
   int len;
   if (_get_content_len(pkt, seq, &len) < 0)
@@ -623,5 +681,59 @@ unsigned char* ReplicaClass::read(int seq_nr, int *valid_len)
   */
 }
 
+bool ReplicaClass::write(unsigned char *data, int len, signing_fct s)
+{
+  int old_seq = seq;
+  // this version of write() generates a _chain20 pkt
+  unsigned char pkt[TINYSSB_PKT_LEN];
+  unsigned char block_0[48];
+  memset(block_0, 0, sizeof(block_0));
+  int sz = bipf_varint_encode(block_0, len);
+  int sidechain_cnt = 0;
+  unsigned char **chunks = NULL;
+
+  if ((sz + len) <= 48) { // all fits into single packet, no hash ptr at end
+    memcpy(block_0 + sz, data, len);
+  } else {
+    int d = 48 - sz - HASH_LEN;
+    unsigned char h[crypto_hash_sha256_BYTES];
+    memcpy(block_0 + sz, data, d);
+    data += d, len -= d;
+    sidechain_cnt = (len + 99)/100;
+    chunks = (unsigned char**) malloc(sidechain_cnt * sizeof(unsigned char*));
+    unsigned char prev_hash[HASH_LEN];
+    memset(prev_hash, 0, sizeof(prev_hash));
+    for (int i = sidechain_cnt-1; i >= 0; i--) {
+      chunks[i] = (unsigned char*) calloc(1,120);
+      memcpy(chunks[i], data + i*100, min(len-i*100, 100));
+      memcpy(chunks[i]+100, prev_hash, HASH_LEN);
+      crypto_hash_sha256(h, chunks[i], TINYSSB_PKT_LEN);
+      memcpy(prev_hash, h, HASH_LEN);
+    }
+    memcpy(block_0 + sizeof(block_0) - HASH_LEN, prev_hash, HASH_LEN);
+  }
+  compute_dmx(pkt, fid, seq+1, mid); // this initializes nam
+  pkt[DMX_LEN] = PKTTYPE_chain20;
+  memcpy(pkt + DMX_LEN + 1, block_0, sizeof(block_0)); // 56 bytes ready now
+  memcpy(nam + strlen(DMX_PFX) + FID_LEN + 4 + HASH_LEN, pkt, 56);
+  int x = PFX_LEN + FID_LEN + 4 + HASH_LEN;
+  bool rc = (*s)(pkt+56, nam, PFX_LEN + FID_LEN + 4 + HASH_LEN + 56);
+  if (!ingest_entry_pkt(pkt))
+    Serial.println("# .. adding self-signed pkt failed)");
+  else
+    Serial.printf("#  bumped seq from %d to %d\r\n", old_seq, seq);
+  for (int i = 0; i < sidechain_cnt; i++) { // add side chain packets
+    int cnr = i;
+    if (!ingest_chunk_pkt(chunks[i], seq, &cnr))
+      Serial.printf("# .. adding chunk %d.%d failed\r\n", seq, i);
+    else
+      Serial.printf("# .. adding chunk %d.%d ok: %d\r\n", seq, i, cnr);
+    // free(chunks[i]);
+    Serial.println(".");
+  }
+  if (chunks)
+    free(chunks);
+  return seq;
+}
 
 // eof

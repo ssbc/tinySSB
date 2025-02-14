@@ -251,6 +251,7 @@ struct bipf_s* _bipf_dec_inner(int tag, unsigned char *buf, int pos, int *lptr)
   if (tag == BIPF_BOOLNONE) { //  i.e., length is 0
     struct bipf_s *bptr = (struct bipf_s*) malloc(sizeof(struct bipf_s));
     bptr->typ = BIPF_BOOLNONE;
+    bptr->u.i = -1;
     *lptr = 0;
     return bptr;
   }

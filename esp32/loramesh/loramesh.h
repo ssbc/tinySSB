@@ -13,7 +13,6 @@
 
 #include "src/hardware.h"
 
-
 #if !defined(UTC_OFFSET)
 # define UTC_OFFSET ""
 #endif
@@ -42,6 +41,10 @@ Repo2Class *theRepo;
 GOsetClass *theGOset;
 PeersClass *thePeers;
 SchedClass *theSched;
+
+#ifdef defined(TINYSSB_BOARD_TWATCH)
+App_TAV_Class *theTAV;
+#endif
 
 // ---------------------------------------------------------------------------
 
@@ -134,6 +137,35 @@ void time_stamp()
 
 // ---------------------------------------------------------------------------
 
+#if defined(TINYSSB_BOARD_TWATCH)
+static void cb_new_log_entry(unsigned char *fid, int seqnr)
+{
+  Serial.printf("# cb_new_log_entry %s:%d\r\n", to_hex(fid,10), seqnr);
+  ReplicaClass *r = theRepo->fid2replica(fid);
+  if (r) {
+    int max_sz;
+    int sz = r->get_content_len(seqnr, &max_sz);
+    Serial.printf("#   sz=%d max_sz=%d\r\n", sz, max_sz);
+    if (sz > 0 && sz < 2024 && max_sz == sz) { // only consider full entries
+      unsigned char *buf = r->read(seqnr, &max_sz);
+      if (buf != NULL) {
+        struct bipf_s *b = bipf_loads(buf, max_sz);
+        if (b != NULL) {
+          // Serial.printf("#   %s\r\n", bipf2String(b));
+          theTAV->incoming(fid, b);
+          bipf_free(b);
+        }
+        free(buf);
+      }
+    }
+  }
+}
+#else
+static is_complete_fct cb_new_log_entry = NULL;
+#endif
+
+// ---------------------------------------------------------------------------
+
 int esp_efuse_mac_get_default(uint8_t *mac);
 
 void setup()
@@ -156,6 +188,13 @@ void setup()
                  "running on a " DEVICE_MAKE);
   Serial.printf("** compiled %s\r\n", utc_compile_time);
 
+  // not sure how Espressif handles timezone data and the RTC. In principle,
+  // RTC should keep UTC and the rest is TZ config. Not sure this applies, here.
+  // 
+  // setenv("TZ", "UTC", 1); // when manually setting the RTC (see hardware.cpp)
+  setenv("TZ", "PST8", 1); // when using the device
+  tzset();
+ 
   esp_efuse_mac_get_default(my_mac);
 #if !defined(HAS_UDP)  // in case of no Wifi: display BT mac addr, instead
   my_mac[5] += 2;
@@ -170,6 +209,8 @@ void setup()
 
   Serial.println("# hw_init() start");
   hw_init();
+  setenv("TZ", "PST8", 1); // when using the device
+  tzset();
   Serial.println("# hw_init() ended");
   delay(2000); // this increases the chance to be able to flash a new image
 
@@ -188,7 +229,8 @@ void setup()
 #elif defined(TINYSSB_BOARD_WLPAPER)
   theUI    = new UI_WLpaper_Class();
 #endif
-  // theUI->spinner(true);
+  theUI->spinner(true);
+  theUI->loop();
   // theUI->show_node_name(ssid); --> leads to crash on TWatch
   theUI->show_boot_msg("mounting file system");
 
@@ -201,6 +243,7 @@ void setup()
     theUI->show_boot_msg("  done formatting");
   } else
     theUI->show_boot_msg("  done");
+  theUI->loop();
 
   MyFS.mkdir(FEED_DIR);
   Serial.printf("# file system: %d total bytes, %d used\r\n",
@@ -233,6 +276,7 @@ void setup()
     // Serial.println(state);
   }
 #endif
+  theUI->loop();
 
 #ifdef USE_LORA_LIB
   theUI->show_boot_msg("init LoRa");
@@ -253,7 +297,7 @@ void setup()
   io_init(); // network interfaces
 
   theDmx   = new DmxClass();
-  theRepo  = new Repo2Class();
+  theRepo  = new Repo2Class(cb_new_log_entry);
   theGOset = new GOsetClass();
   thePeers = new PeersClass();
   theSched = new SchedClass(probe_for_goset_vect,
@@ -270,32 +314,68 @@ void setup()
 
   theUI->show_boot_msg("load feed data ...");
   theRepo->load();
-  Serial.printf("\r\n# Repo: %d feeds, %d entries, %d chunks\r\n",
+
+#if defined(TINYSSB_BOARD_TWATCH)
+  // if we have an ED25519 key pair in the NVS, make sure we have a feed
+  if ( ((UI_TWatch_Class*) theUI)->myid_valid ) {
+    unsigned char *fid = ((UI_TWatch_Class*) theUI)->myid_pk;
+    ReplicaClass *r = theRepo->fid2replica(fid);
+    if (!r) {
+      Serial.printf("creating new replica for %s\r\n",
+                    to_hex(((UI_TWatch_Class*) theUI)->myid_pk,32));
+      theRepo->add_replica(fid);
+      theGOset->populate(fid);
+      theGOset->populate(NULL); // triggers sorting, and setting the want_dmx
+      r = theRepo->fid2replica(fid);
+
+      // announce our name
+      struct bipf_s *lst = bipf_mkList();
+      bipf_list_append(lst, bipf_mkString("IAM"));
+      bipf_list_append(lst, bipf_mkString("cft's SSB.watch"));
+      int len = bipf_encodingLength(lst);
+      unsigned char *buf = (unsigned char *) malloc(len);
+      bipf_encode(buf, lst);
+      bool rc = r->write(buf, len, ((UI_TWatch_Class*) theUI)->my_signing_fct);
+      bipf_free(lst);
+      free(buf);
+    }
+    // else if (r->get_next_seq() > 25) // purge, for dev purposes
+    //   theRepo->reset(FEED_DIR);
+  }
+  #endif
+
+  Serial.printf("#\r\n# Repo: %d feeds, %d entries, %d chunks\r\n",
                 theRepo->rplca_cnt, theRepo->entry_cnt, theRepo->chunk_cnt);
   // theUI->show_repo_stats(theRepo->rplca_cnt,
   //                      theRepo->entry_cnt, theRepo->chunk_cnt, 1);
   
   // listDir(MyFS, "/", 2); // FEED_DIR, 2);
-  theUI->show_boot_msg("load app data ...");
-  // the_TVA_app = new App_TVA_Class(posts);
-  // the_TVA_app->restream();
-
-  theUI->spinner(false);
   theUI->buzz();
-
   theUI->show_boot_msg("end of setup");
+
+  theUI->show_boot_msg("# load app data ...");
+#if defined(TINYSSB_BOARD_TWATCH)  
+  Serial.println("# restream all logs (no persisted TAV state, yet)");
+  theTAV = new App_TAV_Class();
+  theTAV->restream();
+#endif
+  theUI->spinner(false);
+  theUI->show_boot_msg("# starting the main loop()");
   theUI->boot_ended();
-  theUI->refresh();
 
   Serial.println();
 }
 
 
+char mute_io = 0;
+
 void loop()
 {
-  io_loop();        // check for received packets
-  io_proc();        // process received packets
-  theSched->tick(); // send pending packets
+  if (!mute_io) {
+    io_loop();        // check for received packets
+    io_proc();        // process received packets
+    theSched->tick(); // send pending packets
+  }
 
   theUI->loop();
 

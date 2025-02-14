@@ -23,13 +23,22 @@ struct face_s {
 };
 
 void io_init();
-void lora_init();
 
 void io_loop(); // check for received packets
 void io_proc(); // process received packets
 
 void io_send(unsigned char *buf, short len,
              struct face_s *f=NULL, const char *origin=NULL);
+
+#if defined(HAS_BLE)
+  extern bool ble_is_active;
+  extern void ble_start();
+  extern void ble_stop();
+#endif
+
+#if defined(HAS_LORA)
+  void lora_init();
+#endif
 
 #endif
 

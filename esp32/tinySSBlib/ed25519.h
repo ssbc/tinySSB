@@ -1,7 +1,7 @@
-// ed25519.h
+// tinySSBlib/ed25519.h
 
 // tinySSB for ESP32
-// Aug 2022 <christian.tschudin@unibas.ch>
+// 2022,2025 <christian.tschudin@unibas.ch>
 
 #include <sodium/crypto_sign_ed25519.h>
 
@@ -32,3 +32,17 @@
 
   */
   
+
+// the ED25519 seed is stored in the ESP32's NVS partition,
+// using namespace 'tinySSB'
+
+#define ED25519_SEED_LEN 32
+#define ED25519_SK_LEN 64
+#define ED25519_PK_LEN 32
+
+typedef bool (*signing_fct)(unsigned char *sig, unsigned char *data, int len);
+
+bool ed25519_new_seed(char *nm);
+bool ed25519_del_seed(char *nm);
+bool ed25519_get_seed(char *nm, unsigned char *seed);
+bool ed25519_get_keypair(char *nm, unsigned char *pk, unsigned char *sk);

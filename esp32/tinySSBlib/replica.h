@@ -10,6 +10,7 @@
 
 #include "tinySSBlib.h"
 
+typedef void (*is_complete_fct)(unsigned char *fid, int seq);
 
 #define PFX "tinyssb-v0"
 #define PFX_LEN 10
@@ -25,7 +26,8 @@ struct chunk_needed_s {
 class ReplicaClass {
 
 public:
-  ReplicaClass(char *datapath, unsigned char *fid);
+  ReplicaClass(char *datapath, unsigned char *fid,
+               is_complete_fct completed = NULL);
   int load_chunk_cnt(); // not included in init because of scan time
 
   char ingest_entry_pkt(unsigned char *pkt); // True/False
@@ -43,10 +45,12 @@ public:
   int get_content_len(int seq, int *valid_len = NULL);
   unsigned char* read(int seq, int *valid_len = NULL);
   //  write48(self, content, sign_fct): # publish event, returns seq or None
-  //  write(self, content, sign_fct): # publish event, returns seq or None
+  bool write(unsigned char *data, int len, signing_fct s);
 
   unsigned char fid[FID_LEN];
   int chunk_cnt = -1;
+  is_complete_fct cb_completed;
+
 private:
   char *fname;
 
