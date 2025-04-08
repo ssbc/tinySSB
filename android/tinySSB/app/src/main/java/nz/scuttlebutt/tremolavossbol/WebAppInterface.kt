@@ -41,6 +41,10 @@ import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_DLV
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_NEWTRUSTED
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_TICTACTOE
 import okio.ByteString.Companion.decodeHex
+import nz.scuttlebutt.tremolavossbol.miniapps.MiniAppPlugin
+import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_CUSTOM_APP
+import java.io.File
+import java.io.IOException
 
 
 // pt 3 in https://betterprogramming.pub/5-android-webview-secrets-you-probably-didnt-know-b23f8a8b5a0c
@@ -99,6 +103,10 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
         //handle the data captured from webview}
         Log.d("FrontendRequest", s)
         val args = s.split(" ")
+
+        // Allow plugins to handle the frontend requests use MiniAppPlugin
+        MiniAppPlugin(act, webView).handleRequest(args)
+
         when (args[0]) {
             "onBackPressed" -> {
                 (act as MainActivity)._onBackPressed()
@@ -316,6 +324,18 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
                 i.setData(Uri.parse("https://plus.codes/" + args[1]))
                 act.startActivity(i);
             }
+            // Not needed anymore but kept for reference
+            "writeManifestPaths" -> {
+                //Log.d("HERE", "i am here!!!!")
+                sendManifestPathsToFrontend()
+            }
+            // Not needed anymore but kept for reference
+            "getManifestData" -> {
+                if (args.size > 1) {
+                    val path = args[1]
+                    readManifestFile(path)
+                }
+            }
             "settings:set" -> {
                 act.settings!!.set(args[1], args[2])
             }
@@ -356,6 +376,61 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
                 }
             }
 
+            "customApp:writeEntry" -> {
+                val lst = Bipf.mkList()
+                Bipf.list_append(lst, TINYSSB_APP_CUSTOM_APP)
+                Bipf.list_append(lst, Bipf.mkString(args[1]))
+                Bipf.list_append(lst, Bipf.mkString(args[2])) //TODO: bipfify the JSON object
+                val body = Bipf.encode(lst)
+                if (body != null) {
+                    act.tinyNode.publish_public_content(body)
+                }
+                Log.d("wai", "customApp:entry " + args[2])
+            }
+
+            "customApp:readEntries" -> {
+                // define the structure to keep the entries
+                val entries = mutableListOf<String>()
+                var count = 0
+                // read the content of my own feed
+                val replica = act.tinyRepo.fid2replica(act.idStore.identity.verifyKey)
+                if (replica != null) {
+                    val customAppID = args[1]
+                    val numEntries = args[2].toInt()
+                    // check if entry starts with CUS identifier
+                    var seq  = replica.state.max_seq
+                    Log.d("wai", "customApp:seq " + seq.toString())
+                    while (count < numEntries && seq > 0) {
+                        var entry = replica?.read_content(seq)
+                        val entryType = entry?.let { getFromEntry(it, 0) }
+                        Log.d("wai", "customApp:entryType " + entryType.toString())
+                        if (entryType == "CUS") {
+                            // read the content of the entry
+                            val entryApp = entry?.let { getFromEntry(it, 1) }
+                            Log.d("wai", "customApp:entryApp " + entryApp.toString())
+                            if (entryApp == customAppID) {
+                                val entryData = entry?.let { getFromEntry(it, 2) }
+                                if (entryData != null) {
+                                    val entryDataString = entryData.toString()
+                                    Log.d("wai", "customApp:entryData " + entryDataString)
+                                    entries.add(entryDataString)
+                                    count++
+                                }
+                            }
+                        }
+                        seq--
+                    }
+
+                    // convert the list of entries to a JSON array
+                    val jsonArray = JSONArray(entries)
+                    Log.d("wai", "customApp:entries" + jsonArray.toString())
+                    // send the JSON array to the frontend
+                    val arguments: MutableList<String> = ArrayList()
+                    arguments.add("$customAppID:incoming_notification")
+                    arguments.add(jsonArray.toString())
+                    MiniAppPlugin(act, webView).handleRequest(arguments)
+                }
+            }
             else -> {
                 Log.d("onFrontendRequest", "unknown")
             }
@@ -460,9 +535,9 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
         if (entry != null) {
             val entry = Bipf.bipf_loads(entry)
             if (entry != null) {
-                if (entry.get() is ArrayList<*>) {
-                    val first = (entry.get() as ArrayList<*>).get(index)
-                    return first
+                val entryList = Bipf.bipf_list2JSON(entry)
+                if (entryList != null) {
+                    return entryList.get(index)
                 }
             }
         }
@@ -512,6 +587,71 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
         val encrypted = body_clear?.let { act.idStore.identity.encryptPrivateMessage(it, keys) }
         if (encrypted != null)
             Bipf.encode(Bipf.mkBytes(encrypted))?.let { act.tinyNode.publish_public_content(it) }
+    }
+
+    /**
+     * The following function was part of the initial approach for retrieving the manifest
+     * paths and sending them to the frontend and ultimately help creating a button for
+     * the mini App menu. It has been replaced by a more efficient method but is kept here
+     * for reference. If not needed, consider removing this section entirely to clean up the
+     * codebase.
+     */
+    fun sendManifestPathsToFrontend() {
+
+        //Log.d("INSIDE", "i am inside the function")
+        // Access the assets directory (only read)
+        val assetManager = act.assets
+        val manifestFilePaths = mutableListOf<String>()
+
+        try {
+            // List all directories in the "miniApps" directory
+            val filesDir = act.filesDir
+            val miniAppFolders = act.miniAppDirectory?.list()
+            Log.d("miniApps", miniAppFolders.toString())
+            if (miniAppFolders != null) {
+                for (folder in miniAppFolders) {
+                    Log.d("Folder", folder)
+
+                    val manifestPath = "file://${act.miniAppDirectory}/$folder/manifest.json"
+                    // Construct the path to each manifest.jon file
+                    try {
+                        val file = File(act.miniAppDirectory, "$folder/manifest.json")
+                        manifestFilePaths.add(manifestPath)
+                    } catch (e: IOException) {
+                        Log.e("Manifest", "Manifest file not found: $manifestPath")
+                    }
+                }
+            }
+        } catch (e: IOException) {
+            Log.e("Manifest", "Error accessing assets", e)
+            return
+        }
+
+        // Convert list of paths to a JSON array and pass to JavaScript frontend
+        val jsonArray = JSONArray(manifestFilePaths)
+        Log.d("Path", jsonArray.toString())
+
+        eval("handleManifestPaths('${jsonArray.toString()}')")
+    }
+
+    /**
+     * The following function was also part of the initial approach for passing the content
+     * of the manifest file to the frontend and ultimately help creating a button for
+     * the mini App menu. It has been replaced by a more efficient method but is kept here
+     * for reference. If not needed, consider removing this section entirely to clean up the
+     * codebase.
+     */
+    fun readManifestFile(path: String) {
+        try {
+            val manifestFile = File(act.miniAppDirectory, path)
+            val content = manifestFile.readText()
+
+            val quotedContent = JSONObject.quote(content)
+            // Send the content to the frontend
+            eval("handleManifestContent($quotedContent)")
+        } catch (e: IOException) {
+            Log.e("AssetError", "Error reading asset file", e)
+        }
     }
 
     fun public_post_with_voice(tips: ArrayList<String>, text: String?, voice: ByteArray?) {

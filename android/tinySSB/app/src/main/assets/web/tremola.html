@@ -12,6 +12,8 @@
   <script type="text/javascript" charset="UTF-8" src="util/bipf.js"></script>
   <script type="text/javascript" charset="UTF-8" src="util/scuttlesort.js"></script>
   <script type="text/javascript" charset="UTF-8" src="tremola.js"></script>
+  <script type="text/javascript" charset="UTF-8" src="miniapps/mini_apps.js"></script>
+  <script type="text/javascript" charset="UTF-8" src="miniapps/miniAppHelper.js"></script>
   <script type="text/javascript" charset="UTF-8" src="tremola_ui.js"></script>
   <script type="text/javascript" charset="UTF-8" src="prod/settings.js"></script>
   <script type="text/javascript" charset="UTF-8" src="prod/chat.js"></script>
@@ -62,7 +64,7 @@
       <div id="div:qr" style="align: left;width: 20vw;">
         <button id='btn:qr' class="flat qrButton" onclick="showQR();"><strong>&nbsp;&#x2680;&nbsp;</strong></button></div>
       <div id="div:back" style="display: none; padding-right: 10pt;">
-        <button id='back' class="flat buttontext backButton" onclick="onBackPressed();" style="background-color: transparent; height: 9vw; width: 13vw; margin-left: 5px; margin-top: 2px; fill: var(--strokeCol);">
+        <button id='back' class="flat buttontext backButton" onclick="onBackPressed();" style="background-color: transparent; height: 25px; width: 25px; margin-left: 5px; margin-top: 2px; fill: var(--strokeCol);">
           <object type="image/svg+xml" data="img/back.svg" onload="this.replaceWith(this.contentDocument.documentElement);"></object></button>
       </div>
       <div id='tremolaTitle' align=center style="padding-top: 2pt; width: 100%;font-family: Helvetica;font-weight: 900;"><font size=+2 color=#e85132>t i n y S S B<!-- &#x26F0; --></font></div>
@@ -140,6 +142,9 @@
       <div style="text-align: center;font-size:20px;">Invitations</div>
       <div id='kanban_invitations_list' style="padding-top: 15px;"></div>
     </div>
+
+    <!-- Mini App menu for selecting the different apps-->
+    <div id='lst:miniapps' class=w100 style="overflow: hidden; display: none;"></div>
 
     <div id="plus">
       <button class=float_button onclick="plus_button();">+</button>
@@ -686,17 +691,12 @@
 
   </div>
 
-  <div id='div:footer' class=neutral style="height: calc(55pt - 6pt); align-content: center; border: 3pt inset var(--light); border-radius: 2pt; margin: 3pt; width: calc(100% - 12pt);">
+  <div id='div:footer' class=neutral style="height: 56px; align-content: center; border: 3px inset #ebf4fa /*var(--light)*/; border-radius: 2px; margin: 3px; width: calc(100% - 12px);">
 
-    <table width=100% cellpadding="2px"><tr>
-      <td width=25%><button id='btn:chats'        class="w100 flat active" onclick="btnBridge(this);" style="fill: var(--strokeCol); height: 46pt;">
-        <div style="height: 30pt;"><object type="image/svg+xml" data="img/chat.svg" onload="this.replaceWith(this.contentDocument.documentElement);" ></object></div></button>
-      <td width=25%><button id='btn:productivity' class="w100 flat passive" onclick="btnBridge(this);" style="fill: var(--strokeCol); height: 46pt;">
-        <div style="height: 30pt;"><object type="image/svg+xml" data="img/productivity.svg" onload="this.replaceWith(this.contentDocument.documentElement);"></object></div></button>
-      <td width=25%><button id='btn:games'        class="w100 flat passive" onclick="btnBridge(this);" style="fill: var(--strokeCol); height: 46pt;">
-        <div style="height: 30pt;"><object type="image/svg+xml" data="img/game-controller.svg" onload="this.replaceWith(this.contentDocument.documentElement);"></object></div></button>
-      <td width=25%><button id='btn:contacts'     class="w100 flat passive" onclick="btnBridge(this);" style="fill: var(--strokeCol); height: 46pt;">
-        <div style="height: 30pt;"><object type="image/svg+xml" data="img/contacts.svg" onload="this.replaceWith(this.contentDocument.documentElement);"></object></div></button>
+    <table width=100% cellpadding="2pt"><tr>
+      <td width=33%><button id='btn:chats'    class="w100 flat active buttontext" onclick="btnBridge(this);" style="background-image: url('img/chat.svg');">&nbsp;<!-- font size=+3>&#x1F4E8;</font><br><font size=small>Chats</font --></button>
+      <td width=33%><button id='btn:miniapps'   class="w100 flat passive buttontext" onclick="btnBridge(this);" style="background-image: url('img/miniapps.svg');background-size: 40px 40px;">&nbsp;<!-- font size=+3>&#x1F5E3;</font><br><font size=small>Board</font --></button>
+      <td width=33%><button id='btn:contacts' class="w100 flat passive buttontext" onclick="btnBridge(this);" style="background-image: url('img/contacts.svg');">&nbsp;<!-- font size=+3>&#x1F465;</font><br><font size=small>Contacts</font --></button>
     </table>
 
   </div>
