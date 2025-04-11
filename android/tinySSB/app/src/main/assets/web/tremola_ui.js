@@ -104,47 +104,39 @@ function onBackPressed() {
     console.log("Back button pressed");
     console.log("Current MiniApp ID:", currentMiniAppID);
     if (curr_scenario === 'customApp') {
-            console.log("Back button pressed inside MiniApp:", currentMiniAppID);
-            backend(currentMiniAppID + ":onBackPressed"); // Send MiniApp ID to Kotlin
-            return;
+        console.log("Back button pressed inside MiniApp:", currentMiniAppID);
+        backend(currentMiniAppID + ":onBackPressed"); // Send MiniApp ID to Kotlin
+        return;
     }
-    if (curr_scenario == 'settings') {
-         document.getElementById('div:settings').style.display = 'none';
-         document.getElementById('core').style.display = null;
-         document.getElementById('div:footer').style.display = null;
-         setScenario(prev_scenario);
-         return;
+    if (['chats', 'contacts', 'miniapps'].indexOf(curr_scenario) >= 0) {
+        if (curr_scenario == 'chats')
+            backend("onBackPressed");
+        else
+            setScenario('chats')
+    } else {
+        if (curr_scenario == 'posts' && prev_scenario == 'chats') {
+            setScenario('chats');
+        } else if (curr_scenario == 'posts' && prev_scenario == 'miniapps') {
+            setScenario('miniapps');
+        } else if (curr_scenario == 'members') {
+            console.log("prev: " + prev_scenario);
+            setScenario(prev_scenario);
+        } else if (curr_scenario == 'settings') {
+            document.getElementById('div:settings').style.display = 'none';
+            document.getElementById('core').style.display = null;
+            document.getElementById('div:footer').style.display = null;
+            setScenario(prev_scenario);
+        } else {
+            backend("backPressed");
+        }
+        //setScenario(prev_scenario);
+
     }
-    // console.log('back ' + curr_scenario);
-    if (curr_scenario == 'chats')
-        backend("onBackPressed");
-    else if (curr_scenario == 'members')
-        setScenario(prev_scenario)
-    else if (['chats', 'contacts', 'connex', 'miniapps'].indexOf(curr_scenario) >= 0)
-        setScenario('chats')
-    else if (['kanban'].indexOf(curr_scenario) >= 0) {
-        setScenario('productivity')
-        prev_scenario = 'chats'
-    } else if (curr_scenario == 'posts' && prev_scenario == 'chats') {
-          setScenario('chats');
-      } else if (curr_scenario == 'posts' && prev_scenario == 'miniapps') {
-          setScenario('miniapps');
-      } else if (curr_scenario == 'members') {
-          console.log("prev: " + prev_scenario);
-          setScenario(prev_scenario);
-      } else if (curr_scenario == 'settings') {
-          document.getElementById('div:settings').style.display = 'none';
-          document.getElementById('core').style.display = null;
-          document.getElementById('div:footer').style.display = null;
-          setScenario(prev_scenario);
-      } else {
-          backend("backPressed");
-      }
 }
 
 function setScenario(s) {
-    // console.log('setScenario ' + s)
     closeOverlay();
+
     if (s.startsWith('customApp')) {
         //check if s contains a :
         if (s.includes(":")) {
@@ -157,7 +149,7 @@ function setScenario(s) {
     }
     console.log(curr_scenario);
 
-    if (curr_scenario === 'customApp' && ['chats', 'contacts', 'connex'].indexOf(s) >= 0) {
+    if (curr_scenario === 'customApp' && ['chats', 'contacts'].indexOf(s) >= 0) {
         console.log("Leaving MiniApps section");
         currentMiniAppID = null; // Reset only if exiting the entire miniapps section
     }
@@ -192,33 +184,37 @@ function setScenario(s) {
 
 
     }
+
     var lst = scenarioDisplay[s];
+    console.log("lst: " + lst);
     if (lst) {
-        // if (s != 'posts' && curr_scenario != "members" && curr_scenario != 'posts') {
-        if (['chats', 'productivity', 'games', 'contacts', 'miniapps'].indexOf(curr_scenario) >= 0) {
-            var cl = document.getElementById('btn:' + curr_scenario).classList;
-            cl.toggle('active', false);
-            cl.toggle('passive', true);
+        if (['posts', 'chats', 'miniapps', 'contacts'].indexOf(curr_scenario) >= 0) {
+            const cl = document.getElementById('btn:' + curr_scenario)?.classList;
+            if (cl) {
+                console.log("cl scenario: " + curr_scenario);
+                console.log("cl: " + cl);
+                cl.remove('active');
+                cl.add('passive');
+            }
         }
-        // console.log(' l: ' + lst)
+
+
         display_or_not.forEach(function (d) {
-            // console.log(' l+' + d);
             if (lst.indexOf(d) < 0) {
                 document.getElementById(d).style.display = 'none';
             } else {
                 document.getElementById(d).style.display = null;
-                // console.log(' l=' + d);
             }
-        })
-        // console.log('s: ' + s)
-        if (s != "board" && s != '') { // show "tinySSB" by default
-            document.getElementById('tremolaTitle').style.position = null;
-        }
+        });
 
-        if (s == "posts" || s == "settings" || s == "board") {
+        document.getElementById('tremolaTitle').style.position = null;
+
+        if (s == "posts" || s == "settings") {
             document.getElementById('tremolaTitle').style.display = 'none';
             document.getElementById('conversationTitle').style.display = null;
-            document.getElementById('plus').style.display = 'none';
+            if (s == "posts" && curr_scenario != 'posts') {
+                prev_scenario = curr_scenario;
+            }
         } else {
             document.getElementById('tremolaTitle').style.display = null;
             document.getElementById('conversationTitle').style.display = 'none';
@@ -226,90 +222,18 @@ function setScenario(s) {
         if (lst.indexOf('div:qr') >= 0) {
             prev_scenario = s;
         }
-        if (lst.indexOf('div:back') >= 0) { // remember where we came from)
-            prev_scenario = curr_scenario;
-        }
         curr_scenario = s;
-
-        if (['chats', 'productivity', 'games', 'contacts', 'miniapps'].indexOf(curr_scenario) >= 0) {
+        if (['posts', 'chats', 'miniapps', 'contacts'].indexOf(curr_scenario) >= 0) {
             var cl = document.getElementById('btn:' + curr_scenario).classList;
             cl.toggle('active', true);
             cl.toggle('passive', false);
-        }
-        if (s == 'chats') {
-            document.getElementById('tremolaTitle').style.display = null;
-            document.getElementById('conversationTitle').style.display = 'none';
-            /*
-            c.style.display = null;
-            c.innerHTML = "<font size=+1><strong>List of Chat Channels</strong></font><br>Pick or create a channel";
-            */
-        }
-
-        if (['productivity', 'games', 'contacts'].indexOf(s) >= 0) {
-            document.getElementById("tremolaTitle").style.display = 'none';
-            var c = document.getElementById("conversationTitle");
-            c.style.display = null;
-            var t = s.slice(0,1).toUpperCase() + s.slice(1);
-            c.innerHTML = `<font size=+2><strong>${t}</strong></font>`;
-        }
-
-        if (['board','kanban'].indexOf(s) >= 0) // a specific Kanban board: use all space (beyond the footer)
-            document.getElementById('core').style.height = 'calc(100% - 45pt)';
-        else
-            document.getElementById('core').style.height = 'calc(100% - 110pt)';
-
-        if (s == 'kanban') {
-            load_kanban_list();
-
-            document.getElementById("tremolaTitle").style.display = 'none';
-            var c = document.getElementById("conversationTitle");
-            c.style.display = null;
-            c.innerHTML = "<font size=+1><strong>List of Kanban Boards</strong></font><br>Pick or create a board";
-
-            var personalBoardAlreadyExists = false
-            for (var b in tremola.board) {
-                var board = tremola.board[b]
-                if (board.flags.indexOf(FLAG.PERSONAL) >= 0 && board.members.length == 1 && board.members[0] == myId) {
-                    personalBoardAlreadyExists = true
-                    break
-                }
-            }
-            if(!personalBoardAlreadyExists && display_create_personal_board) {
-                menu_create_personal_board()
-            }
-        }
-
-        if (s == 'posts') {
-          setTimeout(function () { // let image rendering (fetching size) take place before we scroll
-              let c = document.getElementById('core');
-              c.scrollTop = c.scrollHeight;
-              let p = document.getElementById('div:posts');
-              p.scrollTop = p.scrollHeight;
-              }, 100);
-        }
-
-        if (s == 'tictactoe-list') {
-            document.getElementById("tremolaTitle").style.display = 'none';
-            var c = document.getElementById("conversationTitle");
-            c.style.display = null;
-            c.innerHTML = "<font size=+1><strong>Tic Tac Toe</strong></font><br>Pick or create a new game";
-            ttt_load_list();
-        }
-        if (s == 'tictactoe-board') {
-            document.getElementById("tremolaTitle").style.display = 'none';
-            var c = document.getElementById("conversationTitle");
-            c.style.display = null;
-            let fed = tremola.tictactoe.active[tremola.tictactoe.current].peer
-            c.innerHTML = `<font size=+1><strong>TTT with ${fid2display(fed)}</strong></font>`;
         }
     }
 }
 
 function btnBridge(e) {
     var e = e.id, m = '';
-    if (['btn:chats', 'btn:contacts', 'btn:games',
-         'btn:posts', 'btn:productivity', 'btn:miniapps'].indexOf(e) >= 0) {
-         // console.log('btn', e)
+    if (['btn:posts', 'btn:chats', 'btn:miniapps', 'btn:contacts'].indexOf(e) >= 0) {
         setScenario(e.substring(4));
     }
     if (e == 'btn:menu') {
