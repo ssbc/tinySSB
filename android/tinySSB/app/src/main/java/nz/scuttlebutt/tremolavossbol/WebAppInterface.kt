@@ -930,6 +930,22 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
 
     fun sendTinyEventToFrontend(fid: ByteArray, seq: Int, mid:ByteArray, body: ByteArray) {
         // Log.d("wai","sendTinyEvent ${body.toHex()}")
+        //Check if first entry is "CUS"
+        val entry = Bipf.bipf_loads(body)
+        if (entry != null) {
+            val entryList = Bipf.bipf_list2JSON(entry)
+            if (entryList != null) {
+                val entryType = entryList.get(0)
+                if (entryType == "CUS") {
+                    val customAppID = entryList.get(1)
+                    val customAppData = entryList.get(2)
+                    val arguments: MutableList<String> = ArrayList()
+                    arguments.add("$customAppID:incoming_notification")
+                    arguments.add(customAppData.toString())
+                    MiniAppPlugin(act, webView).handleRequest(arguments)
+                }
+            }
+        }
         var e = toFrontendObject(fid, seq, mid, body)
         if (e != null) {
             val trust = getContactTrust(fid.toHex())

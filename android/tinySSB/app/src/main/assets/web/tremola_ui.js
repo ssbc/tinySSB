@@ -29,10 +29,8 @@ var scenarioDisplay = {
     'settings': ['div:back', 'core', 'div:settings'],
     'kanban': ['div:back', 'core', 'lst:kanban', 'plus'], // KANBAN
     'board': ['div:back', 'core', 'div:board'], // KANBAN
-    'miniapps': ['div:qr', 'core', 'lst:miniapps', 'div:footer'],
-    'tictactoe-list': ['div:back', 'core', 'div:tictactoe_list', 'plus'],
-    'tictactoe-board': ['div:back', 'core', 'div:tictactoe_board'],
-}
+    'miniapps': ['div:qr', 'core', 'lst:miniapps', 'div:footer']
+    }
 
 var scenarioMenu = {
     'chats': [
@@ -77,13 +75,6 @@ var scenarioMenu = {
         ['Leave', 'leave_curr_board'],
         ['(un)Forget', 'board_toggle_forget'],
         ['Debug', 'ui_debug']],
-
-    'tictactoe-list': [
-        ['Settings', 'menu_settings'],
-        ['About', 'menu_about']],
-    'tictactoe-board': [
-        ['Settings', 'menu_settings'],
-        ['About', 'menu_about']],
 }
 
 const QR_SCAN_TARGET = {
@@ -223,7 +214,7 @@ function setScenario(s) {
             prev_scenario = s;
         }
         curr_scenario = s;
-        if (['posts', 'chats', 'miniapps', 'contacts'].indexOf(curr_scenario) >= 0) {
+        if (['chats', 'miniapps', 'contacts'].indexOf(curr_scenario) >= 0) {
             var cl = document.getElementById('btn:' + curr_scenario).classList;
             cl.toggle('active', true);
             cl.toggle('passive', false);
@@ -354,10 +345,6 @@ function plus_button() {
         menu_new_conversation();
     } else if (curr_scenario == 'contacts') {
         menu_new_contact();
-    } else if (curr_scenario == 'kanban') {
-        menu_new_board();
-    } else if (curr_scenario == 'tictactoe-list') {
-        ttt_new_game();
     } else {
           console.log(currentMiniAppID);
           if (currentMiniAppID) {

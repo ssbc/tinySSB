@@ -6,6 +6,7 @@ function getContactsList() {
 function writeLogEntry(entry) {
     // Write a log entry to the native code, use currentMiniAppID to identify the app
     // entry is a JSONString
+    console.log("writeLogEntry " + currentMiniAppID + " " + entry);
     backend("customApp:writeEntry " + currentMiniAppID + " " + entry);
 }
 
