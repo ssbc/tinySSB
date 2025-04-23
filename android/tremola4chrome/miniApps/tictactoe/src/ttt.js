@@ -170,7 +170,7 @@ function ttt_load_board(nm) {
     tab.appendChild(item);
   }
   tremola.tictactoe.current = nm;
-  setTTTScenario('tictactoe-board')
+  setTTTScenario('tictactoe-board');
 }
 
 function ttt_new_game() {

@@ -17,6 +17,7 @@
             },
             "display": [
               "div:back",
+              "core",
               "div:wuff-screen"
             ]
         }

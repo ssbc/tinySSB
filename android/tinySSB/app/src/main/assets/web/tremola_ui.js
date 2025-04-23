@@ -161,6 +161,7 @@ function setScenario(s) {
                 if (filtered.includes('div:' + key)) {
                     if (scenarioDisplay[key].includes(d)) {
                         console.log("found: " + d);
+                        document.getElementById(d).style.display = "initial";
                         found = true; // Mark as found
                         break; // Exit inner loop
                     }
