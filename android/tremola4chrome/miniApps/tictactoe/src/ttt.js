@@ -140,7 +140,7 @@ function ttt_load_board(nm) {
   }
   let t = document.getElementById('ttt_title');
   if (g.state == 'open') {
-      let m = (g.cnt % 2) ? "my turn ..." : "... not my turn" ;
+      let m = (g.cnt % 2) ? "... not my turn" : "my turn ...";
       t.innerHTML = `<font size=+2><strong>${m}</strong></font>`;
   } else { // must be in close state
     var m;
@@ -217,18 +217,36 @@ function ttt_list_callback(nm,action) {
 }
 
 function ttt_cellclick(id) {
-  // console.log("clicked " + id + ' ' + id[3]);
-  let nm = tremola.tictactoe.current
-  let g = tremola.tictactoe.active[nm]
-  console.log("clicked " + id + ' ' + id[3] + ' ' + g.state + ' ' + g.cnt);
-  if (g.state != 'open' || (g.cnt % 2) != 1)
+  console.log("clicked", id, id[3]);
+  
+  const nm = tremola.tictactoe.current;
+  const g  = tremola.tictactoe.active[nm];
+  console.log("state:", g.state, "cnt:", g.cnt);
+  
+  if (g.state != 'open' || (g.cnt % 2) != 0) {
     return;
-  let i = parseInt(id[3], 10);
-  if (g.board[i] == 0) {
-     let json = { type: 'M', nm: nm, i: i, from: myId };
-     writeLogEntry(JSON.stringify(json));
-
   }
+  
+  const i = parseInt(id[3], 10);
+  if (g.board[i] != 0) {
+    return;
+  }
+  
+  g.board[i] = 1;
+  g.cnt++;
+
+  if (ttt_winning(g.board)) {
+    g.state        = 'closed';
+    g.close_reason = ttt_iwon;
+  }
+  persist();
+  
+  if (TTTScenario == 'tictactoe-board') {
+    ttt_load_board(nm);
+  }
+  
+  const json = { type: 'M', nm: nm, i: i, from: myId };
+  writeLogEntry(JSON.stringify(json));
 }
 
 function ttt_on_rx(args, index=0) {
@@ -274,7 +292,7 @@ function ttt_on_rx(args, index=0) {
       // TODO: check that the turn is made by the right party, raise violation error otherwise
       console.log("move " + args[index].i + " " + args[index].from);
       let ndx = parseInt(args[index].i,10);
-      g.board[ndx] = args[index].from == myId ? -1 : 1;
+      g.board[ndx] = args[index].from == myId ?  1 : -1;
       g.cnt++;
       if (ttt_winning(g.board)) {
         g.state = 'closed'
