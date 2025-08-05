@@ -18,6 +18,7 @@ import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
+import android.util.Base64
 import android.util.Log
 import android.view.View
 import android.view.Window
@@ -46,6 +47,7 @@ import nz.scuttlebutt.tremolavossbol.tssb.WebsocketIO
 import nz.scuttlebutt.tremolavossbol.tssb.ble.BlePeers
 import nz.scuttlebutt.tremolavossbol.tssb.ble.BluetoothEventListener
 import nz.scuttlebutt.tremolavossbol.utils.Constants
+import nz.scuttlebutt.tremolavossbol.utils.HelperFunctions.Companion.toHex
 import org.json.JSONObject
 import tremolavossbol.R
 import java.io.File
@@ -102,6 +104,25 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        IrohBridge.registerListener(object : IrohMessageListener {
+            override fun onIrohMessage(data: ByteArray) {
+                // 1) UTF-8 JSON
+                val raw = data.toString(Charsets.UTF_8)
+                Log.d("IrohRecv", "raw JSON: ${raw.take(80)}…")
+                val js = JSONObject(raw)
+                if (js.getString("type") != "message") {
+                    Log.d("IrohEvent", raw)
+                    return
+                }
+
+                // 2) Base64 → wire
+                val decoded = Base64.decode(js.getString("payload_b64"), Base64.NO_WRAP)
+                val handled = tinyDemux.on_rx(decoded, null)
+                Log.d("Iroh", "onIrohMessage received ${decoded.size} bytes, handled: $handled")
+
+            }
+        })
+
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
         requestWindowFeature(Window.FEATURE_NO_TITLE)
         setRequestedOrientation (ActivityInfo.SCREEN_ORIENTATION_PORTRAIT)
@@ -116,6 +137,21 @@ class MainActivity : Activity() {
 
         settings = Settings(this)
         idStore = IdStore(this)
+
+        val secretKey32ByteHex = idStore.identity.signingKey?.sliceArray(0 until 32)?.toHex()
+        // Make sure toHex() returns a UTF-8 compatible String!
+        Log.d("Iroh", "Secret key = $secretKey32ByteHex")
+
+        val started = secretKey32ByteHex?.let { IrohBridge.start_node(it) }
+        Log.d("Iroh", "start_node returned $started")
+        if (started != null) {
+            require(started)
+        }
+
+        val nodeId = IrohBridge.getNodeId()
+        Log.d("Iroh", "Node ID = $nodeId")
+
+        Log.d("IDENTITY", "is ${idStore.identity.toRef()} (${idStore.identity.verifyKey})")
 
         // wifiManager = applicationContext.getSystemService(WIFI_SERVICE) as WifiManager
         // mlock = wifiManager?.createMulticastLock("lock")
@@ -270,6 +306,12 @@ class MainActivity : Activity() {
         t6.priority = 8
 
         scheduleWorker(this)
+
+        // Initialize the sender loop in a separate thread
+        thread(name = "Iroh-Sender") {
+            Log.d("IO", ">>> senderLoop starting")
+            wai.reconnectToIrohNodes()
+        }
 
     }
 

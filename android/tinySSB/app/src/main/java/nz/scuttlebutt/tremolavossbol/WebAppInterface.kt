@@ -198,6 +198,18 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
                 if (isTrusted) {
                     trust_contact(keyHex, 2)
                 }
+
+                val contactPubKey = Base64.decode(contactID, Base64.NO_WRAP)
+                val contactPubKeyHex = contactPubKey.toHex()
+
+                connectToIrohNode(contactPubKeyHex)
+            }
+            "iroh:connect" -> {
+                val contactPubKeyHex = args[1]
+                connectToIrohNode(contactPubKeyHex)
+            }
+            "iroh:reconnect" -> {
+                reconnectToIrohNodes()
             }
             /* no alias publishing in tinyTremola
             "add:contact" -> { // ID and alias
@@ -360,6 +372,27 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
                 Log.d("onFrontendRequest", "unknown")
             }
         }
+    }
+
+    fun reconnectToIrohNodes() {
+        Log.d("Iroh", "Reconnecting to all known iroh nodes")
+        // Get all known contacts from the tinyGoset
+        val contacts = act.tinyRepo.listFeeds()
+        for (contact in contacts) {
+            // Discard own contact
+            if (contact.contentEquals(act.idStore.identity.verifyKey)) {
+                continue
+            }
+            val contactHex = contact.toHex()
+            Log.d("Iroh", "Reconnecting to peer: [$contactHex]")
+            IrohBridge.connectAndChat(contactHex)
+        }
+    }
+
+    fun connectToIrohNode(contactID: String) {
+        Log.d("Iroh", "About to connect to peer: [$contactID]")
+        val connected = IrohBridge.connectAndChat(contactID)
+        Log.d("Iroh", "connectAndChat returned $connected")
     }
 
     fun deleteContact(contactID: String) {
