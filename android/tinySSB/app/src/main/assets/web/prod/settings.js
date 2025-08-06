@@ -15,6 +15,7 @@ const BrowserOnlySettings = {
     'hide_forgotten_kanbans': true,
     'udp_multicast_enabled': true,
     'ble_enabled': true,
+    'iroh_enabled': true,
     'websocket_url': "ws://meet.dmi.unibas.ch:8989",
     'geo_location': true
 }
@@ -28,6 +29,7 @@ var advancedSettings = [
     'hide_forgotten_kanbans',
     // backend settings
     'ble_enabled',
+    'iroh_enabled',
     'udp_multicast_enabled',
     'websocket_enabled',
     'danger_restream', 'danger_reset', 'danger_delete',

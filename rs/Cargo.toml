@@ -1,8 +1,8 @@
 [package]
-name = "browser-echo-cli"
-version = "0.1.0"
+name = "iroh-kotlin-bridge"
+version = "0.2.0"
 edition = "2021"
-default-run = "cli"
+# default-run = "cli"
 
 [[bin]]
 name = "cli"

@@ -454,8 +454,6 @@ function qr_scan_success(s) {
             new_contact_id = s;
             // console.log("tremola:", tremola)
             if (new_contact_id in tremola.contacts) {
-                // Start Iroh connection
-                backend("iroh:connect " + decodeScuttlebuttId(new_contact_id));
                 //check if existing contact has trust level lower than 2
                 if (tremola.contacts[new_contact_id].trusted < 2) {
                     //do this in the backend as well

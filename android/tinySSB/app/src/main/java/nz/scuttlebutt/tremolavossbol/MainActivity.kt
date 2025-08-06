@@ -1,9 +1,5 @@
 package nz.scuttlebutt.tremolavossbol
 
-// import android.R
-
-// import nz.scuttlebutt.tremolavossbol.tssb.ble.BlePeers
-
 import MyWorker
 import android.app.Activity
 import android.bluetooth.BluetoothAdapter
@@ -18,7 +14,6 @@ import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
-import android.util.Base64
 import android.util.Log
 import android.view.View
 import android.view.Window
@@ -27,7 +22,6 @@ import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatDelegate
-import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -41,13 +35,13 @@ import nz.scuttlebutt.tremolavossbol.crypto.IdStore
 import nz.scuttlebutt.tremolavossbol.tssb.Demux
 import nz.scuttlebutt.tremolavossbol.tssb.GOset
 import nz.scuttlebutt.tremolavossbol.tssb.IO
+import nz.scuttlebutt.tremolavossbol.tssb.iroh.IrohPeers
 import nz.scuttlebutt.tremolavossbol.tssb.Node
 import nz.scuttlebutt.tremolavossbol.tssb.Repo
 import nz.scuttlebutt.tremolavossbol.tssb.WebsocketIO
 import nz.scuttlebutt.tremolavossbol.tssb.ble.BlePeers
 import nz.scuttlebutt.tremolavossbol.tssb.ble.BluetoothEventListener
 import nz.scuttlebutt.tremolavossbol.utils.Constants
-import nz.scuttlebutt.tremolavossbol.utils.HelperFunctions.Companion.toHex
 import org.json.JSONObject
 import tremolavossbol.R
 import java.io.File
@@ -59,10 +53,6 @@ import java.util.Locale
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.thread
-
-
-// import nz.scuttlebutt.tremolavossbol.MainActivity
-
 
 class MainActivity : Activity() {
     // lateinit var tremolaState: TremolaState
@@ -78,7 +68,8 @@ class MainActivity : Activity() {
     @Volatile var mc_group: InetAddress? = null
     @Volatile var mc_socket: MulticastSocket? = null
     var ble: BlePeers? = null
-    var websocket: WebsocketIO? =null
+    var iroh: IrohPeers? = null;
+    var websocket: WebsocketIO? = null
     val ioLock = ReentrantLock()
     var broadcastReceiver: BroadcastReceiver? = null
     var isWifiConnected = false
@@ -104,25 +95,6 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        IrohBridge.registerListener(object : IrohMessageListener {
-            override fun onIrohMessage(data: ByteArray) {
-                // 1) UTF-8 JSON
-                val raw = data.toString(Charsets.UTF_8)
-                Log.d("IrohRecv", "raw JSON: ${raw.take(80)}…")
-                val js = JSONObject(raw)
-                if (js.getString("type") != "message") {
-                    Log.d("IrohEvent", raw)
-                    return
-                }
-
-                // 2) Base64 → wire
-                val decoded = Base64.decode(js.getString("payload_b64"), Base64.NO_WRAP)
-                val handled = tinyDemux.on_rx(decoded, null)
-                Log.d("Iroh", "onIrohMessage received ${decoded.size} bytes, handled: $handled")
-
-            }
-        })
-
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
         requestWindowFeature(Window.FEATURE_NO_TITLE)
         setRequestedOrientation (ActivityInfo.SCREEN_ORIENTATION_PORTRAIT)
@@ -137,21 +109,7 @@ class MainActivity : Activity() {
 
         settings = Settings(this)
         idStore = IdStore(this)
-
-        val secretKey32ByteHex = idStore.identity.signingKey?.sliceArray(0 until 32)?.toHex()
-        // Make sure toHex() returns a UTF-8 compatible String!
-        Log.d("Iroh", "Secret key = $secretKey32ByteHex")
-
-        val started = secretKey32ByteHex?.let { IrohBridge.start_node(it) }
-        Log.d("Iroh", "start_node returned $started")
-        if (started != null) {
-            require(started)
-        }
-
-        val nodeId = IrohBridge.getNodeId()
-        Log.d("Iroh", "Node ID = $nodeId")
-
-        Log.d("IDENTITY", "is ${idStore.identity.toRef()} (${idStore.identity.verifyKey})")
+        Log.d("IDENTITY", "my tinySSB ID is ${idStore.identity.toRef()} (${idStore.identity.verifyKey})")
 
         // wifiManager = applicationContext.getSystemService(WIFI_SERVICE) as WifiManager
         // mlock = wifiManager?.createMulticastLock("lock")
@@ -203,7 +161,7 @@ class MainActivity : Activity() {
 
         webView.loadUrl("https://appassets.androidplatform.net/assets/web/tremola.html")
 
-        broadcastReceiver = object : BroadcastReceiver() {
+        broadcastReceiver = object : BroadcastReceiver() { // react to change-in-network-connectivity events
             override fun onReceive(context: Context?, intent: Intent?) {
                 val networkInfo: NetworkInfo? =
                     intent!!.getParcelableExtra(WifiManager.EXTRA_NETWORK_INFO)
@@ -306,13 +264,6 @@ class MainActivity : Activity() {
         t6.priority = 8
 
         scheduleWorker(this)
-
-        // Initialize the sender loop in a separate thread
-        thread(name = "Iroh-Sender") {
-            Log.d("IO", ">>> senderLoop starting")
-            wai.reconnectToIrohNodes()
-        }
-
     }
 
     fun scheduleWorker(context: Context) {
@@ -558,17 +509,24 @@ class MainActivity : Activity() {
             ble = null
         }
 
+        try {
+            iroh = IrohPeers(this)
+            iroh?.start()
+        } catch (e: Exception) {
+            iroh = null
+        }
+
         websocket = WebsocketIO(this, settings!!.getWebsocketUrl())
-        websocket!!.start()
+        websocket?.start()
     }
 
     override fun onPause() {
         Log.d("onPause", "")
         super.onPause()
-        ble?.stopBluetooth()
 
-        if (websocket != null)
-            websocket!!.stop()
+        ble?.stopBluetooth()
+        iroh?.stop()
+        websocket?.stop()
 
         /*
         try {
@@ -592,10 +550,8 @@ class MainActivity : Activity() {
         */
         super.onDestroy()
         ble?.stopBluetooth()
-
-        if (websocket != null) {
-            websocket!!.stop()
-        }
+        iroh?.stop()
+        websocket?.stop()
 
         unregisterReceiver(broadcastReceiver)
         unregisterReceiver(ble_event_listener)

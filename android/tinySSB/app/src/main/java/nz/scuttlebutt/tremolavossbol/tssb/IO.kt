@@ -3,7 +3,6 @@ package nz.scuttlebutt.tremolavossbol.tssb
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
-import nz.scuttlebutt.tremolavossbol.IrohBridge
 import nz.scuttlebutt.tremolavossbol.MainActivity
 import nz.scuttlebutt.tremolavossbol.WebAppInterface
 import nz.scuttlebutt.tremolavossbol.utils.Constants
@@ -97,15 +96,16 @@ class IO(val context: MainActivity, val wai: WebAppInterface?) {
                 } catch (e: Exception) {
                     Log.d("BLE sender exc", e.toString())
                 }
+                try { // iroh, no CRC added
+                    if (context.iroh != null) {
+                        context.iroh!!.write(buf)
+                    }
+                } catch (e: Exception) {
+                    Log.d("IROH sender exc", e.toString())
+                }
                 // websocket
                 if (context.websocket != null) {
                     context.websocket!!.send(buf)
-                }
-                val sent = IrohBridge.sendPacket(buf)
-                if (sent) {
-                    Log.d("IO", "send loop: sent ${buf.size} bytes via IrohBridge")
-                } else {
-                    Log.d("IO", "send loop: failed to send ${buf.size} bytes via IrohBridge")
                 }
             }
             Thread.sleep(1000) // slow pace

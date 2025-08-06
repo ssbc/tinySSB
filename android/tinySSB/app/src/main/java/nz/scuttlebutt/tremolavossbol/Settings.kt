@@ -23,6 +23,7 @@ class Settings(val context: MainActivity) {
         "hide_forgotten_kanbans" to "true",
         // backend settings
         "ble_enabled" to "true",
+        "iroh_enabled" to "true",
         "udp_multicast_enabled" to "true",
         "websocket_enabled" to "false",
         "websocket_url" to TINYSSB_SIMPLEPUB_URL
@@ -56,6 +57,7 @@ class Settings(val context: MainActivity) {
         when (settingID) {
             "websocket_enabled" -> handleWebsocketEnabled(value.toBoolean())
             "ble_enabled" -> handleBleEnabled(value.toBoolean())
+            "iroh_enabled" -> handleIrohEnabled(value.toBoolean())
             "udp_multicast_enabled" -> handleUdpMulticastEnabled(value.toBoolean())
             "websocket_url" -> handleWebsocketUrl(value)
             "geo_location_enabled" -> handleGeoLocation(value.toBoolean())
@@ -64,7 +66,7 @@ class Settings(val context: MainActivity) {
     }
 
     fun resetToDefault(): Boolean {
-        return  sharedPreferences.edit().clear().commit()
+        return sharedPreferences.edit().clear().commit()
     }
 
     // ------------------------------------------------------------------------------------//
@@ -78,12 +80,16 @@ class Settings(val context: MainActivity) {
         return sharedPreferences.getString("ble_enabled", defaultSettings["ble_enabled"]).toBoolean()
     }
 
+    fun isIrohEnabled(): Boolean {
+        return sharedPreferences.getString("iroh_enabled", defaultSettings["iroh_enabled"]).toBoolean()
+    }
+
     fun isUdpMulticastEnabled(): Boolean {
-        return  sharedPreferences.getString("udp_multicast_enabled", defaultSettings["udp_multicast_enabled"]).toBoolean()
+        return sharedPreferences.getString("udp_multicast_enabled", defaultSettings["udp_multicast_enabled"]).toBoolean()
     }
 
     fun isGeoLocationEnabled(): Boolean {
-        return  sharedPreferences.getString("geo_location_enabled", defaultSettings["geo_location_enabled"]).toBoolean()
+        return sharedPreferences.getString("geo_location_enabled", defaultSettings["geo_location_enabled"]).toBoolean()
     }
 
     fun getWebsocketUrl(): String {
@@ -103,6 +109,12 @@ class Settings(val context: MainActivity) {
         if(!value)
             context.ble?.stopBluetooth()
         context.ble?.startBluetooth()
+    }
+
+    fun handleIrohEnabled(value: Boolean) {
+        // if(!value)
+        //     context.ble?.stopBluetooth()
+        // context.ble?.startBluetooth()
     }
 
     fun handleUdpMulticastEnabled(value: Boolean) {

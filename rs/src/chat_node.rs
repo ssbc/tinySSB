@@ -48,7 +48,7 @@ impl ChatNode {
         log::info!("This node ID: {}", endpoint.node_id());
 
         let (tx, _) = broadcast::channel(128);
-        let handler = Chat::new(tx.clone(), endpoint.clone());
+        let handler = Chat::new(tx.clone() /*, endpoint.clone()*/);
         let router = Router::builder(endpoint.clone())
             .accept(Chat::ALPN, handler)
             .spawn();
@@ -147,14 +147,14 @@ pub enum AcceptEvent {
 #[derive(Debug, Clone)]
 pub struct Chat {
     event_sender: broadcast::Sender<AcceptEvent>,
-    endpoint:     Endpoint,
+    // endpoint:     Endpoint,
 }
 
 impl Chat {
     pub const ALPN: &[u8] = b"iroh/example-chat/0";
 
-    pub fn new(event_sender: broadcast::Sender<AcceptEvent>, endpoint: Endpoint) -> Self {
-        Self { event_sender, endpoint }
+    pub fn new(event_sender: broadcast::Sender<AcceptEvent> /*, endpoint: Endpoint*/) -> Self {
+        Self { event_sender /*, endpoint*/ }
     }
 
     /// Handles incoming connect requests: same length-prefix logic as above
@@ -164,7 +164,7 @@ impl Chat {
         log::info!("Incoming connection from: {}", peer);
 
         tokio::spawn({
-            let tx = self.event_sender.clone();
+            // let tx = self.event_sender.clone();
             async move {
                 match connection.accept_bi().await {
                     Ok((_send, recv)) => {

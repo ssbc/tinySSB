@@ -3,7 +3,7 @@
 use once_cell::sync::OnceCell;
 use jni::objects::GlobalRef;
 use jni::JavaVM;
-use tokio::sync::{broadcast, Mutex as TokioMutex};
+use tokio::sync::{/*broadcast,*/ Mutex as TokioMutex};
 
 /// Stored Java VM so we can attach threads and call back into Kotlin
 pub static JVM: OnceCell<JavaVM> = OnceCell::new();
