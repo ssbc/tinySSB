@@ -23,7 +23,7 @@ use android_logger::FilterBuilder;
 
 /// JNI: IrohBridge.start_node(secretHex: String): Boolean
 #[no_mangle]
-pub extern "system" fn Java_nz_scuttlebutt_tremolavossbol_tssb_IrohBridge_start_1node(
+pub extern "system" fn Java_nz_scuttlebutt_tremolavossbol_tssb_iroh_IrohBridge_start_1node(
     mut env: JNIEnv,
     _class: JClass,
     secret_hex: JString,
@@ -72,17 +72,27 @@ pub extern "system" fn Java_nz_scuttlebutt_tremolavossbol_tssb_IrohBridge_start_
 
 /// JNI: IrohBridge.stop_node(): Boolean
 #[no_mangle]
-pub extern "system" fn Java_nz_scuttlebutt_tremolavossbol_tssb_IrohBridge_stop_1node(
+pub extern "system" fn Java_nz_scuttlebutt_tremolavossbol_tssb_iroh_IrohBridge_stop_1node(
     _env: JNIEnv,
     _class: JClass
 ) -> jboolean {
     log::info!("Stopping Iroh node…");
+
+    let node = match NODE.get() {
+        Some(n) => n.clone(),
+        None => {
+            log::error!("JNI stop: NODE not initialized (start_node never called?)");
+            return 0;
+        }
+    };
+    node.endpoint().close();
+
     return 1;
 }
 
 /// JNI: IrohBridge.connect(peerHex: String): Boolean
 #[no_mangle]
-pub extern "system" fn Java_nz_scuttlebutt_tremolavossbol_tssb_IrohBridge_connectAndChat(
+pub extern "system" fn Java_nz_scuttlebutt_tremolavossbol_tssb_iroh_IrohBridge_connectAndChat(
     mut env: JNIEnv,
     _class: JClass,
     peer_hex: JString,
@@ -139,7 +149,7 @@ pub extern "system" fn Java_nz_scuttlebutt_tremolavossbol_tssb_IrohBridge_connec
 
 /// JNI: IrohBridge.disconnect(): Boolean
 #[no_mangle]
-pub extern "system" fn Java_nz_scuttlebutt_tremolavossbol_tssb_IrohBridge_disconnect(
+pub extern "system" fn Java_nz_scuttlebutt_tremolavossbol_tssb_iroh_IrohBridge_disconnect(
     mut env: JNIEnv,
     _class: JClass
 ) -> jboolean {
@@ -150,7 +160,7 @@ pub extern "system" fn Java_nz_scuttlebutt_tremolavossbol_tssb_IrohBridge_discon
 /*
 /// JNI: IrohBridge.tryRecv(): String
 #[no_mangle]
-pub extern "system" fn Java_nz_scuttlebutt_tremolavossbol_tssb_IrohBridge_tryRecv<'a>(
+pub extern "system" fn Java_nz_scuttlebutt_tremolavossbol_tssb_iroh_IrohBridge_tryRecv<'a>(
     mut env: JNIEnv<'a>,
     _class: JClass,
 ) -> JString<'a> {
@@ -181,7 +191,7 @@ pub extern "system" fn Java_nz_scuttlebutt_tremolavossbol_tssb_IrohBridge_tryRec
 
 /// JNI: IrohBridge.get_node_id(): String
 #[no_mangle]
-pub extern "system" fn Java_nz_scuttlebutt_tremolavossbol_tssb_IrohBridge_getNodeId<'a>(
+pub extern "system" fn Java_nz_scuttlebutt_tremolavossbol_tssb_iroh_IrohBridge_getNodeId<'a>(
     mut env: JNIEnv<'a>,
     _class: JClass,
 ) -> JString<'a> {
@@ -196,7 +206,7 @@ pub extern "system" fn Java_nz_scuttlebutt_tremolavossbol_tssb_IrohBridge_getNod
 /*
 /// JNI: IrohBridge.sendMessage(data: byte[]): Boolean
 #[no_mangle]
-pub extern "system" fn Java_nz_scuttlebutt_tremolavossbol_tssb_IrohBridge_sendMessage(
+pub extern "system" fn Java_nz_scuttlebutt_tremolavossbol_tssb_iroh_IrohBridge_sendMessage(
     env: JNIEnv,
     _class: JClass,
     msg_bytes: jbyteArray,
@@ -234,7 +244,7 @@ pub extern "system" fn Java_nz_scuttlebutt_tremolavossbol_tssb_IrohBridge_sendMe
 
 /// JNI: IrohBridge.registerListener(listener: IrohMessageListener): Boolean
 #[no_mangle]
-pub extern "system" fn Java_nz_scuttlebutt_tremolavossbol_tssb_IrohBridge_registerListener(
+pub extern "system" fn Java_nz_scuttlebutt_tremolavossbol_tssb_iroh_IrohBridge_registerListener(
     mut env: JNIEnv,
     _class: JClass,
     listener: JObject,
@@ -254,7 +264,7 @@ pub extern "system" fn Java_nz_scuttlebutt_tremolavossbol_tssb_IrohBridge_regist
 
 
 #[no_mangle]
-pub extern "system" fn Java_nz_scuttlebutt_tremolavossbol_tssb_IrohBridge_sendPacket(
+pub extern "system" fn Java_nz_scuttlebutt_tremolavossbol_tssb_iroh_IrohBridge_sendPacket(
     env: JNIEnv,
     _class: JClass,
     data: jbyteArray,

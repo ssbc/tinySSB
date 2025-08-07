@@ -151,7 +151,7 @@ pub struct Chat {
 }
 
 impl Chat {
-    pub const ALPN: &[u8] = b"iroh/example-chat/0";
+    pub const ALPN: &[u8] = b"tinySSB/peering/0";
 
     pub fn new(event_sender: broadcast::Sender<AcceptEvent> /*, endpoint: Endpoint*/) -> Self {
         Self { event_sender /*, endpoint*/ }
