@@ -624,15 +624,15 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
                 //decode the entry using Bipf decode
                 val decodedEntry = entry?.let { Bipf.decode(it) }
 
-                //get bytes from the decoded entry
-                val entryBytes = decodedEntry?.let {it.getBytes()}
+                if (decodedEntry != null && decodedEntry.typ == BIPF_BYTES) {
+                    //get bytes from the decoded entry
+                    val entryBytes = decodedEntry.getBytes()
 
-                //decrypt the bytes to get the clear text
-                val clear = entryBytes?.let { act.idStore.identity.decryptPrivateMessage(it) }
+                    //decrypt the bytes to get the clear text
+                    val clear = entryBytes.let { act.idStore.identity.decryptPrivateMessage(it) }
 
-                val entryType = clear?.let { getFromEntry(it, 0) }
-                if (entryType == "DEL") {
-                    if (clear is ByteArray) {
+                    val entryType = clear?.let { getFromEntry(it, 0) }
+                    if (entryType == "DEL") {
                         val contactID = getFromEntry(clear, 1)
                         val deleted = getFromEntry(clear, 2)
                         Log.d("readContactDeleted", "Contact ID: $contactID, Deleted: $deleted")
