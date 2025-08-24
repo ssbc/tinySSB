@@ -24,6 +24,7 @@ import android.view.Window
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.view.ViewCompat
@@ -37,6 +38,8 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.google.zxing.integration.android.IntentIntegrator
 import nz.scuttlebutt.tremolavossbol.crypto.IdStore
+import nz.scuttlebutt.tremolavossbol.miniapps.MiniAppPlugin
+import nz.scuttlebutt.tremolavossbol.miniapps.PluginLoader
 import nz.scuttlebutt.tremolavossbol.tssb.Demux
 import nz.scuttlebutt.tremolavossbol.tssb.GOset
 import nz.scuttlebutt.tremolavossbol.tssb.IO
@@ -81,7 +84,8 @@ class MainActivity : Activity() {
     var broadcastReceiver: BroadcastReceiver? = null
     var isWifiConnected = false
     var ble_event_listener: BluetoothEventListener? = null
-
+    val plugins = mutableListOf<MiniAppPlugin>()    // Mutable list to hold MiniAppPlugin instances.
+    var miniAppDirectory: File? = null
     /*
     var broadcast_socket: DatagramSocket? = null
     var server_socket: ServerSocket? = null
@@ -151,6 +155,7 @@ class MainActivity : Activity() {
         wai = WebAppInterface(this, webView)
         // upgrades repo filesystem if necessary
         tinyRepo.upgrade_repo()
+        createMiniAppsDirectory()
         tinyIO = IO(this, wai)
         tinyGoset._include_key(idStore.identity.verifyKey) // make sure our local key is in
         tinyRepo.load()
@@ -165,7 +170,43 @@ class MainActivity : Activity() {
         webView.settings.javaScriptEnabled = true
         webView.settings.domStorageEnabled = true
 
-        webView.loadUrl("https://appassets.androidplatform.net/assets/web/tremola.html")
+        // Create an instance of PluginLoader, passing the current activity and WebView
+        val pluginLoader = PluginLoader(this, webView)
+
+        // Load plugins using PluginLoader and add them to the plugins list
+        plugins.addAll(pluginLoader.loadPlugins())
+
+        // Set a WebViewClient to ensure the HTML scripts and content are injected only
+        // after the tremola.html file is loaded
+        webView.webViewClient = object : WebViewClient() {
+            override fun onPageFinished(view: WebView?, url: String?) {
+                super.onPageFinished(view, url)
+
+                // Initialize each plugin after the HTML page has fully loaded
+                //plugins.forEach { it.initialize() }
+                //check all miniapps in the folder
+                Log.d("miniAppCheck", "Checking for miniApps")
+
+                //Define miniApp directory from root
+                val assetManager = assets
+                //list all files in the miniAppsDirectory
+                val miniApps = miniAppDirectory?.listFiles()
+                miniApps?.forEach { miniApp ->
+                    val relativeName = miniApp.name
+                    Log.d("miniAppCheck", "Found miniApp: $relativeName")
+                    val manifestFile = File(miniApp, "manifest.json")
+                    if (manifestFile.exists()) {
+                        val manifest = manifestFile.bufferedReader().use { it.readText() }
+                        MiniAppPlugin(this@MainActivity, webView).initialize(manifest)
+                    } else {
+                        Log.e("miniAppCheck", "manifest.json not found for miniApp: $relativeName")
+                    }
+                }
+
+            }
+        }
+
+        webView.loadUrl("file:///android_asset/web/tremola.html")
 
         broadcastReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
@@ -271,6 +312,14 @@ class MainActivity : Activity() {
 
         scheduleWorker(this)
 
+    }
+
+    fun createMiniAppsDirectory() {
+        var miniAppsDir = File(dataDir, "miniApps")
+        if (!miniAppsDir.exists()) {
+            miniAppsDir.mkdirs()
+        }
+        miniAppDirectory = miniAppsDir
     }
 
     fun scheduleWorker(context: Context) {

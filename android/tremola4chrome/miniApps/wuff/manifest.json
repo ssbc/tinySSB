@@ -1,0 +1,25 @@
+{
+    "name": "Wuff",
+    "description": "Wuff is a simple application that allows users to express their emotions through a button click.",
+    "icon": "assets/wuff.svg",
+    "init": "initWuff()",
+    "id": "wuff",
+    "cssFile": "resources/wuff.css",
+    "scripts": [
+      "src/wuff.js"
+    ],
+    "htmlFile": "resources/wuff.html",
+    "scenario": {
+        "wuff-screen": {
+            "menu": {
+                "Settings": "menu_settings",
+                "About": "menu_about"
+            },
+            "display": [
+              "div:back",
+              "core",
+              "div:wuff-screen"
+            ]
+        }
+    }
+  }

@@ -1,0 +1,27 @@
+#div\:wuff-screen {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 12px;
+    padding: 24px;
+    text-align: center;
+    width: 30vw;
+  }
+
+  #wuff-title {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 12px;
+  }
+
+  #div\:wuff-prompt {
+    font-size: 16px;
+    opacity: 0;
+    transition: opacity 0.5s ease;
+    margin-bottom: 16px;
+  }
+
+  #div\:wuff-screen button {
+    color: black;
+  }

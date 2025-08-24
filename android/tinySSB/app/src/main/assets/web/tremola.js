@@ -152,16 +152,24 @@ function edit_confirmed() {
             renameItem(curr_board, curr_rename_item, val)
         }
         item_menu(curr_rename_item)
-    }
+    } else {
+          console.log(currentMiniAppID);
+          if (curr_scenario == 'customApp') {
+              backend(currentMiniAppID + ":" + "edit_confirmed")
+          } else {
+              backend("edit_confirmed") // AVR
+          }
+      }
 }
 
 function members_confirmed() {
     if (prev_scenario == 'chats') {
         new_conversation()
-    } else if (prev_scenario == 'kanban') {
-        menu_new_board_name()
-    } else if (prev_scenario == 'tictactoe-list') {
-        ttt_new_game_confirmed()
+    } else {
+        if (prev_scenario == 'customApp') {
+            backend(currentMiniAppID + ":members_confirmed")
+        }
+        backend(prev_scenario + ":members_confirmed") // AVR
     }
 }
 

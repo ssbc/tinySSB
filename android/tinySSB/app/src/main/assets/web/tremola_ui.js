@@ -4,12 +4,15 @@
 
 var overlayIsActive = false;
 
+var currentMiniAppID = null; // Keeps track of the active MiniApp
+var miniApps = {}; // Stores dynamically loaded MiniApps
+
 var display_or_not = [
     'div:qr', 'div:back', 'core', 'plus',
     'lst:chats', 'lst:prod', 'lst:games', 'lst:contacts', 'lst:members',
     'div:posts', 'lst:kanban', 'div:board',
     'div:footer', 'div:textarea', 'div:confirm-members', 'div:settings',
-    'div:tictactoe_list', 'div:tictactoe_board'
+    'div:tictactoe_list', 'div:tictactoe_board', 'lst:miniapps'
 ];
 
 var prev_scenario = 'chats';
@@ -26,9 +29,8 @@ var scenarioDisplay = {
     'settings': ['div:back', 'core', 'div:settings'],
     'kanban': ['div:back', 'core', 'lst:kanban', 'plus'], // KANBAN
     'board': ['div:back', 'core', 'div:board'], // KANBAN
-    'tictactoe-list': ['div:back', 'core', 'div:tictactoe_list', 'plus'],
-    'tictactoe-board': ['div:back', 'core', 'div:tictactoe_board'],
-}
+    'miniapps': ['div:qr', 'core', 'lst:miniapps', 'div:footer']
+    }
 
 var scenarioMenu = {
     'chats': [
@@ -57,6 +59,8 @@ var scenarioMenu = {
 
     'settings': [],
 
+    'miniapps': [],
+
     'kanban': [
         // ['New Kanban board', 'menu_new_board'], // no redundant functionality
         ['Invitations', 'menu_board_invitations'],
@@ -71,13 +75,6 @@ var scenarioMenu = {
         ['Leave', 'leave_curr_board'],
         ['(un)Forget', 'board_toggle_forget'],
         ['Debug', 'ui_debug']],
-
-    'tictactoe-list': [
-        ['Settings', 'menu_settings'],
-        ['About', 'menu_about']],
-    'tictactoe-board': [
-        ['Settings', 'menu_settings'],
-        ['About', 'menu_about']],
 }
 
 const QR_SCAN_TARGET = {
@@ -89,67 +86,127 @@ var curr_qr_scan_target = QR_SCAN_TARGET.ADD_CONTACT
 var FEED_CNT, ENTRY_CNT, CHUNK_CNT, NOCHUNK_CNT;
 
 function onBackPressed() {
+    console.log('curr_scenario: ' + curr_scenario)
+    console.log('prev_scenario: ' + prev_scenario)
     if (overlayIsActive) {
         closeOverlay();
         return;
     }
-    if (curr_scenario == 'settings') {
-         document.getElementById('div:settings').style.display = 'none';
-         document.getElementById('core').style.display = null;
-         document.getElementById('div:footer').style.display = null;
-         setScenario(prev_scenario);
-         return;
+    console.log("Back button pressed");
+    console.log("Current MiniApp ID:", currentMiniAppID);
+    if (curr_scenario === 'customApp') {
+        console.log("Back button pressed inside MiniApp:", currentMiniAppID);
+        backend(currentMiniAppID + ":onBackPressed"); // Send MiniApp ID to Kotlin
+        return;
     }
-    // console.log('back ' + curr_scenario);
-    if (curr_scenario == 'chats')
-        backend("onBackPressed");
-    else if (curr_scenario == 'members')
-        setScenario(prev_scenario)
-    else if (['productivity', 'games', 'contacts'].indexOf(curr_scenario) >= 0)
-        setScenario('chats')
-    else if (['kanban'].indexOf(curr_scenario) >= 0) {
-        setScenario('productivity')
-        prev_scenario = 'chats'
-    } else if (curr_scenario == 'posts')
-        setScenario('chats')
-    else if (curr_scenario == 'board')
-        setScenario('kanban')
-    else if (curr_scenario == 'tictactoe-list')
-        setScenario('games')
-    else if (curr_scenario == 'tictactoe-board')
-        setScenario('tictactoe-list')
+    if (['chats', 'contacts', 'miniapps'].indexOf(curr_scenario) >= 0) {
+        if (curr_scenario == 'chats')
+            backend("onBackPressed");
+        else
+            setScenario('chats')
+    } else {
+        if (curr_scenario == 'posts' && prev_scenario == 'chats') {
+            setScenario('chats');
+        } else if (curr_scenario == 'posts' && prev_scenario == 'miniapps') {
+            setScenario('miniapps');
+        } else if (curr_scenario == 'members') {
+            console.log("prev: " + prev_scenario);
+            setScenario(prev_scenario);
+        } else if (curr_scenario == 'settings') {
+            document.getElementById('div:settings').style.display = 'none';
+            document.getElementById('core').style.display = null;
+            document.getElementById('div:footer').style.display = null;
+            setScenario(prev_scenario);
+        } else {
+            backend("backPressed");
+        }
+        //setScenario(prev_scenario);
+
+    }
 }
 
 function setScenario(s) {
-    // console.log('setScenario ' + s)
     closeOverlay();
-    var lst = scenarioDisplay[s];
-    if (lst) {
-        // if (s != 'posts' && curr_scenario != "members" && curr_scenario != 'posts') {
-        if (['chats', 'productivity', 'games', 'contacts'].indexOf(curr_scenario) >= 0) {
-            var cl = document.getElementById('btn:' + curr_scenario).classList;
-            cl.toggle('active', false);
-            cl.toggle('passive', true);
+
+    if (s.startsWith('customApp')) {
+        //check if s contains a :
+        if (s.includes(":")) {
+            //split s by :
+            var split = s.split(":");
+            s = split[0];
+            currentMiniAppID = split[1];
         }
-        // console.log(' l: ' + lst)
+        curr_scenario = s;
+    }
+    console.log(curr_scenario);
+
+    if (curr_scenario === 'customApp' && ['chats', 'contacts'].indexOf(s) >= 0) {
+        console.log("Leaving MiniApps section");
+        currentMiniAppID = null; // Reset only if exiting the entire miniapps section
+    }
+
+    if (s == 'customApp') {
+        console.log(currentMiniAppID);
+        //remove every display_or_not element except for the ones associated with the current miniApp
+        let filtered = display_or_not.filter(function (element) {
+            return element.startsWith('div:' + currentMiniAppID) || element.startsWith('lst:' + currentMiniAppID) || element.startsWith('the:' + currentMiniAppID);
+        });
+        console.log("display: " + display_or_not);
+
         display_or_not.forEach(function (d) {
-            // console.log(' l+' + d);
+            let found = false; // Flag to track if a match was found
+
+            for (let key in scenarioDisplay) {
+                console.log("key: " + key);
+                if (filtered.includes('div:' + key)) {
+                    if (scenarioDisplay[key].includes(d)) {
+                        console.log("found: " + d);
+                        document.getElementById(d).style.display = "initial";
+                        found = true; // Mark as found
+                        break; // Exit inner loop
+                    }
+                }
+            }
+
+            if (!found) {
+                console.log("not found: " + d);
+                document.getElementById(d).style.display = 'none';
+            }
+        });
+
+
+    }
+
+    var lst = scenarioDisplay[s];
+    console.log("lst: " + lst);
+    if (lst) {
+        if (['posts', 'chats', 'miniapps', 'contacts'].indexOf(curr_scenario) >= 0) {
+            const cl = document.getElementById('btn:' + curr_scenario)?.classList;
+            if (cl) {
+                console.log("cl scenario: " + curr_scenario);
+                console.log("cl: " + cl);
+                cl.remove('active');
+                cl.add('passive');
+            }
+        }
+
+
+        display_or_not.forEach(function (d) {
             if (lst.indexOf(d) < 0) {
                 document.getElementById(d).style.display = 'none';
             } else {
                 document.getElementById(d).style.display = null;
-                // console.log(' l=' + d);
             }
-        })
-        // console.log('s: ' + s)
-        if (s != "board" && s != '') { // show "tinySSB" by default
-            document.getElementById('tremolaTitle').style.position = null;
-        }
+        });
 
-        if (s == "posts" || s == "settings" || s == "board") {
+        document.getElementById('tremolaTitle').style.position = null;
+
+        if (s == "posts" || s == "settings") {
             document.getElementById('tremolaTitle').style.display = 'none';
             document.getElementById('conversationTitle').style.display = null;
-            document.getElementById('plus').style.display = 'none';
+            if (s == "posts" && curr_scenario != 'posts') {
+                prev_scenario = curr_scenario;
+            }
         } else {
             document.getElementById('tremolaTitle').style.display = null;
             document.getElementById('conversationTitle').style.display = 'none';
@@ -157,90 +214,18 @@ function setScenario(s) {
         if (lst.indexOf('div:qr') >= 0) {
             prev_scenario = s;
         }
-        if (lst.indexOf('div:back') >= 0) { // remember where we came from)
-            prev_scenario = curr_scenario;
-        }
         curr_scenario = s;
-
-        if (['chats', 'productivity', 'games', 'contacts'].indexOf(curr_scenario) >= 0) {
+        if (['chats', 'miniapps', 'contacts'].indexOf(curr_scenario) >= 0) {
             var cl = document.getElementById('btn:' + curr_scenario).classList;
             cl.toggle('active', true);
             cl.toggle('passive', false);
-        }
-        if (s == 'chats') {
-            document.getElementById('tremolaTitle').style.display = null;
-            document.getElementById('conversationTitle').style.display = 'none';
-            /*
-            c.style.display = null;
-            c.innerHTML = "<font size=+1><strong>List of Chat Channels</strong></font><br>Pick or create a channel";
-            */
-        }
-
-        if (['productivity', 'games', 'contacts'].indexOf(s) >= 0) {
-            document.getElementById("tremolaTitle").style.display = 'none';
-            var c = document.getElementById("conversationTitle");
-            c.style.display = null;
-            var t = s.slice(0,1).toUpperCase() + s.slice(1);
-            c.innerHTML = `<font size=+2><strong>${t}</strong></font>`;
-        }
-
-        if (['board','kanban'].indexOf(s) >= 0) // a specific Kanban board: use all space (beyond the footer)
-            document.getElementById('core').style.height = 'calc(100% - 45pt)';
-        else
-            document.getElementById('core').style.height = 'calc(100% - 110pt)';
-
-        if (s == 'kanban') {
-            load_kanban_list();
-
-            document.getElementById("tremolaTitle").style.display = 'none';
-            var c = document.getElementById("conversationTitle");
-            c.style.display = null;
-            c.innerHTML = "<font size=+1><strong>List of Kanban Boards</strong></font><br>Pick or create a board";
-
-            var personalBoardAlreadyExists = false
-            for (var b in tremola.board) {
-                var board = tremola.board[b]
-                if (board.flags.indexOf(FLAG.PERSONAL) >= 0 && board.members.length == 1 && board.members[0] == myId) {
-                    personalBoardAlreadyExists = true
-                    break
-                }
-            }
-            if(!personalBoardAlreadyExists && display_create_personal_board) {
-                menu_create_personal_board()
-            }
-        }
-
-        if (s == 'posts') {
-          setTimeout(function () { // let image rendering (fetching size) take place before we scroll
-              let c = document.getElementById('core');
-              c.scrollTop = c.scrollHeight;
-              let p = document.getElementById('div:posts');
-              p.scrollTop = p.scrollHeight;
-              }, 100);
-        }
-
-        if (s == 'tictactoe-list') {
-            document.getElementById("tremolaTitle").style.display = 'none';
-            var c = document.getElementById("conversationTitle");
-            c.style.display = null;
-            c.innerHTML = "<font size=+1><strong>Tic Tac Toe</strong></font><br>Pick or create a new game";
-            ttt_load_list();
-        }
-        if (s == 'tictactoe-board') {
-            document.getElementById("tremolaTitle").style.display = 'none';
-            var c = document.getElementById("conversationTitle");
-            c.style.display = null;
-            let fed = tremola.tictactoe.active[tremola.tictactoe.current].peer
-            c.innerHTML = `<font size=+1><strong>TTT with ${fid2display(fed)}</strong></font>`;
         }
     }
 }
 
 function btnBridge(e) {
     var e = e.id, m = '';
-    if (['btn:chats', 'btn:contacts', 'btn:games',
-         'btn:posts', 'btn:productivity'].indexOf(e) >= 0) {
-         // console.log('btn', e)
+    if (['btn:posts', 'btn:chats', 'btn:miniapps', 'btn:contacts'].indexOf(e) >= 0) {
         setScenario(e.substring(4));
     }
     if (e == 'btn:menu') {
@@ -361,11 +346,14 @@ function plus_button() {
         menu_new_conversation();
     } else if (curr_scenario == 'contacts') {
         menu_new_contact();
-    } else if (curr_scenario == 'kanban') {
-        menu_new_board();
-    } else if (curr_scenario == 'tictactoe-list') {
-        ttt_new_game();
-    }
+    } else {
+          console.log(currentMiniAppID);
+          if (currentMiniAppID) {
+              backend(currentMiniAppID + ":plus_button");
+          } else {
+              backend(curr_scenario + ":plus_button");
+          }
+      }
 }
 
 function launch_snackbar(txt) {

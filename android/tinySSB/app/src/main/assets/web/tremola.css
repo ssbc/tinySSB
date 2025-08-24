@@ -115,9 +115,13 @@
     width: 100%;
   }
   .buttontext {
-    height: 45pt;
-    padding: 4px 10px 10px 10px;
-  }
+      font-size: small;
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
+      height: 50px;
+      padding: 3px;
+    }
   .item {
     border: none;
     text-align: left;
@@ -646,6 +650,46 @@ input:checked + .slider:before {
   background-color: red;
 }
 
+/* --------------------------------------------------------------------------- */
+/*                                Mini App Menu                                */
+/* --------------------------------------------------------------------------- */
+
+.miniapp_item_div {
+  padding: 0px 5px 10px 5px;
+  margin: 3px 3px 6px 3px;
+}
+
+.miniapp_item_button {
+  overflow: hidden;
+  position: relative;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  background-color: #f9f9f9;
+  padding: 10px;
+  width: 100%;
+  text-align: left;
+  display: flex;
+  align-items: center;
+}
+
+.miniapp_icon {
+  width: 50px;
+  height: 50px;
+  margin-right: 10px;
+}
+
+.miniapp_text_container {
+  display: flex;
+  flex-direction: column;
+}
+
+.miniapp_name {
+  font-weight: bold;
+}
+
+.miniapp_description {
+  font-size: small;
+}
 
 
 /* eof */
