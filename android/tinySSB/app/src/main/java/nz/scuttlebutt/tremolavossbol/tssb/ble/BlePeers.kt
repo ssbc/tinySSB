@@ -52,7 +52,7 @@ class BlePeers(val act: MainActivity) {
     var isScanning = false
 
     private val scanSettings = ScanSettings.Builder()
-        .setScanMode(ScanSettings.SCAN_MODE_LOW_POWER)
+        .setScanMode(ScanSettings.SCAN_MODE_BALANCED)
         .setMatchMode(MATCH_MODE_STICKY)
         .build()
 
@@ -524,6 +524,7 @@ class BlePeers(val act: MainActivity) {
         val name = deviceToShortName(device)
 
         // Log.d("BlePeers", "ble - Connected devices: $connectedDevices, Peers: $peers, Server: ${bluetoothManager.getConnectedDevices(BluetoothProfile.GATT)}")
+        // Log.d("BlePeers", "ble - notify: ${device.address} ${name}")
         if (connectedDevices.any { it.address == device.address} && peers.keys.any { it.address == device.address }) {
             // Log.d("BlePeers", "ble - device online: ${device}")
             act.wai.eval("b2f_local_peer(\"ble\", \"${device.address}\", \"${name}\", \"${status}\")")
