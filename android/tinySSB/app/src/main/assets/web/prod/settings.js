@@ -159,10 +159,13 @@ function settings_reset_ui() {
 }
 
 function settings_clear_other_feeds() {
-    backend("wipe:others")
-    closeOverlay()
-    settings_reset_ui()
-
+    closeOverlay();
+    resetTremola();
+    setScenario('chats');
+    menu_redraw();
+    launch_snackbar("reloading all feeds");
+    backend("wipe:others");
+    backend("reset");
 }
 
 // eof

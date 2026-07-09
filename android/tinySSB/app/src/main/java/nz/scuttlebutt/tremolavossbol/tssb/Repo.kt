@@ -122,6 +122,7 @@ class Repo(val context: MainActivity) {
         // Check if the replica was found
         if (replicaIndex != -1) {
             replicas.removeAt(replicaIndex)
+            delete_feed(fid)
             Log.d("repo", "Replica with fid ${fid.toHex()} deleted.")
             return true
         } else {

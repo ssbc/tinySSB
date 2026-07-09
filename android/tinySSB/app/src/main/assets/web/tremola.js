@@ -631,12 +631,20 @@ function b2f_new_event(e) { // incoming SSB log event: we get map with three ent
             if (!(ch.timeline instanceof Timeline))
                 ch.timeline = Timeline.fromJSON(ch.timeline)
 
+            var ESID = encodeScuttlebuttId(a[2]);
+            if (!(ESID in tremola.contacts)) {
+                var shortID = id2b32(ESID);
+                console.log("XX", a[2], ESID, shortID)
+                tremola.contacts[ESID] = {
+                    "alias": shortID, "initial": shortID.substring(0, 1).toUpperCase(),
+                    "color": colors[Math.floor(colors.length * Math.random())],
+                    "iam": "", "forgotten": false
+                }
+            }
             // console.log("new post 1 ", ch)
             if (!(e.header.ref in ch.posts)) { // new post
-                var a = e.confid;
-
                 //get alias from fid
-                var alias = tremola.contacts[encodeScuttlebuttId(a[2])].alias;
+                var alias = tremola.contacts[ESID].alias;
                 var p = {
                     "key": e.header.ref, "from": e.header.fid, "body": "Set contact: " + alias + "'s trust level to " + a[3],
                     "when": a[4] * 1000, "prev": a[1]
@@ -655,6 +663,8 @@ function b2f_new_event(e) { // incoming SSB log event: we get map with three ent
             }
             // if (curr_scenario == "chats") // the updated conversation could bubble up
             load_chat_list();
+            load_contact_list();
+            reloadChatTrustLevels();
         }
         if (a[0] == 'TAV')
             rcpts = a[5];
@@ -744,10 +754,12 @@ function b2f_new_contact(fid, trustLevel="untrusted", alias="") {
     if (alias == "") {
         alias = id2b32(fid);
     }
-    tremola.contacts[fid] = {
-        "alias": alias, "initial": alias.substring(0, 1).toUpperCase(),
-        "color": colors[Math.floor(colors.length * Math.random())],
-        "iam": "", "forgotten": false, "trusted": trusted
+    if (!(fid in tremola.contacts)) {
+        tremola.contacts[fid] = {
+            "alias": alias, "initial": alias.substring(0, 1).toUpperCase(),
+            "color": colors[Math.floor(colors.length * Math.random())],
+            "iam": "", "forgotten": false, "trusted": trusted
+            };
     };
     backend("contacts:checkDeleted " + decodeScuttlebuttId(fid));
     console.log(tremola.contacts[fid]);

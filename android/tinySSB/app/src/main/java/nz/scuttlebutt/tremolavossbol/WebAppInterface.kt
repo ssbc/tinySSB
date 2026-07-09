@@ -118,6 +118,11 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
             "restream" -> {
                 eval("restream = true")
                 for (fid in act.tinyRepo.listFeeds()) {
+                    Log.d("wai", "recreating contact ${fid.toHex()}")
+                    if (!fid.contentEquals(act.idStore.identity.verifyKey))
+                        eval("b2f_new_contact(\"@${fid.toBase64()}.ed25519\", \"untrusted\")")
+                }
+                for (fid in act.tinyRepo.listFeeds()) {
                     Log.d("wai", "restreaming ${fid.toHex()}")
                     var i = 1
                     while (true) {

@@ -300,6 +300,7 @@ function load_post_item(p) { // { 'key', 'from', 'when', 'body', 'to' (if group 
 }
 
 function load_chat(nm) {
+    console.log("load_chat() for ", nm);
     var ch, pl, e;
     ch = tremola.chats[nm]
     if (ch.timeline == null)
@@ -492,6 +493,7 @@ function new_conversation() {
 }
 
 function getUnreadCnt(nm) {
+    console.log("XX", nm);
     var ch = tremola.chats[nm];
     return Object.keys(ch.posts).length - ch.lastRead;
 }

@@ -35,9 +35,11 @@ function load_contact_list() {
     document.getElementById("lst:contacts-trustLevelZero").innerHTML = '';
     document.getElementById("lst:contacts-trustLevelOne").innerHTML = '';
     document.getElementById("lst:contacts-trustLevelTwo").innerHTML = '';
-    for (var id in tremola.contacts)
+    for (var id in tremola.contacts) {
+        console.log("contacts", id);
         if (!tremola.contacts[id].forgotten)
             load_contact_item([id, tremola.contacts[id]]);
+    }
     if (!tremola.settings.hide_forgotten_contacts)
         for (var id in tremola.contacts) {
             var c = tremola.contacts[id]
@@ -57,7 +59,7 @@ function load_contact_item(c) { // [ id, { "alias": "thealias", "initial": "T", 
         c[1]["color"] = colors[Math.floor(colors.length * Math.random())];
         persist();
     }
-    console.log("load_c_i", JSON.stringify(c[1]))
+    // console.log("load_c_i", JSON.stringify(c[1]))
     bg = c[1].forgotten ? ' gray' : ' light';
     row = "<button class=contact_picture style='margin-right: 0.75em; background: " + c[1].color + ";'>" + c[1].initial + "</button>";
     row += "<button class='chat_item_button" + bg + "' style='overflow: hidden; width: calc(100% - 4em);' onclick='show_contact_details(\"" + c[0] + "\");'>";
@@ -370,8 +372,15 @@ function deleteContact(contactID) {
     //convert the contactID to scuttlebutt format
     contactID = encodeScuttlebuttId(contactID);
     //remove the contact from the contacts list
-    delete tremola.contacts[contactID];
-    persist();
+    if (tremola == undefined)
+        tremola = {};
+    if (!Object.hasOwn(tremola, 'contacts'))
+        tremola.contacts = {};
+    if (contactID in tremola.contacts) {
+        console.log("going to delete", contactID, "in", tremola.contacts);
+        delete tremola.contacts[contactID];
+        persist();
+    }
     closeOverlay();
     load_contact_list();
     launch_snackbar("Contact deleted successfully");
