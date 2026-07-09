@@ -41,6 +41,7 @@ import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_DLV
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_NEWTRUSTED
 import nz.scuttlebutt.tremolavossbol.utils.Constants.Companion.TINYSSB_APP_TICTACTOE
 import okio.ByteString.Companion.decodeHex
+import java.io.File
 
 
 // pt 3 in https://betterprogramming.pub/5-android-webview-secrets-you-probably-didnt-know-b23f8a8b5a0c
@@ -121,7 +122,7 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
                     var i = 1
                     while (true) {
                         val r = act.tinyRepo.fid2replica(fid)
-                        if(r == null)
+                        if (r == null)
                             break
                         val payload = r.read_content(i)
                         val mid = r.get_mid(i)
@@ -137,7 +138,15 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
                 for (fid in act.tinyRepo.listFeeds()) {
                     if (fid.contentEquals(act.idStore.identity.verifyKey))
                         continue
-                    act.tinyRepo.delete_feed(fid)
+                    act.tinyRepo.delete_replica(fid)
+                }
+                var file = File("killlist.txt")
+                if (file.exists() && file.isFile) {
+                    file.delete()
+                }
+                var = File("contacts.json")
+                if (file.exists() && file.isFile) {
+                    file.delete()
                 }
             }
             "qrscan.init" -> {
@@ -172,6 +181,14 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
                 Runtime.getRuntime().exit(0)
             }
             "wipe" -> {
+                val file = File("killlist.txt")
+                if (file.exists() && file.isFile) {
+                    file.delete()
+                }
+                var = File("contacts.json")
+                if (file.exists() && file.isFile) {
+                    file.delete()
+                }
                 act.settings!!.resetToDefault()
                 act.idStore.setNewIdentity(null) // creates new identity
                 act.tinyRepo.reset()
@@ -363,7 +380,6 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
     }
 
     fun deleteContact(contactID: String) {
-        act.tinyRepo.delete_feed(contactID.decodeHex().toByteArray())
         act.tinyGoset.remove_key(contactID.decodeHex().toByteArray())
         act.tinyRepo.delete_replica(contactID.decodeHex().toByteArray())
         createContactDeletedEntry(contactID)
@@ -422,15 +438,15 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
         val fid = fidString.decodeHex()
         val userFeed = act.tinyRepo.fid2replica(act.idStore.identity.verifyKey)
         val lastSeq = userFeed?.state?.max_seq
-        Log.d("trust level: ", "test1")
-        Log.d("trust level: ", "last seq: " + lastSeq)
+        // Log.d("trust level: ", "test1")
+        // Log.d("trust level: ", "last seq: " + lastSeq)
         if (lastSeq != null) {
-            Log.d("trust level: ", "test2")
+            // Log.d("trust level: ", "test2")
             for (i in lastSeq downTo 1) {
                 var entry = userFeed.read_content(lastSeq)
                 val entryType = entry?.let { getFromEntry(it, 0) }
-                Log.d("trust level: ", "test3")
-                Log.d("trust level: ", entryType.toString())
+                // Log.d("trust level: ", "test3")
+                // Log.d("trust level: ", entryType.toString())
                 if (entryType == "TRT") {
                     Log.d("trust level: ", "test4")
                     if (entry is ByteArray) {
@@ -440,10 +456,10 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
                         if (contactID.toString() == fidString) {
                             Log.d("contactTrustLevel", trustLevel.toString())
                             if (trustLevel == "Trusted") {
-                                Log.d("contactTrust", "Trusted")
+                                Log.d("contactTrust", "$fidString trusted")
                                 return 1
                             } else if (trustLevel == "Untrusted") {
-                                Log.d("contactTrust", "Untrusted")
+                                Log.d("contactTrust", "$fidString untrusted")
                                 return 0
                             }
                         }
