@@ -30,7 +30,7 @@ class PlayActivity: AppCompatActivity(), AdapterView.OnItemSelectedListener {
     private lateinit var runnable : Runnable
     private lateinit var handler : Handler
     private lateinit var mediaPlayer : Codec2Player
-    private var c2mode = Codec2.CODEC2_MODE_1300
+    private var c2mode = Codec2.CODEC2_MODE_1400
     private var c2data : ByteArray? = null
     private var pcmData : ShortArray? = null
     private var pos2mode : IntArray = intArrayOf(0,1,2,3,4,5,8,10)
