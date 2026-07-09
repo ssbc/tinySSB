@@ -260,6 +260,7 @@ class Node(val context: MainActivity) {
 
                 context.wai.eval("b2f_update_progress($min_want_entries, $old_min_entries, " +
                                      "$old_want_entries, $curr_want_entries, $max_want_entries, " +
+                                     "${context.tinyGoset.keys.size}, " +
                                      "${context.tinyRepo.get_feed_cnt()}, " +
                                      "${context.tinyRepo.get_entry_cnt()}, " +
                                      "${context.tinyRepo.get_chunk_cnt()}, " +

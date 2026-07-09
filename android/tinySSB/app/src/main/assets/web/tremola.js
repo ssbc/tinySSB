@@ -409,10 +409,10 @@ function b2f_ble_disabled() {
 }
 
 function b2f_update_progress(min_entries, old_min_entries, old_want_entries,
-                             curr_want_entries, max_entries, f_cnt, e_cnt, c_cnt, r_cnt) {
+                             curr_want_entries, max_entries, g_cnt, f_cnt, e_cnt, c_cnt, r_cnt) {
     refresh_connection_progressbar(min_entries, old_min_entries, old_want_entries,
                                    curr_want_entries, max_entries,
-                                   f_cnt, e_cnt, c_cnt, r_cnt)
+                                   g_cnt, f_cnt, e_cnt, c_cnt, r_cnt)
 }
 
 function b2f_local_peer(type, identifier, displayname, status) {

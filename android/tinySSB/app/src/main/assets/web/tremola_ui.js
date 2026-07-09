@@ -86,7 +86,7 @@ const QR_SCAN_TARGET = {
 }
 
 var curr_qr_scan_target = QR_SCAN_TARGET.ADD_CONTACT
-var FEED_CNT, ENTRY_CNT, CHUNK_CNT, NOCHUNK_CNT;
+var GOS_CNT, FEED_CNT, ENTRY_CNT, CHUNK_CNT, NOCHUNK_CNT;
 
 function onBackPressed() {
     if (overlayIsActive) {
@@ -633,7 +633,7 @@ function refresh_chunk_progressbar(remaining, arrived) {
 
 function refresh_connection_progressbar(min_entries, old_min_entries, old_want_entries,
                                         curr_want_entries, max_entries,
-                                        f_cnt, e_cnt, c_cnt, r_cnt) {
+                                        g_cnt, f_cnt, e_cnt, c_cnt, r_cnt) {
     if (tremola.settings['simple_mode'])
         return;
     /*
@@ -669,6 +669,7 @@ function refresh_connection_progressbar(min_entries, old_min_entries, old_want_e
         document.getElementById('connection-overlay-progressbar-label-gift').textContent = "Ahead - " + (curr_want_entries - min_entries) + " entries left"
     }
 
+    GOS_CNT = g_cnt;
     FEED_CNT  = f_cnt;
     ENTRY_CNT = e_cnt;
     CHUNK_CNT = c_cnt;
@@ -677,7 +678,7 @@ function refresh_connection_progressbar(min_entries, old_min_entries, old_want_e
 }
 
 function show_stats(){
-    document.getElementById('connection-overlay-stats').innerHTML = `F=${FEED_CNT} E=${ENTRY_CNT} C=${CHUNK_CNT}/${CHUNK_CNT+NOCHUNK_CNT}`
+    document.getElementById('connection-overlay-stats').innerHTML = `G=${GOS_CNT} F=${FEED_CNT} E=${ENTRY_CNT} C=${CHUNK_CNT}/${CHUNK_CNT+NOCHUNK_CNT}`
 }
 
 function show_geo_location(locPlus) {
