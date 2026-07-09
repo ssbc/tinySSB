@@ -87,7 +87,7 @@ function ttt_load_board(nm) {
     else if (g.close_reason == ttt_ilost)
       m = 'I loose ! 🙁';
     else
-      m = g.close_reason.slice(1,g.close_reason.length-1);
+      m = "Closed " + g.close_reason; // .slice(1,g.close_reason.length-1);
     t.innerHTML = `<font size=+2 color=red><strong>${m}</strong></font>`
   }
   let f = document.getElementById('ttt_footer')
