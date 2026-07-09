@@ -144,7 +144,7 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
                 if (file.exists() && file.isFile) {
                     file.delete()
                 }
-                var = File("contacts.json")
+                file = File("contacts.json")
                 if (file.exists() && file.isFile) {
                     file.delete()
                 }
@@ -181,11 +181,11 @@ class WebAppInterface(val act: MainActivity, val webView: WebView) {
                 Runtime.getRuntime().exit(0)
             }
             "wipe" -> {
-                val file = File("killlist.txt")
+                var file = File("killlist.txt")
                 if (file.exists() && file.isFile) {
                     file.delete()
                 }
-                var = File("contacts.json")
+                file = File("contacts.json")
                 if (file.exists() && file.isFile) {
                     file.delete()
                 }
